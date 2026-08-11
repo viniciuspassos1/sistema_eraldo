@@ -1,30 +1,75 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
-import { Bot, Send, FileSearch } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Bot, Send, FileSearch, Briefcase, MessageSquareText, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { aiAnswers, fallbackAnswer } from '../mocks/aiKnowledge';
+import { communicationAnswers, communicationFallback } from '../mocks/communicationKnowledge';
 import type { ChatMessage } from '../types';
 
-const EXAMPLES = [
-  'Quando são minhas próximas férias?',
-  'Quais audiências tenho amanhã?',
-  'Qual o link do TJBA?',
-  'Quem está de férias este mês?',
-  'Qual documento fala sobre atendimento?',
-];
-
-function answerFor(question: string): { texto: string; fonte?: string } {
-  const q = question.toLowerCase();
-  const match = aiAnswers.find((a) => a.keywords.some((k) => q.includes(k)));
-  if (match) return { texto: match.resposta, fonte: match.fonte };
-  return { texto: fallbackAnswer };
+interface AssistantConfig {
+  id: string;
+  label: string;
+  descricao: string;
+  icon: LucideIcon;
+  examples: string[];
+  answerFor: (question: string) => { texto: string; fonte?: string };
 }
+
+function buildAnswerFn(
+  base: typeof aiAnswers,
+  fallback: string
+): AssistantConfig['answerFor'] {
+  return (question: string) => {
+    const q = question.toLowerCase();
+    const match = base.find((a) => a.keywords.some((k) => q.includes(k)));
+    if (match) return { texto: match.resposta, fonte: match.fonte };
+    return { texto: fallback };
+  };
+}
+
+const ASSISTANTS: AssistantConfig[] = [
+  {
+    id: 'geral',
+    label: 'Processos Gerais',
+    descricao: 'Consulta a base de conhecimento, documentos, agenda, audiências, férias e funcionários.',
+    icon: Briefcase,
+    examples: [
+      'Quando são minhas próximas férias?',
+      'Quais audiências tenho amanhã?',
+      'Qual o link do TJBA?',
+      'Quem está de férias este mês?',
+      'Qual documento fala sobre atendimento?',
+    ],
+    answerFor: buildAnswerFn(aiAnswers, fallbackAnswer),
+  },
+  {
+    id: 'comunicacao',
+    label: 'Comunicação',
+    descricao: 'Ajuda a organizar avisos, e-mails e respostas para deixar a comunicação mais clara e objetiva.',
+    icon: MessageSquareText,
+    examples: [
+      'Como escrever um aviso sobre mudança de horário?',
+      'Modelo para comunicar um adiamento de audiência',
+      'Resposta educada para reclamação de cliente',
+      'Como deixar este texto mais objetivo?',
+      'Estrutura de e-mail para cliente',
+    ],
+    answerFor: buildAnswerFn(communicationAnswers, communicationFallback),
+  },
+];
 
 export function AssistenteIA() {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [activeId, setActiveId] = useState(ASSISTANTS[0].id);
+  const [messagesByTab, setMessagesByTab] = useState<Record<string, ChatMessage[]>>(
+    Object.fromEntries(ASSISTANTS.map((a) => [a.id, []]))
+  );
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const active = ASSISTANTS.find((a) => a.id === activeId)!;
+  const messages = messagesByTab[activeId];
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -40,13 +85,13 @@ export function AssistenteIA() {
       texto,
       data: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessagesByTab((prev) => ({ ...prev, [activeId]: [...prev[activeId], userMsg] }));
     setInput('');
     setThinking(true);
 
     await new Promise((r) => setTimeout(r, 500));
 
-    const { texto: resposta, fonte } = answerFor(texto);
+    const { texto: resposta, fonte } = active.answerFor(texto);
     const aiMsg: ChatMessage = {
       id: crypto.randomUUID(),
       autor: 'ia',
@@ -54,7 +99,7 @@ export function AssistenteIA() {
       fonte,
       data: new Date().toISOString(),
     };
-    setMessages((prev) => [...prev, aiMsg]);
+    setMessagesByTab((prev) => ({ ...prev, [activeId]: [...prev[activeId], aiMsg] }));
     setThinking(false);
   }
 
@@ -69,12 +114,35 @@ export function AssistenteIA() {
         <h1 className="text-xl font-semibold text-navy flex items-center gap-2">
           <Bot className="w-5 h-5 text-gold" /> Assistente do Escritório
         </h1>
-        <p className="text-text-secondary text-sm mt-1">
-          Consulta a base de conhecimento, documentos, agenda, audiências, férias e funcionários.
-        </p>
+        <p className="text-text-secondary text-sm mt-1">{active.descricao}</p>
       </div>
 
-      <div className="flex-1 bg-white border border-border rounded-xl shadow-soft flex flex-col overflow-hidden">
+      <div className="flex gap-1 border-b border-border mb-0">
+        {ASSISTANTS.map((a) => {
+          const isActive = a.id === activeId;
+          return (
+            <button
+              key={a.id}
+              onClick={() => setActiveId(a.id)}
+              className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                isActive ? 'text-navy' : 'text-text-secondary hover:text-navy'
+              }`}
+            >
+              <a.icon className="w-4 h-4" strokeWidth={1.75} />
+              {a.label}
+              {isActive && (
+                <motion.span
+                  layoutId="assistente-tab-indicator"
+                  className="absolute left-0 right-0 -bottom-px h-0.5 bg-gold"
+                  transition={{ type: 'spring', stiffness: 500, damping: 40, mass: 0.6 }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex-1 bg-white border border-t-0 border-border rounded-b-xl shadow-soft flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {messages.length === 0 && (
             <div>
@@ -83,12 +151,12 @@ export function AssistenteIA() {
                   <Bot className="w-4 h-4 text-gold" />
                 </div>
                 <div className="bg-cream rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm text-navy max-w-md">
-                  Olá, {user?.nome.split(' ')[0]}. Como posso ajudar?
+                  Olá, {user?.nome.split(' ')[0]}. Como posso ajudar com {active.label.toLowerCase()}?
                 </div>
               </div>
 
               <div className="mt-5 pl-11 flex flex-wrap gap-2">
-                {EXAMPLES.map((ex) => (
+                {active.examples.map((ex) => (
                   <button
                     key={ex}
                     onClick={() => send(ex)}
