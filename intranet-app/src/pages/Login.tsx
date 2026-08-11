@@ -2,7 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, ArrowRight, Scale } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { RotatingWord } from '../components/RotatingWord';
 import logo from '../assets/logo-gold.webp';
+
+const VALORES = ['Respeito', 'Honestidade', 'Ética', 'Justiça', 'Excelência', 'Transparência'];
 
 export function Login() {
   const { login } = useAuth();
@@ -43,11 +46,14 @@ export function Login() {
 
         <div className="relative max-w-lg">
           <p className="font-mono text-[11px] tracking-[0.25em] text-gold/80 mb-6">PORTAL RESTRITO</p>
-          <h1 className="font-serif text-4xl leading-[1.15] text-white">
-            Dignidade, confiança e{' '}
-            <span className="italic text-gold">respeito</span> em cada atendimento.
-          </h1>
-          <p className="text-white/55 text-sm mt-6 leading-relaxed">
+          <h1 className="font-serif text-3xl leading-snug text-white/80">Nossa atuação é baseada em</h1>
+          <div className="h-16 sm:h-[4.5rem] flex items-center">
+            <RotatingWord
+              words={VALORES}
+              className="font-serif text-5xl font-semibold uppercase tracking-wide text-gold"
+            />
+          </div>
+          <p className="text-white/55 text-sm mt-2 leading-relaxed">
             Acesso exclusivo para colaboradores e administradores do escritório Eraldo Júnior Advocacia.
           </p>
 
