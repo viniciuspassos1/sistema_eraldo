@@ -2,6 +2,7 @@
 
 @theme {
   --font-sans: "Inter", "Segoe UI", Arial, Helvetica, sans-serif;
+  --font-serif: "Playfair Display", Georgia, "Times New Roman", serif;
 
   --color-navy: #192742;
   --color-navy-light: #24365a;

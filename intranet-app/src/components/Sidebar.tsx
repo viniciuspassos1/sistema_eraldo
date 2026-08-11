@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { motion } from 'motion/react';
 import { ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 import { navItems } from './navItems';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile }: SidebarProps) {
   const { user } = useAuth();
+  const location = useLocation();
   const isAdmin = user?.perfil === 'ADMINISTRADOR';
 
   const items = navItems.filter((item) => !item.adminOnly || isAdmin);
@@ -21,7 +23,7 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
     <>
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-navy/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-navy/40 z-40 lg:hidden transition-opacity duration-200"
           onClick={onCloseMobile}
           aria-hidden="true"
         />
@@ -29,7 +31,7 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
 
       <aside
         className={cn(
-          'fixed lg:sticky top-0 left-0 h-screen bg-navy text-white flex flex-col z-50 transition-all duration-200',
+          'fixed lg:sticky top-0 left-0 h-screen bg-navy text-white flex flex-col z-50 transition-[width,transform] duration-200 ease-out',
           collapsed ? 'lg:w-[76px]' : 'lg:w-64',
           'w-64',
           mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -44,14 +46,14 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
           )}
           <button
             onClick={onCloseMobile}
-            className="lg:hidden text-white/70 hover:text-white"
+            className="lg:hidden text-white/70 hover:text-white transition-colors"
             aria-label="Fechar menu"
           >
             <X className="w-5 h-5" />
           </button>
           <button
             onClick={onToggleCollapse}
-            className="hidden lg:flex text-white/50 hover:text-white"
+            className="hidden lg:flex text-white/50 hover:text-white transition-colors"
             aria-label="Recolher menu"
           >
             {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
@@ -59,28 +61,37 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {items.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === '/'}
-              onClick={onCloseMobile}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
-                  isActive
-                    ? 'bg-white/10 text-white font-medium'
-                    : 'text-white/65 hover:text-white hover:bg-white/5',
+          {items.map((item) => {
+            const isActive = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === '/'}
+                onClick={onCloseMobile}
+                className={cn(
+                  'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm',
+                  isActive ? 'text-white font-medium' : 'text-white/65 hover:text-white',
                   collapsed && 'lg:justify-center lg:px-2'
-                )
-              }
-              title={collapsed ? item.label : undefined}
-            >
-              <item.icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-              {collapsed && <span className="lg:hidden truncate">{item.label}</span>}
-            </NavLink>
-          ))}
+                )}
+                title={collapsed ? item.label : undefined}
+              >
+                {isActive && (
+                  <motion.span
+                    layoutId="sidebar-active-pill"
+                    className="absolute inset-0 rounded-lg bg-white/10"
+                    transition={{ type: 'spring', stiffness: 500, damping: 40, mass: 0.6 }}
+                  />
+                )}
+                {!isActive && (
+                  <span className="absolute inset-0 rounded-lg bg-white/0 hover:bg-white/5 transition-colors duration-150" />
+                )}
+                <item.icon className="relative w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
+                {!collapsed && <span className="relative truncate">{item.label}</span>}
+                {collapsed && <span className="relative lg:hidden truncate">{item.label}</span>}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="p-3 border-t border-white/10 text-[11px] text-white/35">

@@ -5,7 +5,7 @@ import type { User } from '../types';
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  login: (email: string, senha: string) => Promise<{ ok: boolean; erro?: string }>;
+  login: (email: string, senha: string, manterConectado?: boolean) => Promise<{ ok: boolean; erro?: string }>;
   logout: () => void;
 }
 
@@ -17,7 +17,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(SESSION_KEY);
+    const stored = localStorage.getItem(SESSION_KEY) ?? sessionStorage.getItem(SESSION_KEY);
     if (stored) {
       const found = employees.find((e) => e.id === stored);
       if (found) setUser(found);
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login: AuthContextValue['login'] = async (email, senha) => {
+  const login: AuthContextValue['login'] = async (email, senha, manterConectado = false) => {
     // Autenticação mockada — em produção isso vira uma chamada de API
     // com hash de senha e sessão/JWT emitidos pelo backend.
     await new Promise((r) => setTimeout(r, 350));
@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const emailNormalizado = email.trim().toLowerCase();
     if (emailNormalizado === TEST_CREDENTIAL.email && senha === TEST_CREDENTIAL.senha) {
       const admin = employees.find((e) => e.email === TEST_CREDENTIAL.email)!;
-      sessionStorage.setItem(SESSION_KEY, admin.id);
+      (manterConectado ? localStorage : sessionStorage).setItem(SESSION_KEY, admin.id);
       setUser(admin);
       return { ok: true };
     }
@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
     setUser(null);
   };
 

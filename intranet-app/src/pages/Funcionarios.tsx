@@ -65,7 +65,8 @@ export function Funcionarios() {
           {filtrados.map((f) => (
             <Card
               key={f.id}
-              className="flex items-center gap-4 cursor-pointer hover:border-gold/40"
+              interactive
+              className="flex items-center gap-4"
               onClick={() => navigate(`/funcionarios/${f.id}`)}
             >
               <Avatar nome={f.nome} size="lg" />

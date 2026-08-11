@@ -3,6 +3,7 @@ import { Megaphone } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
+import { useToast } from '../components/Toast';
 import { announcements as seed } from '../mocks/announcements';
 import { formatDate } from '../utils/format';
 
@@ -17,11 +18,14 @@ const prioridadeTone = {
 export function Avisos() {
   const [avisos, setAvisos] = useState(seed);
   const [filtro, setFiltro] = useState<'todos' | 'nao_lidos'>('todos');
+  const { showToast } = useToast();
 
   const visiveis = avisos.filter((a) => filtro === 'todos' || !a.lido);
 
   function marcarLido(id: string) {
+    const aviso = avisos.find((a) => a.id === id);
     setAvisos((prev) => prev.map((a) => (a.id === id ? { ...a, lido: true } : a)));
+    if (aviso && !aviso.lido) showToast('Aviso marcado como lido.');
   }
 
   return (
@@ -55,7 +59,7 @@ export function Avisos() {
       ) : (
         <div className="space-y-3">
           {visiveis.map((a) => (
-            <Card key={a.id} onClick={() => marcarLido(a.id)} className={!a.lido ? 'cursor-pointer border-gold/40' : 'cursor-pointer'}>
+            <Card key={a.id} interactive onClick={() => marcarLido(a.id)} className={!a.lido ? 'border-gold/40' : ''}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">

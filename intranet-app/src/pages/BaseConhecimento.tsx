@@ -58,7 +58,7 @@ export function BaseConhecimento() {
       ) : (
         <div className="space-y-3">
           {filtrados.map((k) => (
-            <Card key={k.id} className="cursor-pointer" onClick={() => setAberto(aberto === k.id ? null : k.id)}>
+            <Card key={k.id} interactive onClick={() => setAberto(aberto === k.id ? null : k.id)}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">

@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Scale } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import logo from '../assets/logo-gold.webp';
 
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [manterConectado, setManterConectado] = useState(false);
   const [showSenha, setShowSenha] = useState(false);
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,7 +18,7 @@ export function Login() {
     e.preventDefault();
     setErro('');
     setLoading(true);
-    const result = await login(email, senha);
+    const result = await login(email, senha, manterConectado);
     setLoading(false);
     if (result.ok) {
       navigate('/');
@@ -28,46 +30,52 @@ export function Login() {
   return (
     <div className="min-h-screen flex bg-navy">
       {/* Painel institucional */}
-      <div className="hidden lg:flex flex-1 flex-col justify-between p-12 relative overflow-hidden">
+      <div className="hidden lg:flex flex-1 flex-col justify-between p-14 relative overflow-hidden">
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.035]"
           style={{
-            backgroundImage:
-              'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+            backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
             backgroundSize: '28px 28px',
           }}
         />
-        <div className="relative">
-          <p className="text-white text-lg font-semibold tracking-wide">ERALDO JÚNIOR</p>
-          <p className="text-gold text-xs tracking-[0.3em]">ADVOCACIA</p>
-        </div>
-        <div className="relative max-w-md">
-          <div className="w-10 h-px bg-gold mb-6" />
-          <p className="text-white text-2xl font-light leading-snug">
-            Centralizando o conhecimento e a rotina do escritório em um só lugar.
+
+        <img src={logo} alt="Eraldo Júnior Advocacia" className="relative h-11 w-auto object-contain object-left" />
+
+        <div className="relative max-w-lg">
+          <p className="font-mono text-[11px] tracking-[0.25em] text-gold/80 mb-6">PORTAL RESTRITO</p>
+          <h1 className="font-serif text-4xl leading-[1.15] text-white">
+            Dignidade, confiança e{' '}
+            <span className="italic text-gold">respeito</span> em cada atendimento.
+          </h1>
+          <p className="text-white/55 text-sm mt-6 leading-relaxed">
+            Acesso exclusivo para colaboradores e administradores do escritório Eraldo Júnior Advocacia.
           </p>
-          <p className="text-white/50 text-sm mt-4">Intranet corporativa — acesso restrito a colaboradores.</p>
+
+          <div className="mt-14 flex items-center gap-3 text-gold/70">
+            <Scale className="w-7 h-7" strokeWidth={1.25} />
+            <div className="h-px flex-1 bg-gold/20" />
+          </div>
         </div>
-        <p className="relative text-white/30 text-xs">
-          © {new Date().getFullYear()} Eraldo Júnior Advocacia. Todos os direitos reservados.
-        </p>
+
+        <div className="relative font-mono text-[11px] tracking-wide text-white/35">
+          <span>© {new Date().getFullYear()} Eraldo Júnior Advocacia</span>
+        </div>
       </div>
 
       {/* Formulário */}
       <div className="w-full lg:w-[460px] bg-cream flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm">
-          <div className="mb-10 text-center lg:text-left">
-            <p className="text-navy text-xl font-semibold tracking-wide">ERALDO JÚNIOR</p>
-            <p className="text-gold text-[11px] tracking-[0.3em]">ADVOCACIA</p>
-          </div>
+          <img src={logo} alt="Eraldo Júnior Advocacia" className="h-9 w-auto mb-10 lg:hidden" />
 
-          <h1 className="text-navy text-lg font-semibold mb-1">Acessar intranet</h1>
-          <p className="text-text-secondary text-sm mb-8">Entre com suas credenciais corporativas.</p>
+          <h2 className="font-serif text-2xl text-navy">Acessar intranet</h2>
+          <p className="text-text-secondary text-sm mt-1.5 mb-9">
+            Entre com suas credenciais corporativas.
+          </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="email" className="block text-xs font-medium text-navy mb-1.5">
-                E-mail
+              <label htmlFor="email" className="block font-mono text-[10px] tracking-[0.15em] text-text-secondary mb-2">
+                E-MAIL
               </label>
               <input
                 id="email"
@@ -77,13 +85,13 @@ export function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nome@proferaldojunior.com.br"
-                className="w-full bg-white border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy placeholder:text-text-secondary/70 focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold/60"
+                className="w-full bg-white border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy placeholder:text-text-secondary/60 focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold/60 transition-shadow duration-150"
               />
             </div>
 
             <div>
-              <label htmlFor="senha" className="block text-xs font-medium text-navy mb-1.5">
-                Senha
+              <label htmlFor="senha" className="block font-mono text-[10px] tracking-[0.15em] text-text-secondary mb-2">
+                SENHA
               </label>
               <div className="relative">
                 <input
@@ -94,17 +102,32 @@ export function Login() {
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-white border border-border rounded-lg px-3.5 py-2.5 pr-10 text-sm text-navy placeholder:text-text-secondary/70 focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold/60"
+                  className="w-full bg-white border border-border rounded-lg px-3.5 py-2.5 pr-10 text-sm text-navy placeholder:text-text-secondary/60 focus:outline-none focus:ring-2 focus:ring-gold/40 focus:border-gold/60 transition-shadow duration-150"
                 />
                 <button
                   type="button"
                   onClick={() => setShowSenha((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-navy"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-navy transition-colors"
                   aria-label={showSenha ? 'Ocultar senha' : 'Mostrar senha'}
                 >
                   {showSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-0.5">
+              <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={manterConectado}
+                  onChange={(e) => setManterConectado(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded border-border text-navy focus:ring-gold/40 accent-navy"
+                />
+                Manter conectado
+              </label>
+              <a href="#" className="text-xs text-gold hover:underline">
+                Esqueceu a senha?
+              </a>
             </div>
 
             {erro && (
@@ -116,17 +139,17 @@ export function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-navy text-white text-sm font-medium rounded-lg py-2.5 mt-2 hover:bg-navy-light transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+              className="group w-full bg-navy text-white text-sm font-medium rounded-lg py-2.5 hover:bg-navy-light transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
             >
-              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              ENTRAR
+              {loading ? (
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  ENTRAR
+                  <ArrowRight className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5" />
+                </>
+              )}
             </button>
-
-            <div className="text-center pt-1">
-              <a href="#" className="text-xs text-gold hover:underline">
-                Esqueci minha senha
-              </a>
-            </div>
           </form>
         </div>
       </div>

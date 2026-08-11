@@ -3,6 +3,7 @@ import { Bell, Scale, Palmtree, Megaphone, Cake, FileText, Inbox as InboxIcon, C
 import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
 import { Button } from '../components/Button';
+import { useToast } from '../components/Toast';
 import { notifications as seed } from '../mocks/agenda';
 import { formatDate } from '../utils/format';
 
@@ -17,9 +18,11 @@ const tipoIcon = {
 
 export function Notificacoes() {
   const [items, setItems] = useState(seed);
+  const { showToast } = useToast();
 
   function marcarTodasLidas() {
     setItems((prev) => prev.map((n) => ({ ...n, lida: true })));
+    showToast('Todas as notificações foram marcadas como lidas.');
   }
 
   function marcarLida(id: string) {
