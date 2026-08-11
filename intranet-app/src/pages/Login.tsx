@@ -47,7 +47,7 @@ export function Login() {
         return;
       }
       setEntrando(true);
-      window.setTimeout(() => navigate('/'), 800);
+      window.setTimeout(() => navigate('/'), 1500);
     } else {
       setLoading(false);
       setErro(result.erro ?? 'Não foi possível entrar.');
@@ -224,14 +224,14 @@ export function Login() {
             className="fixed inset-0 z-[100] flex items-center justify-center bg-navy"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            transition={{ duration: 0.45, ease: 'easeInOut' }}
           >
             <motion.img
               src={logo}
               alt="Eraldo Júnior Advocacia"
-              initial={{ scale: 1, opacity: 0.9 }}
-              animate={{ scale: 3.6, opacity: 1 }}
-              transition={{ duration: 0.75, ease: [0.4, 0, 0.2, 1] }}
+              initial={{ scale: 1 }}
+              animate={{ scale: 4.2 }}
+              transition={{ duration: 1.4, ease: [0.4, 0, 0.2, 1] }}
               className="h-11 w-auto object-contain"
             />
           </motion.div>
