@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimationControls, type Variants } from 'motion/react';
 import { Eye, EyeOff, ArrowRight, Scale } from 'lucide-react';
@@ -28,17 +28,28 @@ export function Login() {
   const [showSenha, setShowSenha] = useState(false);
   const [erro, setErro] = useState('');
   const [loading, setLoading] = useState(false);
+  const [entrando, setEntrando] = useState(false);
   const senhaShake = useAnimationControls();
+
+  const reduceMotion = useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    []
+  );
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setErro('');
     setLoading(true);
     const result = await login(email, senha, manterConectado);
-    setLoading(false);
     if (result.ok) {
-      navigate('/');
+      if (reduceMotion) {
+        navigate('/');
+        return;
+      }
+      setEntrando(true);
+      window.setTimeout(() => navigate('/'), 800);
     } else {
+      setLoading(false);
       setErro(result.erro ?? 'Não foi possível entrar.');
       senhaShake.start({ x: [0, -6, 6, -4, 4, 0], transition: { duration: 0.4 } });
     }
@@ -123,6 +134,7 @@ export function Login() {
                 id="email"
                 type="email"
                 required
+                disabled={loading}
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -140,6 +152,7 @@ export function Login() {
                   id="senha"
                   type={showSenha ? 'text' : 'password'}
                   required
+                  disabled={loading}
                   autoComplete="current-password"
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
@@ -204,6 +217,26 @@ export function Login() {
           </form>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {entrando && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-navy"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+          >
+            <motion.img
+              src={logo}
+              alt="Eraldo Júnior Advocacia"
+              initial={{ scale: 1, opacity: 0.9 }}
+              animate={{ scale: 3.6, opacity: 1 }}
+              transition={{ duration: 0.75, ease: [0.4, 0, 0.2, 1] }}
+              className="h-11 w-auto object-contain"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
