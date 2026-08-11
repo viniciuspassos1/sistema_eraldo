@@ -1,8 +1,11 @@
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 import { navItems } from './navItems';
 import { useAuth } from '../context/AuthContext';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { cn } from '../utils/cn';
 
 interface SidebarProps {
@@ -12,12 +15,26 @@ interface SidebarProps {
   onCloseMobile: () => void;
 }
 
+interface HoveredTooltip {
+  label: string;
+  top: number;
+  left: number;
+}
+
 export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile }: SidebarProps) {
   const { user } = useAuth();
   const location = useLocation();
   const isAdmin = user?.perfil === 'ADMINISTRADOR';
+  const reduceMotion = useReducedMotion();
+  const [tooltip, setTooltip] = useState<HoveredTooltip | null>(null);
 
   const items = navItems.filter((item) => !item.adminOnly || isAdmin);
+
+  function handleEnter(e: React.MouseEvent<HTMLElement>, label: string) {
+    if (!collapsed || window.innerWidth < 1024) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltip({ label, top: rect.top + rect.height / 2, left: rect.right + 12 });
+  }
 
   return (
     <>
@@ -69,12 +86,13 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
                 to={item.path}
                 end={item.path === '/'}
                 onClick={onCloseMobile}
+                onMouseEnter={(e) => handleEnter(e, item.label)}
+                onMouseLeave={() => setTooltip(null)}
                 className={cn(
-                  'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm',
+                  'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm',
                   isActive ? 'text-white font-medium' : 'text-white/65 hover:text-white',
                   collapsed && 'lg:justify-center lg:px-2'
                 )}
-                title={collapsed ? item.label : undefined}
               >
                 {isActive && (
                   <motion.span
@@ -86,7 +104,7 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
                 {!isActive && (
                   <span className="absolute inset-0 rounded-lg bg-white/0 hover:bg-white/5 transition-colors duration-150" />
                 )}
-                <item.icon className="relative w-[18px] h-[18px] shrink-0" strokeWidth={1.75} />
+                <item.icon className="relative w-[18px] h-[18px] shrink-0 transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
                 {!collapsed && <span className="relative truncate">{item.label}</span>}
                 {collapsed && <span className="relative lg:hidden truncate">{item.label}</span>}
               </NavLink>
@@ -98,6 +116,24 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
           {!collapsed && <span>© {new Date().getFullYear()} Eraldo Júnior Advocacia</span>}
         </div>
       </aside>
+
+      {createPortal(
+        <AnimatePresence>
+          {tooltip && (
+            <motion.div
+              initial={{ opacity: 0, x: reduceMotion ? 0 : -4 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: reduceMotion ? 0 : -4 }}
+              transition={{ duration: reduceMotion ? 0.08 : 0.15 }}
+              style={{ position: 'fixed', top: tooltip.top, left: tooltip.left, transform: 'translateY(-50%)' }}
+              className="whitespace-nowrap bg-navy text-white text-xs px-2.5 py-1.5 rounded-md shadow-soft-lg pointer-events-none z-[100]"
+            >
+              {tooltip.label}
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }

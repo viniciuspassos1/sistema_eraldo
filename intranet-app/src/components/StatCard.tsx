@@ -1,17 +1,24 @@
 import type { LucideIcon } from 'lucide-react';
 import { Card } from './Card';
+import { useCountUp } from '../hooks/useCountUp';
 
 export function StatCard({
   icon: Icon,
   label,
   value,
   tone = 'navy',
+  countDelay = 0,
 }: {
   icon: LucideIcon;
   label: string;
   value: string | number;
   tone?: 'navy' | 'gold';
+  countDelay?: number;
 }) {
+  const numericValue = typeof value === 'number' ? value : Number(value);
+  const isCountable = Number.isFinite(numericValue) && typeof value !== 'string';
+  const displayed = useCountUp(isCountable ? numericValue : 0, 550, countDelay);
+
   return (
     <Card className="flex items-center gap-4">
       <div
@@ -24,7 +31,9 @@ export function StatCard({
         <Icon className={tone === 'gold' ? 'w-5 h-5 text-[#8a6d34]' : 'w-5 h-5 text-navy'} strokeWidth={1.75} />
       </div>
       <div>
-        <p className="text-2xl font-semibold text-navy leading-none">{value}</p>
+        <p className="text-2xl font-semibold text-navy leading-none tabular-nums">
+          {isCountable ? displayed : value}
+        </p>
         <p className="text-xs text-text-secondary mt-1.5">{label}</p>
       </div>
     </Card>

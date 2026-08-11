@@ -13,7 +13,7 @@ export function Card({ children, className, padded = true, interactive = false, 
       className={cn(
         'bg-white border border-border rounded-xl shadow-soft transition-[box-shadow,border-color,transform] duration-200 ease-out',
         padded && 'p-6',
-        interactive && 'cursor-pointer hover:shadow-soft-lg hover:border-gold/40 hover:-translate-y-[1px]',
+        interactive && 'cursor-pointer hover:shadow-soft-lg hover:border-gold/40 hover:-translate-y-[1px] hover:scale-[1.012]',
         className
       )}
       {...rest}

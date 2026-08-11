@@ -1,14 +1,26 @@
 import { useState } from 'react';
-import { FileText, Download, Eye } from 'lucide-react';
+import { motion } from 'motion/react';
+import { FileText, Download, Eye, Tag, User, Calendar } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
+import { Drawer } from '../components/Drawer';
+import { useToast } from '../components/Toast';
 import { documents, documentCategories } from '../mocks/documents';
+import type { DocumentItem } from '../types';
 import { formatDate } from '../utils/format';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { staggerContainer, fadeUpItem } from '../utils/motionVariants';
 
 export function Documentos() {
   const [categoria, setCategoria] = useState('todas');
   const [busca, setBusca] = useState('');
+  const [preview, setPreview] = useState<DocumentItem | null>(null);
+  const reduceMotion = useReducedMotion();
+  const { showToast } = useToast();
+
+  const container = staggerContainer(0.05, 0, reduceMotion);
+  const item = fadeUpItem(reduceMotion);
 
   const filtrados = documents.filter((d) => {
     if (categoria !== 'todas' && d.categoria !== categoria) return false;
@@ -30,7 +42,7 @@ export function Documentos() {
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setCategoria('todas')}
-          className={`text-xs px-3 py-1.5 rounded-full border ${
+          className={`text-xs px-3 py-1.5 rounded-full border transition-colors duration-150 ${
             categoria === 'todas' ? 'bg-navy text-white border-navy' : 'border-border text-navy hover:bg-cream'
           }`}
         >
@@ -40,7 +52,7 @@ export function Documentos() {
           <button
             key={c}
             onClick={() => setCategoria(c)}
-            className={`text-xs px-3 py-1.5 rounded-full border ${
+            className={`text-xs px-3 py-1.5 rounded-full border transition-colors duration-150 ${
               categoria === c ? 'bg-navy text-white border-navy' : 'border-border text-navy hover:bg-cream'
             }`}
           >
@@ -53,7 +65,7 @@ export function Documentos() {
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
         placeholder="Pesquisar documentos..."
-        className="w-full sm:max-w-sm bg-white border border-border rounded-lg px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+        className="w-full sm:max-w-sm bg-white border border-border rounded-lg px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
       />
 
       {filtrados.length === 0 ? (
@@ -65,39 +77,92 @@ export function Documentos() {
           />
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          variants={container}
+          initial="hidden"
+          animate="visible"
+        >
           {filtrados.map((d) => (
-            <Card key={d.id} className="flex flex-col">
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-lg bg-navy/8 flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-navy" strokeWidth={1.75} />
+            <motion.div key={d.id} variants={item}>
+              <Card className="flex flex-col h-full">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-navy/8 flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-navy" strokeWidth={1.75} />
+                  </div>
+                  <Badge tone={d.status === 'PUBLICADO' ? 'success' : 'neutral'}>{d.status}</Badge>
                 </div>
-                <Badge tone={d.status === 'PUBLICADO' ? 'success' : 'neutral'}>{d.status}</Badge>
-              </div>
-              <p className="text-sm font-medium text-navy leading-snug">{d.titulo}</p>
-              <p className="text-xs text-text-secondary mt-1">{d.categoria} · {d.tamanho}</p>
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {d.tags.map((t) => (
-                  <span key={t} className="text-[11px] text-text-secondary bg-cream px-2 py-0.5 rounded-full">
-                    #{t}
-                  </span>
-                ))}
-              </div>
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-                <span className="text-[11px] text-text-secondary">Atualizado em {formatDate(d.atualizadoEm)}</span>
-                <div className="flex gap-1">
-                  <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-cream text-navy" aria-label="Visualizar">
-                    <Eye className="w-3.5 h-3.5" />
-                  </button>
-                  <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-cream text-navy" aria-label="Baixar">
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
+                <p className="text-sm font-medium text-navy leading-snug">{d.titulo}</p>
+                <p className="text-xs text-text-secondary mt-1">{d.categoria} · {d.tamanho}</p>
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {d.tags.map((t) => (
+                    <span key={t} className="text-[11px] text-text-secondary bg-cream px-2 py-0.5 rounded-full">
+                      #{t}
+                    </span>
+                  ))}
                 </div>
-              </div>
-            </Card>
+                <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
+                  <span className="text-[11px] text-text-secondary">Atualizado em {formatDate(d.atualizadoEm)}</span>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setPreview(d)}
+                      className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-cream text-navy transition-colors duration-150"
+                      aria-label="Visualizar"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => showToast('Ambiente de demonstração — não há arquivo real para baixar.', 'info')}
+                      className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-cream text-navy transition-colors duration-150"
+                      aria-label="Baixar"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
+
+      <Drawer open={!!preview} onClose={() => setPreview(null)} title={preview?.titulo ?? ''}>
+        {preview && (
+          <div className="space-y-5">
+            <div className="w-12 h-12 rounded-lg bg-navy/8 flex items-center justify-center">
+              <FileText className="w-6 h-6 text-navy" strokeWidth={1.75} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge tone={preview.status === 'PUBLICADO' ? 'success' : 'neutral'}>{preview.status}</Badge>
+              <Badge tone="navy">{preview.categoria}</Badge>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2 text-navy">
+                <User className="w-4 h-4 text-text-secondary" /> {preview.autor}
+              </div>
+              <div className="flex items-center gap-2 text-navy">
+                <Calendar className="w-4 h-4 text-text-secondary" />
+                Criado em {formatDate(preview.data)} · atualizado em {formatDate(preview.atualizadoEm)}
+              </div>
+              <div className="flex items-start gap-2 text-navy">
+                <Tag className="w-4 h-4 text-text-secondary mt-0.5" />
+                <div className="flex flex-wrap gap-1.5">
+                  {preview.tags.map((t) => (
+                    <span key={t} className="text-[11px] text-text-secondary bg-cream px-2 py-0.5 rounded-full">
+                      #{t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-border">
+              <p className="text-xs text-text-secondary">Tamanho do arquivo: {preview.tamanho}</p>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }

@@ -4,11 +4,15 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
 import { FloatingAIButton } from '../components/FloatingAIButton';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { pageTransition } from '../utils/motionVariants';
 
 export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const reduceMotion = useReducedMotion();
+  const { initial, animate, exit, transition } = pageTransition(reduceMotion);
 
   return (
     <div className="flex min-h-screen bg-cream">
@@ -21,14 +25,18 @@ export function AppLayout() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />
-        <main className="flex-1 p-4 lg:p-8 overflow-hidden">
-          <AnimatePresence mode="wait">
+        {/* relative + overflow-hidden vira o "palco": as páginas ficam absolutamente
+            empilhadas dentro dele, então a troca é só opacidade/transform (compositing puro,
+            sem recalcular layout de ninguém) — elimina qualquer engasgo na troca de rota. */}
+        <main className="flex-1 relative overflow-hidden">
+          <AnimatePresence initial={false}>
             <motion.div
               key={location.pathname}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
+              initial={initial}
+              animate={animate}
+              exit={exit}
+              transition={transition}
+              className="absolute inset-0 overflow-y-auto p-4 lg:p-8"
             >
               <Outlet />
             </motion.div>

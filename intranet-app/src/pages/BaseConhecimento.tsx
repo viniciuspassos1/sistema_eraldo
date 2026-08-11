@@ -1,10 +1,13 @@
 import { useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { BookOpen } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { knowledgeBase } from '../mocks/knowledgeBase';
 import { formatDate } from '../utils/format';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { staggerContainer, fadeUpItem } from '../utils/motionVariants';
 
 const categorias = ['Procedimentos', 'FAQ', 'Sistemas', 'Atendimento', 'Jurídico', 'Administrativo', 'Comercial', 'Financeiro', 'Recursos Humanos', 'Tecnologia'];
 
@@ -12,6 +15,9 @@ export function BaseConhecimento() {
   const [categoria, setCategoria] = useState('todas');
   const [busca, setBusca] = useState('');
   const [aberto, setAberto] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
+  const container = staggerContainer(0.05, 0, reduceMotion);
+  const item = fadeUpItem(reduceMotion);
 
   const filtrados = knowledgeBase.filter((k) => {
     if (categoria !== 'todas' && k.categoria !== categoria) return false;
@@ -35,12 +41,12 @@ export function BaseConhecimento() {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
           placeholder="Pesquisar artigos..."
-          className="flex-1 bg-white border border-border rounded-lg px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold/40"
+          className="flex-1 bg-white border border-border rounded-lg px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
         />
         <select
           value={categoria}
           onChange={(e) => setCategoria(e.target.value)}
-          className="bg-white border border-border rounded-lg px-3.5 py-2 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40"
+          className="bg-white border border-border rounded-lg px-3.5 py-2 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
         >
           <option value="todas">Todas as categorias</option>
           {categorias.map((c) => (
@@ -56,24 +62,38 @@ export function BaseConhecimento() {
           <EmptyState icon={BookOpen} title="Nenhum artigo encontrado" description="Tente outro termo ou categoria." />
         </Card>
       ) : (
-        <div className="space-y-3">
+        <motion.div className="space-y-3" variants={container} initial="hidden" animate="visible">
           {filtrados.map((k) => (
-            <Card key={k.id} interactive onClick={() => setAberto(aberto === k.id ? null : k.id)}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-navy">{k.titulo}</p>
-                    <Badge tone="navy">{k.categoria}</Badge>
+            <motion.div key={k.id} variants={item}>
+              <Card interactive onClick={() => setAberto(aberto === k.id ? null : k.id)}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-navy">{k.titulo}</p>
+                      <Badge tone="navy">{k.categoria}</Badge>
+                    </div>
+                    <p className="text-xs text-text-secondary mt-1">
+                      {k.autor} · atualizado em {formatDate(k.atualizadoEm)}
+                    </p>
+                    <AnimatePresence initial={false}>
+                      {aberto === k.id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: reduceMotion ? 0.1 : 0.22, ease: 'easeOut' }}
+                          className="overflow-hidden"
+                        >
+                          <p className="text-sm text-navy mt-3 leading-relaxed">{k.conteudo}</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                  <p className="text-xs text-text-secondary mt-1">
-                    {k.autor} · atualizado em {formatDate(k.atualizadoEm)}
-                  </p>
-                  {aberto === k.id && <p className="text-sm text-navy mt-3 leading-relaxed">{k.conteudo}</p>}
                 </div>
-              </div>
-            </Card>
+              </Card>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
     </div>
   );
