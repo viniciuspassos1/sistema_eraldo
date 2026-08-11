@@ -4,7 +4,7 @@ export const employees: User[] = [
   {
     id: 'u1',
     nome: 'Eraldo Júnior',
-    email: '[credencial-removida]',
+    email: 'eraldo.junior@proferaldojunior.com.br',
     cargo: 'Sócio Fundador',
     setor: 'Jurídico',
     perfil: 'ADMINISTRADOR',
@@ -101,6 +101,6 @@ export const employees: User[] = [
 
 // credencial de teste usada no login mockado
 export const TEST_CREDENTIAL = {
-  email: '[credencial-removida]',
-  senha: '[credencial-removida]',
+  email: 'eraldo.junior@proferaldojunior.com.br',
+  senha: 'IntranetEJ@2026',
 };
