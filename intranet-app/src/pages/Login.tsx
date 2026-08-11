@@ -5,6 +5,7 @@ import { Eye, EyeOff, ArrowRight, Scale } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { RotatingWord } from '../components/RotatingWord';
 import logo from '../assets/logo-gold.webp';
+import logoIcon from '../assets/logo-icon.png';
 
 const VALORES = ['Respeito', 'Honestidade', 'Ética', 'Justiça', 'Excelência', 'Transparência'];
 
@@ -105,15 +106,11 @@ export function Login() {
           initial="hidden"
           animate="visible"
         >
-          <motion.img
-            variants={item}
-            src={logo}
-            alt="Eraldo Júnior Advocacia"
-            className="h-9 w-auto mb-10 lg:hidden"
-          />
-
           <motion.div variants={item}>
-            <h2 className="font-serif text-2xl text-navy">Acessar intranet</h2>
+            <div className="flex items-center gap-3">
+              <img src={logoIcon} alt="" className="h-9 w-9 object-contain shrink-0" />
+              <h2 className="font-serif text-2xl text-navy">Acessar intranet</h2>
+            </div>
             <p className="text-text-secondary text-sm mt-1.5 mb-9">Entre com suas credenciais corporativas.</p>
           </motion.div>
 
