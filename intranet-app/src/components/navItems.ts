@@ -16,6 +16,7 @@ import {
   Inbox,
   Bell,
   Settings,
+  KeyRound,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -28,6 +29,7 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { label: 'Início', path: '/', icon: Home },
+  { label: 'Meu Authenticator', path: '/meu-authenticator', icon: KeyRound },
   { label: 'Assistente IA', path: '/assistente-ia', icon: Bot },
   { label: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
   { label: 'Audiências', path: '/audiencias', icon: Scale },

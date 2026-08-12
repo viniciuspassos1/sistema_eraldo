@@ -26,6 +26,7 @@ import { ManualInterno } from './pages/ManualInterno';
 import { Onboarding } from './pages/Onboarding';
 import { Perfil } from './pages/Perfil';
 import { Configuracoes } from './pages/Configuracoes';
+import { MeuAuthenticator } from './pages/MeuAuthenticator';
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
             <Route path="/tribunais" element={<Tribunais />} />
             <Route path="/solicitacoes" element={<Solicitacoes />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
+            <Route path="/meu-authenticator" element={<MeuAuthenticator />} />
             <Route path="/perfil" element={<Perfil />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
 
