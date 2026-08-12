@@ -80,3 +80,39 @@ body {
     opacity: 1;
   }
 }
+
+@keyframes card-side-glow {
+  0% { opacity: 0; }
+  40% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.card-glow-pulse::before,
+.card-glow-pulse::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 10px;
+  border-radius: 999px;
+  opacity: 0;
+  animation: card-side-glow 1.1s ease-out;
+  background: var(--color-gold);
+  box-shadow: 0 0 28px 6px rgba(181, 148, 82, 0.85);
+}
+
+.card-glow-pulse::before {
+  left: -4px;
+}
+
+.card-glow-pulse::after {
+  right: -4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-glow-pulse::before,
+  .card-glow-pulse::after {
+    animation: none;
+    opacity: 0;
+  }
+}

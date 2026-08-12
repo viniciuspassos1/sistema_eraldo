@@ -142,7 +142,9 @@ export function AssistenteIA() {
         })}
       </div>
 
-      <div className="flex-1 bg-white border border-t-0 border-border rounded-b-xl shadow-soft flex flex-col overflow-hidden">
+      <div className="relative flex-1 flex flex-col">
+        <div key={activeId} aria-hidden className="card-glow-pulse pointer-events-none absolute inset-y-0 -inset-x-1 z-0" />
+        <div className="relative z-10 flex-1 bg-white border border-t-0 border-border rounded-b-xl shadow-soft flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {messages.length === 0 && (
             <div>
@@ -227,6 +229,7 @@ export function AssistenteIA() {
             <Send className="w-4 h-4" />
           </button>
         </form>
+        </div>
       </div>
     </div>
   );
