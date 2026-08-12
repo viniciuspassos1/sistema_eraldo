@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import {
   Users,
   Palmtree,
@@ -24,16 +25,14 @@ import { requests } from '../mocks/agenda';
 import { documents } from '../mocks/documents';
 import { announcements } from '../mocks/announcements';
 import { isSameMonth } from '../utils/date';
-import { useReducedMotion } from '../hooks/useReducedMotion';
-import { staggerContainer, fadeUpItem } from '../utils/motionVariants';
 
 const modules = [
   { label: 'Funcionários', icon: Users, path: '/funcionarios' },
-  { label: 'Férias', icon: Palmtree, path: '/ferias' },
-  { label: 'Agenda', icon: Calendar, path: '/agenda' },
-  { label: 'Aniversários', icon: Cake, path: '/aniversarios' },
-  { label: 'Feriados', icon: CalendarDays, path: '/feriados' },
-  { label: 'Avisos', icon: Megaphone, path: '/avisos' },
+  { label: 'Férias', icon: Palmtree, path: '/calendario?tab=ferias' },
+  { label: 'Agenda', icon: Calendar, path: '/calendario?tab=agenda' },
+  { label: 'Aniversários', icon: Cake, path: '/calendario?tab=aniversarios' },
+  { label: 'Feriados', icon: CalendarDays, path: '/calendario?tab=feriados' },
+  { label: 'Avisos', icon: Megaphone, path: '/calendario?tab=avisos' },
   { label: 'Base de conhecimento', icon: BookOpen, path: '/base-conhecimento' },
   { label: 'Documentos', icon: FileText, path: '/documentos' },
   { label: 'Novos funcionários', icon: UserPlus, path: '/onboarding' },
@@ -52,8 +51,6 @@ const perguntasFrequentes = [
 export function Administracao() {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
-  const container = staggerContainer(0.09, 0, reduceMotion);
-  const item = fadeUpItem(reduceMotion);
 
   const feriasEsteMes = vacations.filter((v) => isSameMonth(v.inicio, new Date()));
   const audienciasAgendadas = hearings.filter((h) => h.status === 'AGENDADA');
@@ -61,24 +58,24 @@ export function Administracao() {
   const avisosAtivos = announcements.filter((a) => !a.lido);
 
   return (
-    <motion.div className="max-w-6xl space-y-6" variants={container} initial="hidden" animate="visible">
-      <motion.div variants={item}>
+    <div className="stagger-fade max-w-6xl space-y-6">
+      <div>
         <h1 className="text-2xl font-semibold text-navy flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-gold" /> Administração
         </h1>
         <p className="text-text-secondary text-sm mt-1">Painel administrativo do escritório.</p>
-      </motion.div>
+      </div>
 
-      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard icon={Users} label="Funcionários" value={employees.length} countDelay={0} />
         <StatCard icon={Palmtree} label="Férias este mês" value={feriasEsteMes.length} tone="gold" countDelay={50} />
         <StatCard icon={Scale} label="Audiências" value={audienciasAgendadas.length} countDelay={100} />
         <StatCard icon={Inbox} label="Solicitações abertas" value={solicitacoesAbertas.length} tone="gold" countDelay={150} />
         <StatCard icon={FileText} label="Documentos" value={documents.length} countDelay={200} />
         <StatCard icon={Megaphone} label="Avisos ativos" value={avisosAtivos.length} countDelay={250} />
-      </motion.div>
+      </div>
 
-      <motion.div variants={item}>
+      <div>
         <Card>
           <CardHeader title="Módulos administrativos" />
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -94,9 +91,9 @@ export function Administracao() {
             ))}
           </div>
         </Card>
-      </motion.div>
+      </div>
 
-      <motion.div variants={item}>
+      <div>
         <Card>
           <CardHeader title="Perguntas mais realizadas à IA" />
           <p className="text-xs text-text-secondary -mt-2 mb-4">
@@ -121,7 +118,7 @@ export function Administracao() {
             ))}
           </ul>
         </Card>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

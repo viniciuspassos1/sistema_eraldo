@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
 import { FileText, Download, Eye, Tag, User, Calendar } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
@@ -9,18 +8,12 @@ import { useToast } from '../components/Toast';
 import { documents, documentCategories } from '../mocks/documents';
 import type { DocumentItem } from '../types';
 import { formatDate } from '../utils/format';
-import { useReducedMotion } from '../hooks/useReducedMotion';
-import { staggerContainer, fadeUpItem } from '../utils/motionVariants';
 
 export function Documentos() {
   const [categoria, setCategoria] = useState('todas');
   const [busca, setBusca] = useState('');
   const [preview, setPreview] = useState<DocumentItem | null>(null);
-  const reduceMotion = useReducedMotion();
   const { showToast } = useToast();
-
-  const container = staggerContainer(0.05, 0, reduceMotion);
-  const item = fadeUpItem(reduceMotion);
 
   const filtrados = documents.filter((d) => {
     if (categoria !== 'todas' && d.categoria !== categoria) return false;
@@ -77,14 +70,9 @@ export function Documentos() {
           />
         </Card>
       ) : (
-        <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-          variants={container}
-          initial="hidden"
-          animate="visible"
-        >
+        <div className="stagger-fade grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtrados.map((d) => (
-            <motion.div key={d.id} variants={item}>
+            <div key={d.id}>
               <Card className="flex flex-col h-full">
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-10 h-10 rounded-lg bg-navy/8 flex items-center justify-center">
@@ -121,9 +109,9 @@ export function Documentos() {
                   </div>
                 </div>
               </Card>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
 
       <Drawer open={!!preview} onClose={() => setPreview(null)} title={preview?.titulo ?? ''}>

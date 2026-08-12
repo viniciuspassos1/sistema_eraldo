@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { motion } from 'motion/react';
 import { Scale } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
@@ -8,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 import { hearings } from '../mocks/hearings';
 import { formatDate } from '../utils/format';
 import { todayISO } from '../utils/date';
-import { useReducedMotion } from '../hooks/useReducedMotion';
 
 type FiltroPeriodo = 'todos' | 'hoje' | 'amanha' | 'semana' | 'mes';
 
@@ -27,7 +25,6 @@ export function Audiencias() {
   const [periodo, setPeriodo] = useState<FiltroPeriodo>('todos');
   const [advogado, setAdvogado] = useState(souAdvogado ? user!.nome : 'todos');
   const [busca, setBusca] = useState('');
-  const reduceMotion = useReducedMotion();
 
   const today = new Date(todayISO());
   const filtradas = hearings.filter((h) => {
@@ -129,13 +126,10 @@ export function Audiencias() {
                   <th className="px-5 py-3 font-medium">Status</th>
                 </tr>
               </thead>
-              <tbody>
-                {filtradas.map((h, i) => (
-                  <motion.tr
+              <tbody className="stagger-fade">
+                {filtradas.map((h) => (
+                  <tr
                     key={h.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: reduceMotion ? 0 : 0.15, delay: reduceMotion ? 0 : i * 0.02 }}
                     className="border-b border-border last:border-0 hover:bg-cream/60 transition-colors duration-150"
                   >
                     <td className="px-5 py-3.5 text-navy font-medium whitespace-nowrap">{h.processo}</td>
@@ -148,7 +142,7 @@ export function Audiencias() {
                     <td className="px-5 py-3.5">
                       <Badge tone={statusTone[h.status]}>{h.status}</Badge>
                     </td>
-                  </motion.tr>
+                  </tr>
                 ))}
               </tbody>
             </table>

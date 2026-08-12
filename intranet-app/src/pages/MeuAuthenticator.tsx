@@ -6,7 +6,6 @@ import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { staggerContainer, fadeUpItem } from '../utils/motionVariants';
 import { fetchAuthenticatorCodes, AuthenticatorApiError, type AuthenticatorService } from '../api/authenticator';
 
 function formatCode(code: string): string {
@@ -32,7 +31,7 @@ function ServiceCard({ service }: { service: AuthenticatorService }) {
   }
 
   return (
-    <motion.div variants={fadeUpItem(reduceMotion)}>
+    <div>
       <Card className="text-center" interactive={false}>
         <div className="flex items-center justify-center gap-2 mb-4">
           <KeyRound className="w-4 h-4 text-gold" strokeWidth={1.75} />
@@ -99,7 +98,7 @@ function ServiceCard({ service }: { service: AuthenticatorService }) {
           </button>
         </div>
       </Card>
-    </motion.div>
+    </div>
   );
 }
 
@@ -107,7 +106,6 @@ export function MeuAuthenticator() {
   const [services, setServices] = useState<AuthenticatorService[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const reduceMotion = useReducedMotion();
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -141,8 +139,6 @@ export function MeuAuthenticator() {
       if (tickRef.current) clearInterval(tickRef.current);
     };
   }, [load]);
-
-  const container = staggerContainer(0.06, 0, reduceMotion);
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -191,16 +187,11 @@ export function MeuAuthenticator() {
         </Card>
       ) : (
         <>
-          <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-            variants={container}
-            initial="hidden"
-            animate="visible"
-          >
+          <div className="stagger-fade grid grid-cols-1 sm:grid-cols-2 gap-4">
             {services.map((service) => (
               <ServiceCard key={service.id} service={service} />
             ))}
-          </motion.div>
+          </div>
           {lastUpdated && (
             <p className="text-xs text-text-secondary text-center">
               Última atualização: {lastUpdated.toLocaleTimeString('pt-BR')}

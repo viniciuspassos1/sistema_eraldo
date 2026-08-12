@@ -14,11 +14,7 @@ import { Documentos } from './pages/Documentos';
 import { Tribunais } from './pages/Tribunais';
 import { Funcionarios } from './pages/Funcionarios';
 import { FuncionarioPerfil } from './pages/FuncionarioPerfil';
-import { Ferias } from './pages/Ferias';
-import { Agenda } from './pages/Agenda';
-import { Aniversarios } from './pages/Aniversarios';
-import { Avisos } from './pages/Avisos';
-import { Feriados } from './pages/Feriados';
+import { CalendarioEscritorio } from './pages/CalendarioEscritorio';
 import { Solicitacoes } from './pages/Solicitacoes';
 import { Notificacoes } from './pages/Notificacoes';
 import { BaseConhecimento } from './pages/BaseConhecimento';
@@ -47,11 +43,7 @@ function App() {
             <Route path="/assistente-ia" element={<AssistenteIA />} />
             <Route path="/base-conhecimento" element={<BaseConhecimento />} />
             <Route path="/audiencias" element={<Audiencias />} />
-            <Route path="/agenda" element={<Agenda />} />
-            <Route path="/ferias" element={<Ferias />} />
-            <Route path="/aniversarios" element={<Aniversarios />} />
-            <Route path="/avisos" element={<Avisos />} />
-            <Route path="/feriados" element={<Feriados />} />
+            <Route path="/calendario" element={<CalendarioEscritorio />} />
             <Route path="/funcionarios" element={<Funcionarios />} />
             <Route path="/funcionarios/:id" element={<FuncionarioPerfil />} />
             <Route path="/onboarding" element={<Onboarding />} />

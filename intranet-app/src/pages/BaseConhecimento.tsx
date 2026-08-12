@@ -7,7 +7,6 @@ import { EmptyState } from '../components/EmptyState';
 import { knowledgeBase } from '../mocks/knowledgeBase';
 import { formatDate } from '../utils/format';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { staggerContainer, fadeUpItem } from '../utils/motionVariants';
 
 const categorias = ['Procedimentos', 'FAQ', 'Sistemas', 'Atendimento', 'Jurídico', 'Administrativo', 'Comercial', 'Financeiro', 'Recursos Humanos', 'Tecnologia'];
 
@@ -16,8 +15,6 @@ export function BaseConhecimento() {
   const [busca, setBusca] = useState('');
   const [aberto, setAberto] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
-  const container = staggerContainer(0.05, 0, reduceMotion);
-  const item = fadeUpItem(reduceMotion);
 
   const filtrados = knowledgeBase.filter((k) => {
     if (categoria !== 'todas' && k.categoria !== categoria) return false;
@@ -62,9 +59,9 @@ export function BaseConhecimento() {
           <EmptyState icon={BookOpen} title="Nenhum artigo encontrado" description="Tente outro termo ou categoria." />
         </Card>
       ) : (
-        <motion.div className="space-y-3" variants={container} initial="hidden" animate="visible">
+        <div className="stagger-fade space-y-3">
           {filtrados.map((k) => (
-            <motion.div key={k.id} variants={item}>
+            <div key={k.id}>
               <Card interactive onClick={() => setAberto(aberto === k.id ? null : k.id)}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
@@ -91,9 +88,9 @@ export function BaseConhecimento() {
                   </div>
                 </div>
               </Card>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
     </div>
   );

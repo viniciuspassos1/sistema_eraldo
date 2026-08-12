@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { motion } from 'motion/react';
 import { Inbox, Plus } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
@@ -11,7 +10,6 @@ import { requests as seed } from '../mocks/agenda';
 import type { Request } from '../types';
 import { formatDate } from '../utils/format';
 import { todayISO } from '../utils/date';
-import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const statusTone = {
   ABERTO: 'warning',
@@ -38,7 +36,6 @@ export function Solicitacoes() {
   const [categoria, setCategoria] = useState(categorias[0]);
   const [descricao, setDescricao] = useState('');
   const [buttonStatus, setButtonStatus] = useState<'idle' | 'loading' | 'success'>('idle');
-  const reduceMotion = useReducedMotion();
   const { showToast } = useToast();
 
   const filtradas = requests.filter((r) => status === 'todos' || r.status === status);
@@ -116,13 +113,10 @@ export function Solicitacoes() {
                   <th className="px-5 py-3 font-medium">Status</th>
                 </tr>
               </thead>
-              <tbody>
-                {filtradas.map((r, i) => (
-                  <motion.tr
+              <tbody className="stagger-fade">
+                {filtradas.map((r) => (
+                  <tr
                     key={r.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: reduceMotion ? 0 : 0.15, delay: reduceMotion ? 0 : i * 0.02 }}
                     className="border-b border-border last:border-0 hover:bg-cream/60 transition-colors duration-150"
                   >
                     <td className="px-5 py-3.5 text-navy font-medium whitespace-nowrap">{r.numero}</td>
@@ -133,7 +127,7 @@ export function Solicitacoes() {
                     <td className="px-5 py-3.5">
                       <Badge tone={statusTone[r.status]}>{r.status.replace('_', ' ')}</Badge>
                     </td>
-                  </motion.tr>
+                  </tr>
                 ))}
               </tbody>
             </table>

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
 import { Megaphone } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
@@ -7,8 +6,6 @@ import { EmptyState } from '../components/EmptyState';
 import { useToast } from '../components/Toast';
 import { announcements as seed } from '../mocks/announcements';
 import { formatDate } from '../utils/format';
-import { useReducedMotion } from '../hooks/useReducedMotion';
-import { staggerContainer, fadeUpItem } from '../utils/motionVariants';
 
 const prioridadeTone = {
   INFORMATIVO: 'neutral',
@@ -22,9 +19,6 @@ export function Avisos() {
   const [avisos, setAvisos] = useState(seed);
   const [filtro, setFiltro] = useState<'todos' | 'nao_lidos'>('todos');
   const { showToast } = useToast();
-  const reduceMotion = useReducedMotion();
-  const container = staggerContainer(0.05, 0, reduceMotion);
-  const item = fadeUpItem(reduceMotion);
 
   const visiveis = avisos.filter((a) => filtro === 'todos' || !a.lido);
 
@@ -63,9 +57,9 @@ export function Avisos() {
           <EmptyState icon={Megaphone} title="Nenhum aviso por aqui" description="Você está em dia com os comunicados." />
         </Card>
       ) : (
-        <motion.div className="space-y-3" variants={container} initial="hidden" animate="visible">
+        <div className="stagger-fade space-y-3">
           {visiveis.map((a) => (
-            <motion.div key={a.id} variants={item}>
+            <div key={a.id}>
               <Card interactive onClick={() => marcarLido(a.id)} className={!a.lido ? 'border-gold/40' : ''}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -81,9 +75,9 @@ export function Avisos() {
                   </div>
                 </div>
               </Card>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
     </div>
   );

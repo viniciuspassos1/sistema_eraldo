@@ -1,14 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { Users } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { employees } from '../mocks/employees';
-import { useReducedMotion } from '../hooks/useReducedMotion';
-import { staggerContainer, fadeUpItem } from '../utils/motionVariants';
 
 const statusTone = {
   ATIVO: 'success',
@@ -20,10 +17,6 @@ export function Funcionarios() {
   const [busca, setBusca] = useState('');
   const [setor, setSetor] = useState('todos');
   const navigate = useNavigate();
-  const reduceMotion = useReducedMotion();
-
-  const container = staggerContainer(0.05, 0, reduceMotion);
-  const item = fadeUpItem(reduceMotion);
 
   const setores = Array.from(new Set(employees.map((e) => e.setor)));
 
@@ -68,14 +61,9 @@ export function Funcionarios() {
           <EmptyState icon={Users} title="Nenhum funcionário encontrado" />
         </Card>
       ) : (
-        <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-          variants={container}
-          initial="hidden"
-          animate="visible"
-        >
+        <div className="stagger-fade grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtrados.map((f) => (
-            <motion.div key={f.id} variants={item}>
+            <div key={f.id}>
               <Card interactive className="flex items-center gap-4" onClick={() => navigate(`/funcionarios/${f.id}`)}>
                 <Avatar nome={f.nome} size="lg" />
                 <div className="min-w-0">
@@ -87,9 +75,9 @@ export function Funcionarios() {
                   </div>
                 </div>
               </Card>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
     </div>
   );
