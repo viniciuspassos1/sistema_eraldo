@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
 import { FloatingAIButton } from '../components/FloatingAIButton';
@@ -12,7 +12,7 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const reduceMotion = useReducedMotion();
-  const { initial, animate, exit, transition } = pageTransition(reduceMotion);
+  const { initial, animate, transition } = pageTransition(reduceMotion);
 
   return (
     <div className="flex min-h-screen bg-cream">
@@ -25,22 +25,20 @@ export function AppLayout() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />
-        {/* relative + overflow-hidden vira o "palco": as páginas ficam absolutamente
-            empilhadas dentro dele, então a troca é só opacidade/transform (compositing puro,
-            sem recalcular layout de ninguém) — elimina qualquer engasgo na troca de rota. */}
-        <main className="flex-1 relative overflow-hidden">
-          <AnimatePresence initial={false}>
-            <motion.div
-              key={location.pathname}
-              initial={initial}
-              animate={animate}
-              exit={exit}
-              transition={transition}
-              className="absolute inset-0 overflow-y-auto p-4 lg:p-8"
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+        {/* Sem AnimatePresence/exit: a página antiga sai de cena na hora do clique
+            (nunca fica montada junto da nova), e só a nova página entra com um
+            fade+lift bem curto. Isso evita ter duas telas pesadas renderizadas
+            ao mesmo tempo e faz o clique parecer instantâneo. */}
+        <main className="flex-1 overflow-y-auto">
+          <motion.div
+            key={location.pathname}
+            initial={initial}
+            animate={animate}
+            transition={transition}
+            className="p-4 lg:p-8"
+          >
+            <Outlet />
+          </motion.div>
         </main>
       </div>
 

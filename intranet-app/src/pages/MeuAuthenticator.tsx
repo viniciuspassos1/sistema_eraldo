@@ -38,24 +38,26 @@ function ServiceCard({ service }: { service: AuthenticatorService }) {
           <p className="text-sm font-semibold text-navy">{service.name}</p>
         </div>
 
-        <AnimatePresence mode="wait">
-          <motion.p
-            key={service.code}
-            initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.94 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.94 }}
-            transition={{ duration: reduceMotion ? 0.1 : 0.22, ease: [0.4, 0, 0.2, 1] }}
-            className="font-mono text-3xl tracking-[0.15em] text-navy tabular-nums"
-          >
-            {formatCode(service.code)}
-          </motion.p>
-        </AnimatePresence>
+        <div className="relative h-10">
+          <AnimatePresence initial={false}>
+            <motion.p
+              key={service.code}
+              initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.94 }}
+              transition={{ duration: reduceMotion ? 0.1 : 0.22, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute inset-0 flex items-center justify-center font-mono text-3xl tracking-[0.15em] text-navy tabular-nums"
+            >
+              {formatCode(service.code)}
+            </motion.p>
+          </AnimatePresence>
+        </div>
 
         <div className="h-1.5 bg-cream rounded-full mt-4 overflow-hidden">
           <motion.div
-            className={`h-full rounded-full ${acabando ? 'bg-rose-500' : 'bg-gold'}`}
+            className={`h-full w-full origin-left rounded-full ${acabando ? 'bg-rose-500' : 'bg-gold'}`}
             initial={false}
-            animate={{ width: `${pct}%` }}
+            animate={{ scaleX: pct / 100 }}
             transition={{ duration: 0.9, ease: 'linear' }}
           />
         </div>

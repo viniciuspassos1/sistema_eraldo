@@ -1,5 +1,5 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import {
   Users,
@@ -51,6 +51,12 @@ const perguntasFrequentes = [
 export function Administracao() {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
+  const [barsMounted, setBarsMounted] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setBarsMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const feriasEsteMes = vacations.filter((v) => isSameMonth(v.inicio, new Date()));
   const audienciasAgendadas = hearings.filter((h) => h.status === 'AGENDADA');
@@ -105,11 +111,12 @@ export function Administracao() {
                 <div className="flex-1">
                   <p className="text-sm text-navy">{p.pergunta}</p>
                   <div className="h-1.5 bg-cream rounded-full mt-1.5 overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gold rounded-full"
-                      initial={{ width: reduceMotion ? `${(p.vezes / perguntasFrequentes[0].vezes) * 100}%` : 0 }}
-                      animate={{ width: `${(p.vezes / perguntasFrequentes[0].vezes) * 100}%` }}
-                      transition={{ duration: 0.6, delay: reduceMotion ? 0 : 0.15 + i * 0.06, ease: [0.4, 0, 0.2, 1] }}
+                    <div
+                      className="h-full w-full bg-gold rounded-full origin-left transition-transform duration-300 ease-out"
+                      style={{
+                        transform: `scaleX(${barsMounted || reduceMotion ? p.vezes / perguntasFrequentes[0].vezes : 0})`,
+                        transitionDelay: reduceMotion ? '0ms' : `${i * 40}ms`,
+                      }}
                     />
                   </div>
                 </div>

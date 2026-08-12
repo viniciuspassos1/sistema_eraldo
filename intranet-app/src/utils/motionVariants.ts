@@ -23,24 +23,24 @@ export function fadeUpItem(reduceMotion = false): Variants {
 }
 
 // Transição padrão entre páginas (usada no AppLayout).
+// Só anima a ENTRADA da página nova — a página anterior é desmontada na hora,
+// sem animação de saída, pra nunca ter duas telas pesadas montadas ao mesmo
+// tempo nem atraso percebido no clique.
 export function pageTransition(reduceMotion = false): {
   initial: Record<string, number>;
   animate: Record<string, number>;
-  exit: Record<string, number>;
   transition: Transition;
 } {
   if (reduceMotion) {
     return {
       initial: { opacity: 0 },
       animate: { opacity: 1 },
-      exit: { opacity: 0 },
-      transition: { duration: 0.12 },
+      transition: { duration: 0.1 },
     };
   }
   return {
     initial: { opacity: 0, y: 6 },
     animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -4 },
-    transition: { duration: 0.2, ease: 'easeOut' },
+    transition: { duration: 0.18, ease: 'easeOut' },
   };
 }
