@@ -12,6 +12,10 @@ __pycache__/
 *.pyc
 backend/chroma_data/
 
+# Build publicado da intranet (gerado a partir de intranet-app/ com
+# `npm run build` — não é código-fonte, não faz sentido versionar).
+/intranet/
+
 # OS / editor
 .DS_Store
 .vscode/*
