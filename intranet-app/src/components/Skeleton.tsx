@@ -1,7 +1,7 @@
 import { cn } from '../utils/cn';
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-md bg-navy/8', className)} />;
+  return <div className={cn('skeleton-shimmer rounded-md', className)} />;
 }
 
 export function SkeletonStatCard() {
@@ -41,5 +41,29 @@ export function SkeletonTableRow({ cols = 5 }: { cols?: number }) {
         </td>
       ))}
     </tr>
+  );
+}
+
+// Fallback genérico do Suspense ao carregar o chunk de uma página sob
+// demanda — aproxima a estrutura típica de uma tela (título → cards →
+// conteúdo principal) em vez de deixar a área em branco durante o load.
+export function RouteSkeleton() {
+  return (
+    <div className="max-w-6xl space-y-6" aria-busy="true" aria-live="polite">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-56" />
+        <Skeleton className="h-3.5 w-72" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <SkeletonStatCard />
+        <SkeletonStatCard />
+        <SkeletonStatCard />
+        <SkeletonStatCard />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
+    </div>
   );
 }

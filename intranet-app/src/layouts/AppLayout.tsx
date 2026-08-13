@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
 import { FloatingAIButton } from '../components/FloatingAIButton';
+import { RouteSkeleton } from '../components/Skeleton';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { pageTransition } from '../utils/motionVariants';
 
@@ -28,7 +29,9 @@ export function AppLayout() {
         {/* Sem AnimatePresence/exit: a página antiga sai de cena na hora do clique
             (nunca fica montada junto da nova), e só a nova página entra com um
             fade+lift bem curto. Isso evita ter duas telas pesadas renderizadas
-            ao mesmo tempo e faz o clique parecer instantâneo. */}
+            ao mesmo tempo e faz o clique parecer instantâneo. Páginas são
+            carregadas sob demanda (React.lazy); o Suspense fica só em volta do
+            conteúdo — Sidebar e Header nunca somem durante o carregamento. */}
         <main className="flex-1 overflow-y-auto">
           <motion.div
             key={location.pathname}
@@ -37,7 +40,9 @@ export function AppLayout() {
             transition={transition}
             className="p-4 lg:p-8"
           >
-            <Outlet />
+            <Suspense fallback={<RouteSkeleton />}>
+              <Outlet />
+            </Suspense>
           </motion.div>
         </main>
       </div>

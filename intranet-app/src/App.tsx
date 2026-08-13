@@ -1,28 +1,41 @@
+import { lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './components/Toast';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './layouts/AppLayout';
 
+// Login e Dashboard carregam de cara (é a primeira tela que a pessoa vê
+// depois de autenticar). Todo o resto só entra no bundle quando a rota é
+// visitada — reduz o JS inicial e mantém o app leve mesmo crescendo.
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
-import { AssistenteIA } from './pages/AssistenteIA';
-import { Administracao } from './pages/Administracao';
-import { AdministracaoUsuarios } from './pages/AdministracaoUsuarios';
-import { Audiencias } from './pages/Audiencias';
-import { Documentos } from './pages/Documentos';
-import { Tribunais } from './pages/Tribunais';
-import { Funcionarios } from './pages/Funcionarios';
-import { FuncionarioPerfil } from './pages/FuncionarioPerfil';
-import { CalendarioEscritorio } from './pages/CalendarioEscritorio';
-import { Solicitacoes } from './pages/Solicitacoes';
-import { Notificacoes } from './pages/Notificacoes';
-import { BaseConhecimento } from './pages/BaseConhecimento';
-import { ManualInterno } from './pages/ManualInterno';
-import { Onboarding } from './pages/Onboarding';
-import { Perfil } from './pages/Perfil';
-import { Configuracoes } from './pages/Configuracoes';
-import { MeuAuthenticator } from './pages/MeuAuthenticator';
+
+const AssistenteIA = lazy(() => import('./pages/AssistenteIA').then((m) => ({ default: m.AssistenteIA })));
+const Administracao = lazy(() => import('./pages/Administracao').then((m) => ({ default: m.Administracao })));
+const AdministracaoUsuarios = lazy(() =>
+  import('./pages/AdministracaoUsuarios').then((m) => ({ default: m.AdministracaoUsuarios }))
+);
+const Audiencias = lazy(() => import('./pages/Audiencias').then((m) => ({ default: m.Audiencias })));
+const Documentos = lazy(() => import('./pages/Documentos').then((m) => ({ default: m.Documentos })));
+const Tribunais = lazy(() => import('./pages/Tribunais').then((m) => ({ default: m.Tribunais })));
+const FuncionarioPerfil = lazy(() =>
+  import('./pages/FuncionarioPerfil').then((m) => ({ default: m.FuncionarioPerfil }))
+);
+const CalendarioEscritorio = lazy(() =>
+  import('./pages/CalendarioEscritorio').then((m) => ({ default: m.CalendarioEscritorio }))
+);
+const Solicitacoes = lazy(() => import('./pages/Solicitacoes').then((m) => ({ default: m.Solicitacoes })));
+const Notificacoes = lazy(() => import('./pages/Notificacoes').then((m) => ({ default: m.Notificacoes })));
+const BaseConhecimento = lazy(() =>
+  import('./pages/BaseConhecimento').then((m) => ({ default: m.BaseConhecimento }))
+);
+const ManualInterno = lazy(() => import('./pages/ManualInterno').then((m) => ({ default: m.ManualInterno })));
+const Perfil = lazy(() => import('./pages/Perfil').then((m) => ({ default: m.Perfil })));
+const Configuracoes = lazy(() => import('./pages/Configuracoes').then((m) => ({ default: m.Configuracoes })));
+const MeuAuthenticator = lazy(() =>
+  import('./pages/MeuAuthenticator').then((m) => ({ default: m.MeuAuthenticator }))
+);
 
 function App() {
   return (
@@ -44,9 +57,7 @@ function App() {
             <Route path="/base-conhecimento" element={<BaseConhecimento />} />
             <Route path="/audiencias" element={<Audiencias />} />
             <Route path="/calendario" element={<CalendarioEscritorio />} />
-            <Route path="/funcionarios" element={<Funcionarios />} />
             <Route path="/funcionarios/:id" element={<FuncionarioPerfil />} />
-            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/manual" element={<ManualInterno />} />
             <Route path="/documentos" element={<Documentos />} />
             <Route path="/tribunais" element={<Tribunais />} />

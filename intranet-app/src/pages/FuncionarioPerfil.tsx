@@ -28,7 +28,7 @@ export function FuncionarioPerfil() {
   return (
     <div className="max-w-3xl space-y-6">
       <button
-        onClick={() => navigate('/funcionarios')}
+        onClick={() => navigate('/calendario?tab=funcionarios')}
         className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-navy"
       >
         <ArrowLeft className="w-4 h-4" /> Voltar

@@ -27,7 +27,7 @@ import { announcements } from '../mocks/announcements';
 import { isSameMonth } from '../utils/date';
 
 const modules = [
-  { label: 'Funcionários', icon: Users, path: '/funcionarios' },
+  { label: 'Funcionários', icon: Users, path: '/calendario?tab=funcionarios' },
   { label: 'Férias', icon: Palmtree, path: '/calendario?tab=ferias' },
   { label: 'Agenda', icon: Calendar, path: '/calendario?tab=agenda' },
   { label: 'Aniversários', icon: Cake, path: '/calendario?tab=aniversarios' },
@@ -35,7 +35,7 @@ const modules = [
   { label: 'Avisos', icon: Megaphone, path: '/calendario?tab=avisos' },
   { label: 'Base de conhecimento', icon: BookOpen, path: '/base-conhecimento' },
   { label: 'Documentos', icon: FileText, path: '/documentos' },
-  { label: 'Novos funcionários', icon: UserPlus, path: '/onboarding' },
+  { label: 'Novos funcionários', icon: UserPlus, path: '/calendario?tab=onboarding' },
   { label: 'Links dos tribunais', icon: Link2, path: '/tribunais' },
   { label: 'Usuários e permissões', icon: ShieldCheck, path: '/administracao/usuarios' },
 ];

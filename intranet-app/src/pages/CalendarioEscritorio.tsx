@@ -1,11 +1,13 @@
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Calendar, Palmtree, Cake, CalendarDays, Megaphone, type LucideIcon } from 'lucide-react';
+import { Calendar, Palmtree, Cake, CalendarDays, Megaphone, Users, UserPlus, type LucideIcon } from 'lucide-react';
 import { Agenda } from './Agenda';
 import { Ferias } from './Ferias';
 import { Aniversarios } from './Aniversarios';
 import { Feriados } from './Feriados';
 import { Avisos } from './Avisos';
+import { Funcionarios } from './Funcionarios';
+import { Onboarding } from './Onboarding';
 
 interface TabDef {
   id: string;
@@ -20,6 +22,8 @@ const TABS: TabDef[] = [
   { id: 'aniversarios', label: 'Aniversários', icon: Cake, Component: Aniversarios },
   { id: 'feriados', label: 'Feriados', icon: CalendarDays, Component: Feriados },
   { id: 'avisos', label: 'Avisos', icon: Megaphone, Component: Avisos },
+  { id: 'funcionarios', label: 'Funcionários', icon: Users, Component: Funcionarios },
+  { id: 'onboarding', label: 'Onboarding', icon: UserPlus, Component: Onboarding },
 ];
 
 export function CalendarioEscritorio() {
