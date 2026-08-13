@@ -7,6 +7,8 @@ import { navItems } from './navItems';
 import { useAuth } from '../context/AuthContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { cn } from '../utils/cn';
+import logo from '../assets/logo-gold.webp';
+import logoIcon from '../assets/logo-icon.png';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -55,11 +57,10 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
         )}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-white/10 shrink-0">
-          {!collapsed && (
-            <div className="leading-tight">
-              <p className="text-[13px] font-semibold tracking-wide">ERALDO JÚNIOR</p>
-              <p className="text-[10px] text-gold tracking-widest">ADVOCACIA</p>
-            </div>
+          {collapsed ? (
+            <img src={logoIcon} alt="Eraldo Júnior Advocacia" className="h-9 w-9 object-contain" />
+          ) : (
+            <img src={logo} alt="Eraldo Júnior Advocacia" className="h-12 w-auto max-w-[180px] object-contain" />
           )}
           <button
             onClick={onCloseMobile}

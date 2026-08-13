@@ -10,6 +10,7 @@ dist-ssr/
 venv/
 __pycache__/
 *.pyc
+backend/chroma_data/
 
 # OS / editor
 .DS_Store

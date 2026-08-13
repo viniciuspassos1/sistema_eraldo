@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { motion } from 'motion/react';
-import { Bot, Send, FileSearch, Briefcase, MessageSquareText, type LucideIcon } from 'lucide-react';
+import { Bot, Send, FileSearch, Briefcase, MessageSquareText, Copy, Check, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { aiAnswers, fallbackAnswer } from '../mocks/aiKnowledge';
 import { communicationAnswers, communicationFallback } from '../mocks/communicationKnowledge';
+import { askAssistant, AssistantApiError } from '../api/assistant';
+import { useToast } from '../components/Toast';
 import type { ChatMessage } from '../types';
 
 interface AssistantConfig {
@@ -12,35 +13,55 @@ interface AssistantConfig {
   descricao: string;
   icon: LucideIcon;
   examples: string[];
-  answerFor: (question: string) => { texto: string; fonte?: string };
+  thinkingLabel: string;
+  answerFor: (question: string) => Promise<{ texto: string; fonte?: string }>;
 }
 
-function buildAnswerFn(
-  base: typeof aiAnswers,
-  fallback: string
-): AssistantConfig['answerFor'] {
-  return (question: string) => {
+// Aba "Comunicação": segue mockada (é um caso de geração/redação, não de
+// consulta a documentação — fora do escopo do RAG).
+function buildMockAnswerFn(base: typeof communicationAnswers, fallback: string): AssistantConfig['answerFor'] {
+  return async (question: string) => {
     const q = question.toLowerCase();
     const match = base.find((a) => a.keywords.some((k) => q.includes(k)));
+    await new Promise((r) => setTimeout(r, 500));
     if (match) return { texto: match.resposta, fonte: match.fonte };
     return { texto: fallback };
   };
+}
+
+// Aba "Processos Gerais": busca real (RAG) na documentação interna via
+// backend Python. Sem delay artificial — o tempo de resposta já é o tempo
+// real da busca semântica.
+async function answerFromKnowledgeBase(question: string): Promise<{ texto: string; fonte?: string }> {
+  try {
+    const { resposta, fontes } = await askAssistant(question);
+    const fonte =
+      fontes.length > 0
+        ? fontes.map((f) => (f.secao ? `${f.documento} — ${f.secao}` : f.documento)).join('; ')
+        : undefined;
+    return { texto: resposta, fonte };
+  } catch (err) {
+    const texto =
+      err instanceof AssistantApiError ? err.message : 'Erro inesperado ao consultar o assistente.';
+    return { texto };
+  }
 }
 
 const ASSISTANTS: AssistantConfig[] = [
   {
     id: 'geral',
     label: 'Processos Gerais',
-    descricao: 'Consulta a base de conhecimento, documentos, agenda, audiências, férias e funcionários.',
+    descricao: 'Consulta a documentação interna do escritório: manuais, procedimentos e políticas.',
     icon: Briefcase,
     examples: [
-      'Quando são minhas próximas férias?',
-      'Quais audiências tenho amanhã?',
-      'Qual o link do TJBA?',
-      'Quem está de férias este mês?',
-      'Qual documento fala sobre atendimento?',
+      'Como faço para solicitar férias?',
+      'Qual o prazo de resposta ao cliente?',
+      'Quais sistemas o escritório usa?',
+      'Como funciona o reembolso de despesas?',
+      'Qual o procedimento para abrir um processo previdenciário?',
     ],
-    answerFor: buildAnswerFn(aiAnswers, fallbackAnswer),
+    thinkingLabel: 'Consultando a documentação...',
+    answerFor: answerFromKnowledgeBase,
   },
   {
     id: 'comunicacao',
@@ -54,9 +75,37 @@ const ASSISTANTS: AssistantConfig[] = [
       'Como deixar este texto mais objetivo?',
       'Estrutura de e-mail para cliente',
     ],
-    answerFor: buildAnswerFn(communicationAnswers, communicationFallback),
+    thinkingLabel: 'Pensando...',
+    answerFor: buildMockAnswerFn(communicationAnswers, communicationFallback),
   },
 ];
+
+function CopyMessageButton({ texto }: { texto: string }) {
+  const [copied, setCopied] = useState(false);
+  const { showToast } = useToast();
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopied(true);
+      showToast('Resposta copiada.');
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      showToast('Não foi possível copiar automaticamente.', 'error');
+    }
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="inline-flex items-center gap-1 text-[11px] text-text-secondary hover:text-navy transition-colors duration-150"
+      aria-label="Copiar resposta"
+    >
+      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+      {copied ? 'Copiado' : 'Copiar'}
+    </button>
+  );
+}
 
 export function AssistenteIA() {
   const { user } = useAuth();
@@ -89,9 +138,7 @@ export function AssistenteIA() {
     setInput('');
     setThinking(true);
 
-    await new Promise((r) => setTimeout(r, 500));
-
-    const { texto: resposta, fonte } = active.answerFor(texto);
+    const { texto: resposta, fonte } = await active.answerFor(texto);
     const aiMsg: ChatMessage = {
       id: crypto.randomUUID(),
       autor: 'ia',
@@ -187,12 +234,17 @@ export function AssistenteIA() {
                   <div className="bg-cream rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm text-navy whitespace-pre-line">
                     {m.texto}
                   </div>
-                  {m.fonte && (
-                    <div className="flex items-center gap-1.5 mt-1.5 pl-1 text-xs text-text-secondary">
-                      <FileSearch className="w-3.5 h-3.5" />
-                      Fonte: {m.fonte}
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between gap-3 mt-1.5 pl-1">
+                    {m.fonte ? (
+                      <div className="flex items-center gap-1.5 text-xs text-text-secondary min-w-0">
+                        <FileSearch className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Fonte: {m.fonte}</span>
+                      </div>
+                    ) : (
+                      <span />
+                    )}
+                    <CopyMessageButton texto={m.texto} />
+                  </div>
                 </div>
               </div>
             )
@@ -203,10 +255,13 @@ export function AssistenteIA() {
               <div className="w-8 h-8 rounded-full bg-navy flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4 text-gold" />
               </div>
-              <div className="bg-cream rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 rounded-full bg-navy/30 animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-navy/30 animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-navy/30 animate-bounce" />
+              <div className="bg-cream rounded-2xl rounded-tl-sm px-4 py-3 flex gap-2 items-center">
+                <span className="text-xs text-text-secondary">{active.thinkingLabel}</span>
+                <span className="flex gap-1 items-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-navy/30 animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-navy/30 animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-navy/30 animate-bounce" />
+                </span>
               </div>
             </div>
           )}

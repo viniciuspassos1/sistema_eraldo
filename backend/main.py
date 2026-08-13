@@ -2,13 +2,11 @@ import os
 import time
 
 import pyotp
-from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-load_dotenv()
-
-API_KEY = os.getenv("API_KEY", "")
+from assistant.router import router as assistant_router
+from security import require_api_key
 
 ALLOWED_ORIGINS = [
     "http://localhost:8091",
@@ -23,9 +21,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET"],
-    allow_headers=["x-api-key"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["x-api-key", "content-type"],
 )
+
+app.include_router(assistant_router)
 
 
 def load_services() -> list[dict]:
@@ -45,16 +45,6 @@ def load_services() -> list[dict]:
         services.append({"id": f"service-{index}", "name": name, "secret": secret})
         index += 1
     return services
-
-
-def require_api_key(x_api_key: str | None) -> None:
-    if not API_KEY:
-        raise HTTPException(
-            status_code=500,
-            detail="API_KEY não configurada no backend (.env). Veja .env.example.",
-        )
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Chave de API inválida.")
 
 
 @app.get("/api/authenticator/codes")

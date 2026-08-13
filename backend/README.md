@@ -45,3 +45,40 @@ Isso é um MVP local, pessoal, pra validar o fluxo. Antes de usar com contas
 reais do escritório em produção, ver a seção de segurança do documento de
 arquitetura (auditoria, RBAC, cofre de segredos de verdade, HTTPS, etc.) —
 hoje o `.env` em texto plano é aceitável só para teste local.
+
+## Assistente IA (busca na documentação interna)
+
+Mesmo backend, mesma porta, mesma `API_KEY` do Authenticator — só mais um
+endpoint: `POST /api/assistant/ask`. Faz busca semântica (RAG) sobre os
+arquivos `.md` em `backend/knowledge_base/`, com ChromaDB + Sentence
+Transformers, e devolve o trecho da documentação que melhor responde à
+pergunta, **sem inventar nada e sem LLM reescrevendo** — a resposta é o texto
+original do documento mais a fonte.
+
+Depois de instalar `requirements.txt` (venv já criado acima), indexe a base:
+
+```bash
+cd backend
+./venv/Scripts/python.exe -m assistant.ingest   # Windows
+# ./venv/bin/python -m assistant.ingest         # Mac/Linux
+```
+
+Isso baixa o modelo de embeddings na primeira vez (uso único, fica em cache)
+e grava o índice em `backend/chroma_data/` (não sobe pro git). Rode de novo
+sempre que adicionar, editar ou remover arquivos em `knowledge_base/`.
+
+Pra adicionar documentação nova, crie um `.md` em `knowledge_base/<pasta>/`
+com um cabeçalho simples:
+
+```markdown
+---
+titulo: Nome do documento
+categoria: Setor ou categoria
+---
+
+Conteúdo do documento aqui.
+```
+
+e rode o `ingest` de novo. Sobe o servidor normalmente
+(`uvicorn main:app --port 8010`) — o mesmo comando já serve os dois
+endpoints (Authenticator e Assistente).

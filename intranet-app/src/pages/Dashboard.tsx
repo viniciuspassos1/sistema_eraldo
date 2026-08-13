@@ -12,6 +12,7 @@ import { announcements } from '../mocks/announcements';
 import { agendaEvents } from '../mocks/agenda';
 import { greeting, formatDate } from '../utils/format';
 import { todayISO, daysUntilNextOccurrence } from '../utils/date';
+import { buildTrend } from '../utils/trend';
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -79,10 +80,35 @@ export function Dashboard() {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Scale} label="Minhas audiências próximas" value={minhasAudiencias.length} countDelay={0} />
-        <StatCard icon={Palmtree} label="Funcionários de férias" value={funcionariosFerias.length} countDelay={60} />
-        <StatCard icon={Megaphone} label="Avisos não lidos" value={avisosNaoLidos.length} tone="gold" countDelay={120} />
-        <StatCard icon={Cake} label="Aniversariantes próximos" value={aniversariantesProximos.length} countDelay={180} />
+        <StatCard
+          icon={Scale}
+          label="Minhas audiências próximas"
+          value={minhasAudiencias.length}
+          countDelay={0}
+          trend={buildTrend(minhasAudiencias.length, 1)}
+        />
+        <StatCard
+          icon={Palmtree}
+          label="Funcionários de férias"
+          value={funcionariosFerias.length}
+          countDelay={60}
+          trend={buildTrend(funcionariosFerias.length, 2)}
+        />
+        <StatCard
+          icon={Megaphone}
+          label="Avisos não lidos"
+          value={avisosNaoLidos.length}
+          tone="gold"
+          countDelay={120}
+          trend={buildTrend(avisosNaoLidos.length, 3)}
+        />
+        <StatCard
+          icon={Cake}
+          label="Aniversariantes próximos"
+          value={aniversariantesProximos.length}
+          countDelay={180}
+          trend={buildTrend(aniversariantesProximos.length, 4)}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
