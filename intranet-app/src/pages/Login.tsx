@@ -56,8 +56,44 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen flex bg-navy">
-      {/* Painel institucional */}
+    <div className="min-h-screen flex flex-col lg:flex-row bg-navy overflow-x-hidden">
+      {/* Versão condensada do painel institucional — só no mobile/tablet,
+          pra não perder a animação da palavra rotativa quando o painel
+          completo (abaixo) fica escondido. */}
+      <div className="lg:hidden w-full bg-navy px-6 pt-10 pb-8 flex flex-col items-center text-center shrink-0 overflow-hidden">
+        <motion.img
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          src={logoIcon}
+          alt="Eraldo Júnior Advocacia"
+          className="h-10 w-10 object-contain mb-4"
+        />
+        <motion.p
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}
+          className="font-mono text-[10px] tracking-[0.25em] text-gold/80 mb-3"
+        >
+          PORTAL RESTRITO
+        </motion.p>
+        <motion.p
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+          className="font-serif text-base text-white/75"
+        >
+          Nossa atuação é baseada em
+        </motion.p>
+        <div className="h-10 w-full max-w-full flex items-center justify-center overflow-hidden px-2">
+          <RotatingWord
+            words={VALORES}
+            className="font-serif text-[clamp(1.15rem,6.5vw,1.5rem)] font-semibold uppercase tracking-wide text-gold"
+          />
+        </div>
+      </div>
+
+      {/* Painel institucional completo — só em telas grandes */}
       <div className="hidden lg:flex flex-1 flex-col justify-between p-14 relative overflow-hidden">
         <div
           className="absolute inset-0 opacity-[0.035]"
