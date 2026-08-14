@@ -1,32 +1,38 @@
-# React + TypeScript + Vite
+# Intranet Eraldo Júnior Advocacia — frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplicação React + TypeScript (Vite) da intranet. Ver `../README.md` na raiz
+do repositório para visão geral do projeto inteiro, e `../DOCUMENTACAO.docx`
+para a documentação técnica completa.
 
-Currently, two official plugins are available:
+## Rodando localmente
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev        # servidor de desenvolvimento, http://localhost:5173
+# ou
+npm run build       # gera dist/ para produção
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Para testar o build de produção como site estático:
+
+```bash
+npm run build
+cd dist && python3 -m http.server 8091
+# abrir http://localhost:8091/
+```
+
+## Backend
+
+Meu Authenticator e o Assistente IA precisam do backend Python rodando (ver
+`../backend/README.md`). Configure `intranet-app/.env` (copie de
+`.env.example`) apontando pra ele.
+
+## Stack
+
+- React 19 + TypeScript, build com Vite
+- Tailwind CSS v4 (tema em `src/index.css`, bloco `@theme`)
+- React Router (`HashRouter`, funciona em qualquer hospedagem estática)
+- `motion` para transições e micro-interações; listas/grids usam CSS puro
+  (`.stagger-fade` em `src/index.css`) por ser mais leve que animar item a
+  item via JS
+- Páginas secundárias carregadas sob demanda via `React.lazy`

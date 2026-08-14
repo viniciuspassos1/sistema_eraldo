@@ -2,11 +2,14 @@ import os
 import time
 
 import pyotp
+from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from assistant.router import router as assistant_router
 from security import require_api_key
+
+load_dotenv()
 
 ALLOWED_ORIGINS = [
     "http://localhost:8091",

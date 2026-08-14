@@ -50,10 +50,10 @@ hoje o `.env` em texto plano é aceitável só para teste local.
 
 Mesmo backend, mesma porta, mesma `API_KEY` do Authenticator — só mais um
 endpoint: `POST /api/assistant/ask`. Faz busca semântica (RAG) sobre os
-arquivos `.md` em `backend/knowledge_base/`, com ChromaDB + Sentence
-Transformers, e devolve o trecho da documentação que melhor responde à
-pergunta, **sem inventar nada e sem LLM reescrevendo** — a resposta é o texto
-original do documento mais a fonte.
+arquivos `.md`, `.docx` e `.pdf` em `backend/knowledge_base/`, com ChromaDB
++ Sentence Transformers, e devolve o trecho da documentação que melhor
+responde à pergunta, **sem inventar nada e sem LLM reescrevendo** — a
+resposta é o texto original do documento mais a fonte.
 
 Depois de instalar `requirements.txt` (venv já criado acima), indexe a base:
 
@@ -67,18 +67,27 @@ Isso baixa o modelo de embeddings na primeira vez (uso único, fica em cache)
 e grava o índice em `backend/chroma_data/` (não sobe pro git). Rode de novo
 sempre que adicionar, editar ou remover arquivos em `knowledge_base/`.
 
-Pra adicionar documentação nova, crie um `.md` em `knowledge_base/<pasta>/`
-com um cabeçalho simples:
+Pra adicionar documentação nova, basta soltar o arquivo em
+`knowledge_base/<pasta>/` — não precisa mexer em código:
 
-```markdown
----
-titulo: Nome do documento
-categoria: Setor ou categoria
----
+- **`.md`** (recomendado quando dá pra escrever direto): aceita um
+  cabeçalho simples pra definir título e categoria manualmente —
 
-Conteúdo do documento aqui.
-```
+  ```markdown
+  ---
+  titulo: Nome do documento
+  categoria: Setor ou categoria
+  ---
 
-e rode o `ingest` de novo. Sobe o servidor normalmente
+  Conteúdo do documento aqui.
+  ```
+
+- **`.docx`** ou **`.pdf`**: pode subir o arquivo como está (ex.: um manual
+  já pronto do escritório). Não tem cabeçalho, então o título vira o nome
+  do arquivo e a categoria vira o nome da pasta onde ele foi colocado — dá
+  pra editar isso depois direto no Chroma se precisar, mas geralmente já
+  fica bom o suficiente.
+
+Depois é só rodar o `ingest` de novo. Sobe o servidor normalmente
 (`uvicorn main:app --port 8010`) — o mesmo comando já serve os dois
 endpoints (Authenticator e Assistente).
