@@ -9,7 +9,6 @@ import {
   CalendarDays,
   Megaphone,
   BookOpen,
-  FileText,
   UserPlus,
   Link2,
   ShieldCheck,
@@ -22,7 +21,6 @@ import { employees } from '../mocks/employees';
 import { vacations } from '../mocks/vacations';
 import { hearings } from '../mocks/hearings';
 import { requests } from '../mocks/agenda';
-import { documents } from '../mocks/documents';
 import { announcements } from '../mocks/announcements';
 import { isSameMonth } from '../utils/date';
 
@@ -34,7 +32,6 @@ const modules = [
   { label: 'Feriados', icon: CalendarDays, path: '/calendario?tab=feriados' },
   { label: 'Avisos', icon: Megaphone, path: '/calendario?tab=avisos' },
   { label: 'Base de conhecimento', icon: BookOpen, path: '/base-conhecimento' },
-  { label: 'Documentos', icon: FileText, path: '/documentos' },
   { label: 'Novos funcionários', icon: UserPlus, path: '/calendario?tab=onboarding' },
   { label: 'Links dos tribunais', icon: Link2, path: '/tribunais' },
   { label: 'Usuários e permissões', icon: ShieldCheck, path: '/administracao/usuarios' },
@@ -72,13 +69,12 @@ export function Administracao() {
         <p className="text-text-secondary text-sm mt-1">Painel administrativo do escritório.</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <StatCard icon={Users} label="Funcionários" value={employees.length} countDelay={0} />
         <StatCard icon={Palmtree} label="Férias este mês" value={feriasEsteMes.length} tone="gold" countDelay={50} />
         <StatCard icon={Scale} label="Audiências" value={audienciasAgendadas.length} countDelay={100} />
         <StatCard icon={Inbox} label="Solicitações abertas" value={solicitacoesAbertas.length} tone="gold" countDelay={150} />
-        <StatCard icon={FileText} label="Documentos" value={documents.length} countDelay={200} />
-        <StatCard icon={Megaphone} label="Avisos ativos" value={avisosAtivos.length} countDelay={250} />
+        <StatCard icon={Megaphone} label="Avisos ativos" value={avisosAtivos.length} countDelay={200} />
       </div>
 
       <div>

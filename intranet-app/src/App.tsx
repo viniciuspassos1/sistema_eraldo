@@ -17,7 +17,6 @@ const AdministracaoUsuarios = lazy(() =>
   import('./pages/AdministracaoUsuarios').then((m) => ({ default: m.AdministracaoUsuarios }))
 );
 const Audiencias = lazy(() => import('./pages/Audiencias').then((m) => ({ default: m.Audiencias })));
-const Documentos = lazy(() => import('./pages/Documentos').then((m) => ({ default: m.Documentos })));
 const Tribunais = lazy(() => import('./pages/Tribunais').then((m) => ({ default: m.Tribunais })));
 const FuncionarioPerfil = lazy(() =>
   import('./pages/FuncionarioPerfil').then((m) => ({ default: m.FuncionarioPerfil }))
@@ -59,7 +58,6 @@ function App() {
             <Route path="/calendario" element={<CalendarioEscritorio />} />
             <Route path="/funcionarios/:id" element={<FuncionarioPerfil />} />
             <Route path="/manual" element={<ManualInterno />} />
-            <Route path="/documentos" element={<Documentos />} />
             <Route path="/tribunais" element={<Tribunais />} />
             <Route path="/solicitacoes" element={<Solicitacoes />} />
             <Route path="/notificacoes" element={<Notificacoes />} />

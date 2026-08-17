@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Scale, Palmtree, Megaphone, Cake, Bot, FileText, Link2 } from 'lucide-react';
+import { Scale, Palmtree, Megaphone, Cake, Bot, Link2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/Card';
 import { StatCard } from '../components/StatCard';
@@ -41,7 +41,6 @@ export function Dashboard() {
   const shortcuts = [
     { label: 'Perguntar à IA', icon: Bot, path: '/assistente-ia' },
     { label: 'Audiências', icon: Scale, path: '/audiencias' },
-    { label: 'Documentos', icon: FileText, path: '/documentos' },
     { label: 'Tribunais', icon: Link2, path: '/tribunais' },
     { label: 'Férias', icon: Palmtree, path: '/calendario?tab=ferias' },
   ];

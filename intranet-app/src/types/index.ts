@@ -48,18 +48,6 @@ export interface Announcement {
   lido: boolean;
 }
 
-export interface DocumentItem {
-  id: string;
-  titulo: string;
-  categoria: string;
-  autor: string;
-  data: string;
-  atualizadoEm: string;
-  tags: string[];
-  status: 'PUBLICADO' | 'RASCUNHO';
-  tamanho: string;
-}
-
 export interface KnowledgeArticle {
   id: string;
   titulo: string;

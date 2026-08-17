@@ -3,6 +3,7 @@ import { useToast } from './Toast';
 import { agendaEvents } from '../mocks/agenda';
 import { todayISO } from '../utils/date';
 import { loadNotas } from '../utils/agendaNotas';
+import { playAlertSound } from '../utils/sound';
 
 const CHECK_INTERVAL_MS = 20_000;
 const ALERT_WINDOW_MIN = 10;
@@ -35,6 +36,7 @@ export function AgendaAlerts() {
         if (dentroDaJanela(minutos)) {
           alertadosRef.current.add(ev.id);
           showToast(`Em ${Math.ceil(minutos)} min: ${ev.titulo} (${ev.horario})`, 'info', 10000);
+          playAlertSound();
         }
       }
 
@@ -44,6 +46,7 @@ export function AgendaAlerts() {
         if (dentroDaJanela(minutos)) {
           alertadosRef.current.add(nota.id);
           showToast(`Em ${Math.ceil(minutos)} min: ${nota.texto} (${nota.hora})`, 'info', 10000);
+          playAlertSound();
         }
       }
     }
