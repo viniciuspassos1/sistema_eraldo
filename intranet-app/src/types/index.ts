@@ -48,6 +48,18 @@ export interface Announcement {
   lido: boolean;
 }
 
+export interface DocumentItem {
+  id: string;
+  titulo: string;
+  categoria: string;
+  autor: string;
+  data: string;
+  atualizadoEm: string;
+  tags: string[];
+  status: 'PUBLICADO' | 'RASCUNHO';
+  tamanho: string;
+}
+
 export interface KnowledgeArticle {
   id: string;
   titulo: string;
@@ -106,6 +118,18 @@ export interface Notification {
   data: string;
   lida: boolean;
   tipo: 'AUDIENCIA' | 'FERIAS' | 'AVISO' | 'ANIVERSARIO' | 'DOCUMENTO' | 'SOLICITACAO';
+}
+
+export interface IdeiaConteudo {
+  id: string;
+  titulo: string;
+  descricao: string;
+  formato: string;
+  tema: string;
+  referencia?: string;
+  autor: string;
+  data: string;
+  status: 'NOVA' | 'EM_ANALISE' | 'APROVADA' | 'EM_PRODUCAO' | 'PUBLICADA' | 'NAO_APROVADA';
 }
 
 export interface ChatMessage {
