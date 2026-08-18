@@ -14,6 +14,8 @@ backend/chroma_data/
 
 # Build publicado da intranet (gerado a partir de intranet-app/ com
 # `npm run build` — não é código-fonte, não faz sentido versionar).
+/site/intranet/
+# Pasta antiga (pré-reorganização) — pode ser removida manualmente do disco.
 /intranet/
 
 # OS / editor
@@ -21,3 +23,7 @@ backend/chroma_data/
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# Arquivos de lock temporários do Word/Excel/PowerPoint (criados enquanto
+# o arquivo está aberto — nunca é conteúdo de verdade).
+~$*

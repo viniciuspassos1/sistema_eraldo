@@ -1,8 +1,8 @@
 # Intranet Eraldo Júnior Advocacia — frontend
 
 Aplicação React + TypeScript (Vite) da intranet. Ver `../README.md` na raiz
-do repositório para visão geral do projeto inteiro, e `../DOCUMENTACAO.docx`
-para a documentação técnica completa.
+do repositório para visão geral do projeto inteiro, e
+`../docs/DOCUMENTACAO.docx` para a documentação técnica completa.
 
 ## Rodando localmente
 

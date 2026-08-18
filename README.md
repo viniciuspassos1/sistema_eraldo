@@ -41,7 +41,7 @@ sistema web:
   serviço do escritório, sem depender do celular de uma pessoa específica.
 - **Calendário do Escritório** — agenda, férias, aniversários, feriados,
   avisos, quadro de funcionários e onboarding, unificados numa só área.
-- **Dashboard, Audiências, Documentos, Tribunais, Solicitações,
+- **Dashboard, Documentos, Cooperativa de Ideias, Tribunais, Solicitações,
   Notificações e Administração** — visão personalizada por usuário logado
   e acesso rápido ao que o time usa todo dia.
 
@@ -49,7 +49,8 @@ sistema web:
 
 ```
 .
-├── index.html, assets/    → site institucional (estático, público)
+├── site/                  → site institucional (estático, público) — index.html + assets/
+├── docs/                  → documentação e materiais do projeto (DOCUMENTACAO.docx, proposta visual, levantamento de conteúdo)
 ├── intranet-app/          → frontend da intranet (React + TypeScript + Vite)
 └── backend/                → API Python (FastAPI)
     ├── main.py             → ponto de entrada, monta os routers, CORS
@@ -58,7 +59,8 @@ sistema web:
     │   ├── router.py        → endpoint POST /api/assistant/ask
     │   ├── rag.py            → busca semântica: embedding, ChromaDB, threshold, fallback
     │   └── ingest.py          → indexação: lê knowledge_base/*.{md,docx,pdf}, gera embeddings
-    └── knowledge_base/      → documentos fonte (.md/.docx/.pdf) que o Assistente IA consulta
+    ├── knowledge_base/      → documentos fonte (.md/.docx/.pdf) que o Assistente IA consulta
+    └── db/schema.sql          → rascunho do schema PostgreSQL (Supabase), ainda não implementado
 ```
 
 Não há build compilado versionado no repositório — `intranet-app/dist/` é
@@ -80,8 +82,9 @@ sempre gerado sob demanda (ver seção 8).
 | Dashboard | `/` | Visão do dia personalizada por usuário logado |
 | Meu Authenticator | `/meu-authenticator` | Códigos TOTP das contas de serviço, calculados no backend |
 | Assistente IA | `/assistente-ia` | Busca na documentação interna (Processos Gerais) + apoio à redação (Comunicação) |
-| Calendário do Escritório | `/calendario` | Agenda, férias, aniversários, feriados, avisos, funcionários e onboarding |
+| Calendário do Escritório | `/calendario` | Agenda (grade semanal com anotações e alerta 10 min antes), férias, aniversários, feriados, avisos, funcionários e onboarding |
 | Base de Conhecimento / Manual Interno | `/base-conhecimento`, `/manual` | Fonte que alimenta o Assistente IA |
+| Cooperativa de Ideias | `/cooperativa-ideias` | Colaboradores sugerem ideias de conteúdo para redes sociais; equipe de marketing acompanha por status |
 | Documentos, Tribunais, Solicitações, Notificações, Administração | — | Suporte operacional do dia a dia |
 
 ## 5. Fluxo: Meu Authenticator (`backend/main.py`)
@@ -205,7 +208,7 @@ Login de demonstração da intranet: ver `TEST_CREDENTIAL` em
 - **A `X-API-Key` do backend fica embutida no bundle público do
   frontend** (é compilada no JS estático pelo Vite) — não é uma proteção
   real caso o backend seja exposto além do localhost de um único
-  desenvolvedor. Ver `DOCUMENTACAO.docx` para o achado completo de
+  desenvolvedor. Ver `docs/DOCUMENTACAO.docx` para o achado completo de
   segurança.
 - **Sem controle de acesso por setor/perfil no Assistente IA** — qualquer
   usuário autenticado (mock) vê toda a documentação indexada.
@@ -214,7 +217,13 @@ Login de demonstração da intranet: ver `TEST_CREDENTIAL` em
   sempre 100% preciso.
 - **Sem banco de dados real** — tudo roda em memória/mock no frontend; o
   Assistente IA e o Meu Authenticator são os únicos fluxos com backend de
-  verdade.
+  verdade. Existe um rascunho de schema PostgreSQL em `backend/db/schema.sql`
+  (pensado para Supabase) cobrindo todas as entidades hoje mockadas, mas
+  ainda não há nenhuma API usando essas tabelas.
+- **Alerta da Agenda só funciona com a aba aberta** — o aviso 10 min antes
+  de um compromisso (toast + som) roda inteiramente no navegador; fechando
+  a aba ou o navegador, nenhum alerta é enviado (não há e-mail nem
+  notificação do sistema operacional).
 - **Sem hospedagem nem deploy automatizado configurados ainda** — o
   projeto ainda não está publicado em lugar nenhum.
 
@@ -239,4 +248,4 @@ Login de demonstração da intranet: ver `TEST_CREDENTIAL` em
 ---
 
 Documentação técnica completa (design system, o que é real x mockado por
-módulo, roadmap sugerido): **`DOCUMENTACAO.docx`**.
+módulo, roadmap sugerido): **`docs/DOCUMENTACAO.docx`**.
