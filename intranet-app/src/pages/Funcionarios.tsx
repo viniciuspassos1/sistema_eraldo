@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users } from 'lucide-react';
+import { Users, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
-import { employees } from '../mocks/employees';
+import { Skeleton } from '../components/Skeleton';
+import { fetchFuncionarios, FuncionariosApiError } from '../api/funcionarios';
+import type { User } from '../types';
 
 const statusTone = {
   ATIVO: 'success',
@@ -16,11 +18,19 @@ const statusTone = {
 export function Funcionarios() {
   const [busca, setBusca] = useState('');
   const [setor, setSetor] = useState('todos');
+  const [employees, setEmployees] = useState<User[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const setores = Array.from(new Set(employees.map((e) => e.setor)));
+  useEffect(() => {
+    fetchFuncionarios()
+      .then(setEmployees)
+      .catch((err) => setError(err instanceof FuncionariosApiError ? err.message : 'Erro inesperado ao carregar funcionários.'));
+  }, []);
 
-  const filtrados = employees.filter((e) => {
+  const setores = Array.from(new Set((employees ?? []).map((e) => e.setor)));
+
+  const filtrados = (employees ?? []).filter((e) => {
     if (setor !== 'todos' && e.setor !== setor) return false;
     if (busca && !`${e.nome} ${e.cargo}`.toLowerCase().includes(busca.toLowerCase())) return false;
     return true;
@@ -56,7 +66,23 @@ export function Funcionarios() {
         </select>
       </div>
 
-      {filtrados.length === 0 ? (
+      {error ? (
+        <Card>
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar os funcionários" description={error} />
+        </Card>
+      ) : employees === null ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="flex items-center gap-4">
+              <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : filtrados.length === 0 ? (
         <Card>
           <EmptyState icon={Users} title="Nenhum funcionário encontrado" />
         </Card>

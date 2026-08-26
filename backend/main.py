@@ -7,6 +7,7 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from assistant.router import router as assistant_router
+from funcionarios.router import router as funcionarios_router
 from security import require_api_key
 
 load_dotenv()
@@ -29,6 +30,7 @@ app.add_middleware(
 )
 
 app.include_router(assistant_router)
+app.include_router(funcionarios_router)
 
 
 def load_services() -> list[dict]:
