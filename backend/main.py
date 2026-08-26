@@ -1,40 +1,45 @@
 import os
 import time
+from contextlib import asynccontextmanager
 
 import pyotp
-from dotenv import load_dotenv
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from assistant.router import router as assistant_router
-from funcionarios.router import router as funcionarios_router
-from ferias.router import router as ferias_router
-from feriados.router import router as feriados_router
+from routers import all_routers
+from config import ALLOWED_ORIGINS
+from database import init_pool, close_pool
 from security import require_api_key
 
-load_dotenv()
 
-ALLOWED_ORIGINS = [
-    "http://localhost:8091",
-    "http://127.0.0.1:8091",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_pool()
+    yield
+    close_pool()
 
-app = FastAPI(title="Intranet Eraldo Júnior - Authenticator API")
+
+app = FastAPI(title="Intranet Eraldo Júnior - Authenticator API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["x-api-key", "content-type"],
 )
 
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(status_code=500, content={"detail": "Erro inesperado no servidor."})
+
+
 app.include_router(assistant_router)
-app.include_router(funcionarios_router)
-app.include_router(ferias_router)
-app.include_router(feriados_router)
+for _router in all_routers:
+    app.include_router(_router)
 
 
 def load_services() -> list[dict]:

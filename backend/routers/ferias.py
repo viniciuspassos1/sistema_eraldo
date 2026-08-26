@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from security import require_api_key
-from database import get_connection
+from database import fetch_all
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 _QUERY = """
     SELECT f.id, f.funcionario_id, u.nome AS funcionario_nome, f.inicio, f.fim, f.status, f.observacoes
@@ -37,13 +37,6 @@ def _serialize(row: dict) -> Ferias:
 
 
 @router.get("/api/ferias", response_model=list[Ferias])
-def listar_ferias(x_api_key: str | None = Header(default=None)):
-    require_api_key(x_api_key)
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(_QUERY)
-            rows = cur.fetchall()
-        return [_serialize(r) for r in rows]
-    finally:
-        conn.close()
+def listar_ferias():
+    rows = fetch_all(_QUERY)
+    return [_serialize(r) for r in rows]

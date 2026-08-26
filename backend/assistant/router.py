@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from security import require_api_key
 
 from .rag import answer_question
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 
 class AskRequest(BaseModel):
@@ -24,9 +24,7 @@ class AskResponse(BaseModel):
 
 
 @router.post("/api/assistant/ask", response_model=AskResponse)
-def ask(body: AskRequest, x_api_key: str | None = Header(default=None)) -> AskResponse:
-    require_api_key(x_api_key)
-
+def ask(body: AskRequest) -> AskResponse:
     pergunta = body.pergunta.strip()
     if not pergunta:
         return AskResponse(resposta="", fontes=[], encontrado=False)

@@ -1,11 +1,11 @@
 import psycopg2
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from security import require_api_key
-from database import get_connection
+from database import fetch_all, fetch_one
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 _COLUNAS = "id, nome, email, cargo, setor, foto_url, perfil, data_entrada, aniversario, telefone, status"
 
@@ -41,30 +41,17 @@ def _serialize(row: dict) -> Funcionario:
 
 
 @router.get("/api/funcionarios", response_model=list[Funcionario])
-def listar_funcionarios(x_api_key: str | None = Header(default=None)):
-    require_api_key(x_api_key)
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(f"SELECT {_COLUNAS} FROM usuarios ORDER BY nome;")
-            rows = cur.fetchall()
-        return [_serialize(r) for r in rows]
-    finally:
-        conn.close()
+def listar_funcionarios():
+    rows = fetch_all(f"SELECT {_COLUNAS} FROM usuarios ORDER BY nome;")
+    return [_serialize(r) for r in rows]
 
 
 @router.get("/api/funcionarios/{funcionario_id}", response_model=Funcionario)
-def obter_funcionario(funcionario_id: str, x_api_key: str | None = Header(default=None)):
-    require_api_key(x_api_key)
-    conn = get_connection()
+def obter_funcionario(funcionario_id: str):
     try:
-        with conn.cursor() as cur:
-            cur.execute(f"SELECT {_COLUNAS} FROM usuarios WHERE id = %s;", (funcionario_id,))
-            row = cur.fetchone()
+        row = fetch_one(f"SELECT {_COLUNAS} FROM usuarios WHERE id = %s;", (funcionario_id,))
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
-    finally:
-        conn.close()
 
     if not row:
         raise HTTPException(status_code=404, detail="Funcionário não encontrado.")

@@ -1,14 +1,9 @@
-import os
+from fastapi import Header, HTTPException
 
-from dotenv import load_dotenv
-from fastapi import HTTPException
-
-load_dotenv()
-
-API_KEY = os.getenv("API_KEY", "")
+from config import API_KEY
 
 
-def require_api_key(x_api_key: str | None) -> None:
+def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
     if not API_KEY:
         raise HTTPException(
             status_code=500,

@@ -24,6 +24,9 @@ backend/chroma_data/
 !.vscode/extensions.json
 .idea
 
+# Worktrees temporários criados por subagentes do Claude Code — sessão local, não é código.
+/.claude/
+
 # Arquivos de lock temporários do Word/Excel/PowerPoint (criados enquanto
 # o arquivo está aberto — nunca é conteúdo de verdade).
 ~$*
