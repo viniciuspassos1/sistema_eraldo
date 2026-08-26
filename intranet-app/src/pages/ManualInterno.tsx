@@ -1,23 +1,21 @@
-import { useState } from 'react';
-import { BookText } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { BookText, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
+import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
+import { fetchManualInterno, ManualInternoApiError, type CapituloManual } from '../api/manualInterno';
 import { cn } from '../utils/cn';
 
-const capitulos = [
-  { titulo: 'Apresentação', conteudo: 'O escritório Eraldo Júnior Advocacia atua há mais de 10 anos em direito previdenciário, com compromisso de dignidade, confiança e respeito aos clientes.' },
-  { titulo: 'Cultura', conteudo: 'Valorizamos ética, colaboração e excelência técnica. Cada colaborador é incentivado a propor melhorias nos processos internos.' },
-  { titulo: 'Horários', conteudo: 'Expediente de segunda a sexta, das 08h às 18h, com 1h de intervalo para almoço. Horários flexíveis mediante alinhamento com a gestão.' },
-  { titulo: 'Conduta', conteudo: 'Espera-se postura profissional, sigilo sobre informações de clientes e respeito mútuo entre colegas de trabalho.' },
-  { titulo: 'Atendimento', conteudo: 'O primeiro contato com o cliente deve ser respondido em até 24h úteis. Dúvidas processuais são direcionadas ao advogado responsável.' },
-  { titulo: 'Sistemas', conteudo: 'Utilizamos PJe, e-SAJ e Meu INSS. Credenciais de acesso são pessoais e intransferíveis.' },
-  { titulo: 'Segurança', conteudo: 'Não compartilhe senhas. Documentos sensíveis devem ser armazenados apenas nos repositórios autorizados pelo escritório.' },
-  { titulo: 'Procedimentos', conteudo: 'Consulte a Base de Conhecimento para os procedimentos detalhados de cada área (jurídico, financeiro, administrativo).' },
-  { titulo: 'Comunicação', conteudo: 'Avisos oficiais são publicados na aba Avisos. Solicitações internas devem ser abertas na Central de Solicitações.' },
-  { titulo: 'Outros', conteudo: 'Dúvidas não cobertas neste manual podem ser encaminhadas ao setor de Recursos Humanos ou consultadas com o Assistente IA.' },
-];
-
 export function ManualInterno() {
+  const [capitulos, setCapitulos] = useState<CapituloManual[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [ativo, setAtivo] = useState(0);
+
+  useEffect(() => {
+    fetchManualInterno()
+      .then(setCapitulos)
+      .catch((err) => setError(err instanceof ManualInternoApiError ? err.message : 'Erro inesperado ao carregar o manual.'));
+  }, []);
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -28,27 +26,50 @@ export function ManualInterno() {
         <p className="text-text-secondary text-sm mt-1">Guia de referência para colaboradores do escritório.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
-        <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
-          {capitulos.map((c, i) => (
-            <button
-              key={c.titulo}
-              onClick={() => setAtivo(i)}
-              className={cn(
-                'text-left text-sm px-3 py-2 rounded-lg whitespace-nowrap lg:whitespace-normal shrink-0',
-                ativo === i ? 'bg-navy text-white font-medium' : 'text-navy hover:bg-white'
-              )}
-            >
-              {i + 1}. {c.titulo}
-            </button>
-          ))}
-        </nav>
-
+      {error ? (
         <Card>
-          <h2 className="text-lg font-semibold text-navy mb-3">{capitulos[ativo].titulo}</h2>
-          <p className="text-sm text-navy leading-relaxed">{capitulos[ativo].conteudo}</p>
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar o manual" description={error} />
         </Card>
-      </div>
+      ) : capitulos === null ? (
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+          <Card className="space-y-3">
+            <Skeleton className="h-5 w-1/3" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </Card>
+        </div>
+      ) : capitulos.length === 0 ? (
+        <Card>
+          <EmptyState icon={BookText} title="Nenhum capítulo cadastrado" />
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+          <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
+            {capitulos.map((c, i) => (
+              <button
+                key={c.titulo}
+                onClick={() => setAtivo(i)}
+                className={cn(
+                  'text-left text-sm px-3 py-2 rounded-lg whitespace-nowrap lg:whitespace-normal shrink-0',
+                  ativo === i ? 'bg-navy text-white font-medium' : 'text-navy hover:bg-white'
+                )}
+              >
+                {i + 1}. {c.titulo}
+              </button>
+            ))}
+          </nav>
+
+          <Card>
+            <h2 className="text-lg font-semibold text-navy mb-3">{capitulos[ativo].titulo}</h2>
+            <p className="text-sm text-navy leading-relaxed">{capitulos[ativo].conteudo}</p>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

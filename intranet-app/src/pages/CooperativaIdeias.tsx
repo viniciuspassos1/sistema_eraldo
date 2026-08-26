@@ -1,16 +1,16 @@
-import { useState, type FormEvent } from 'react';
-import { Lightbulb, Plus } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Lightbulb, Plus, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
-import { ideiasConteudo as seed } from '../mocks/ideias';
+import { fetchIdeias, createIdeia, updateIdeiaStatus, CooperativaIdeiasApiError } from '../api/cooperativaIdeias';
 import type { IdeiaConteudo } from '../types';
 import { formatDate } from '../utils/format';
-import { todayISO } from '../utils/date';
 
 const statusLabel: Record<IdeiaConteudo['status'], string> = {
   NOVA: 'Nova ideia',
@@ -47,7 +47,8 @@ const temas = [
 export function CooperativaIdeias() {
   const { user } = useAuth();
   const { showToast } = useToast();
-  const [ideias, setIdeias] = useState<IdeiaConteudo[]>(seed);
+  const [ideias, setIdeias] = useState<IdeiaConteudo[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState('todos');
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -58,42 +59,55 @@ export function CooperativaIdeias() {
   const [referencia, setReferencia] = useState('');
   const [buttonStatus, setButtonStatus] = useState<'idle' | 'loading' | 'success'>('idle');
 
-  const filtradas = ideias.filter((i) => status === 'todos' || i.status === status);
+  useEffect(() => {
+    fetchIdeias()
+      .then(setIdeias)
+      .catch((err) => setError(err instanceof CooperativaIdeiasApiError ? err.message : 'Erro inesperado ao carregar as ideias.'));
+  }, []);
 
-  function handleStatusChange(id: string, novoStatus: IdeiaConteudo['status']) {
-    setIdeias((prev) => prev.map((i) => (i.id === id ? { ...i, status: novoStatus } : i)));
+  const filtradas = (ideias ?? []).filter((i) => status === 'todos' || i.status === status);
+
+  async function handleStatusChange(id: string, novoStatus: IdeiaConteudo['status']) {
+    const anterior = ideias;
+    setIdeias((prev) => (prev ?? []).map((i) => (i.id === id ? { ...i, status: novoStatus } : i)));
+    try {
+      await updateIdeiaStatus(id, novoStatus);
+    } catch (err) {
+      setIdeias(anterior ?? null);
+      showToast(err instanceof CooperativaIdeiasApiError ? err.message : 'Erro ao atualizar status.', 'error');
+    }
   }
 
   async function handleEnviarIdeia(e: FormEvent) {
     e.preventDefault();
-    if (!titulo.trim() || !descricao.trim()) return;
+    if (!titulo.trim() || !descricao.trim() || !user?.email) return;
 
     setButtonStatus('loading');
-    await new Promise((r) => setTimeout(r, 600));
+    try {
+      const nova = await createIdeia({
+        titulo: titulo.trim(),
+        descricao: descricao.trim(),
+        formato,
+        tema,
+        referencia: referencia.trim() || undefined,
+        autorEmail: user.email,
+      });
+      setIdeias((prev) => [nova, ...(prev ?? [])]);
+      setButtonStatus('success');
 
-    const nova: IdeiaConteudo = {
-      id: crypto.randomUUID(),
-      titulo: titulo.trim(),
-      descricao: descricao.trim(),
-      formato,
-      tema,
-      referencia: referencia.trim() || undefined,
-      autor: user?.nome ?? 'Você',
-      data: todayISO(),
-      status: 'NOVA',
-    };
-    setIdeias((prev) => [nova, ...prev]);
-    setButtonStatus('success');
-
-    await new Promise((r) => setTimeout(r, 700));
-    setButtonStatus('idle');
-    setModalOpen(false);
-    setTitulo('');
-    setDescricao('');
-    setFormato(formatos[0]);
-    setTema(temas[0]);
-    setReferencia('');
-    showToast('Ideia enviada para a Cooperativa de Ideias.');
+      await new Promise((r) => setTimeout(r, 700));
+      setButtonStatus('idle');
+      setModalOpen(false);
+      setTitulo('');
+      setDescricao('');
+      setFormato(formatos[0]);
+      setTema(temas[0]);
+      setReferencia('');
+      showToast('Ideia enviada para a Cooperativa de Ideias.');
+    } catch (err) {
+      setButtonStatus('idle');
+      showToast(err instanceof CooperativaIdeiasApiError ? err.message : 'Erro ao enviar a ideia.', 'error');
+    }
   }
 
   return (
@@ -129,7 +143,21 @@ export function CooperativaIdeias() {
         )}
       </div>
 
-      {filtradas.length === 0 ? (
+      {error ? (
+        <Card>
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar as ideias" description={error} />
+        </Card>
+      ) : ideias === null ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="space-y-2">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-1/3" />
+            </Card>
+          ))}
+        </div>
+      ) : filtradas.length === 0 ? (
         <Card>
           <EmptyState icon={Lightbulb} title="Nenhuma ideia encontrada" description="Que tal enviar a primeira?" />
         </Card>

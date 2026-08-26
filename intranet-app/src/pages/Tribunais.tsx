@@ -1,13 +1,23 @@
-import { useState } from 'react';
-import { Link2, ExternalLink } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link2, ExternalLink, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
-import { courtLinks } from '../mocks/courtLinks';
+import { Skeleton } from '../components/Skeleton';
+import { fetchTribunais, TribunaisApiError } from '../api/tribunais';
+import type { CourtLink } from '../types';
 
 export function Tribunais() {
+  const [courtLinks, setCourtLinks] = useState<CourtLink[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
 
-  const filtrados = courtLinks.filter((c) =>
+  useEffect(() => {
+    fetchTribunais()
+      .then(setCourtLinks)
+      .catch((err) => setError(err instanceof TribunaisApiError ? err.message : 'Erro inesperado ao carregar os tribunais.'));
+  }, []);
+
+  const filtrados = (courtLinks ?? []).filter((c) =>
     `${c.nome} ${c.descricao} ${c.categoria}`.toLowerCase().includes(busca.toLowerCase())
   );
 
@@ -29,7 +39,21 @@ export function Tribunais() {
         className="w-full sm:max-w-sm bg-white border border-border rounded-lg px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
       />
 
-      {filtrados.length === 0 ? (
+      {error ? (
+        <Card>
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar os tribunais" description={error} />
+        </Card>
+      ) : courtLinks === null ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="space-y-3">
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </Card>
+          ))}
+        </div>
+      ) : filtrados.length === 0 ? (
         <Card>
           <EmptyState icon={Link2} title="Nenhum tribunal encontrado" description="Tente pesquisar por outro termo." />
         </Card>

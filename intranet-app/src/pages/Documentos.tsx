@@ -1,21 +1,40 @@
-import { useState } from 'react';
-import { FileText, Download, Eye, Tag, User, Calendar } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { FileText, Download, Eye, Tag, User, Calendar, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
 import { Drawer } from '../components/Drawer';
 import { useToast } from '../components/Toast';
-import { documents, documentCategories } from '../mocks/documents';
+import { fetchDocumentos, DocumentosApiError } from '../api/documentos';
 import type { DocumentItem } from '../types';
 import { formatDate } from '../utils/format';
 
+const documentCategories = [
+  'Administrativo',
+  'Jurídico',
+  'Financeiro',
+  'Recursos Humanos',
+  'Comercial',
+  'Marketing',
+  'Tecnologia',
+];
+
 export function Documentos() {
+  const [documents, setDocuments] = useState<DocumentItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [categoria, setCategoria] = useState('todas');
   const [busca, setBusca] = useState('');
   const [preview, setPreview] = useState<DocumentItem | null>(null);
   const { showToast } = useToast();
 
-  const filtrados = documents.filter((d) => {
+  useEffect(() => {
+    fetchDocumentos()
+      .then(setDocuments)
+      .catch((err) => setError(err instanceof DocumentosApiError ? err.message : 'Erro inesperado ao carregar os documentos.'));
+  }, []);
+
+  const filtrados = (documents ?? []).filter((d) => {
     if (categoria !== 'todas' && d.categoria !== categoria) return false;
     if (busca && !`${d.titulo} ${d.tags.join(' ')}`.toLowerCase().includes(busca.toLowerCase())) return false;
     return true;
@@ -61,7 +80,21 @@ export function Documentos() {
         className="w-full sm:max-w-sm bg-white border border-border rounded-lg px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
       />
 
-      {filtrados.length === 0 ? (
+      {error ? (
+        <Card>
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar os documentos" description={error} />
+        </Card>
+      ) : documents === null ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="space-y-3">
+              <Skeleton className="h-10 w-10 rounded-lg" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </Card>
+          ))}
+        </div>
+      ) : filtrados.length === 0 ? (
         <Card>
           <EmptyState
             icon={FileText}
@@ -100,7 +133,7 @@ export function Documentos() {
                       <Eye className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => showToast('Ambiente de demonstração — não há arquivo real para baixar.', 'info')}
+                      onClick={() => showToast('Sem arquivo real hospedado ainda — nenhum upload foi feito.', 'info')}
                       className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-cream text-navy transition-colors duration-150"
                       aria-label="Baixar"
                     >

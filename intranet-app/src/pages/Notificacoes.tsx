@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { Bell, Scale, Palmtree, Megaphone, Cake, FileText, Inbox as InboxIcon, CheckCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Bell, Scale, Palmtree, Megaphone, Cake, FileText, Inbox as InboxIcon, CheckCheck, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
 import { Button } from '../components/Button';
 import { useToast } from '../components/Toast';
-import { notifications as seed } from '../mocks/agenda';
+import { fetchNotificacoes, marcarNotificacaoLida, marcarTodasLidas, NotificacoesApiError } from '../api/notificacoes';
+import type { Notification } from '../types';
 import { formatDate } from '../utils/format';
 
 const tipoIcon = {
@@ -17,19 +19,40 @@ const tipoIcon = {
 } as const;
 
 export function Notificacoes() {
-  const [items, setItems] = useState(seed);
+  const [items, setItems] = useState<Notification[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { showToast } = useToast();
 
-  function marcarTodasLidas() {
-    setItems((prev) => prev.map((n) => ({ ...n, lida: true })));
-    showToast('Todas as notificações foram marcadas como lidas.');
+  useEffect(() => {
+    fetchNotificacoes()
+      .then(setItems)
+      .catch((err) => setError(err instanceof NotificacoesApiError ? err.message : 'Erro inesperado ao carregar as notificações.'));
+  }, []);
+
+  async function handleMarcarTodasLidas() {
+    const anterior = items;
+    setItems((prev) => (prev ?? []).map((n) => ({ ...n, lida: true })));
+    try {
+      await marcarTodasLidas();
+      showToast('Todas as notificações foram marcadas como lidas.');
+    } catch (err) {
+      setItems(anterior ?? null);
+      showToast(err instanceof NotificacoesApiError ? err.message : 'Erro ao marcar notificações.', 'error');
+    }
   }
 
-  function marcarLida(id: string) {
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, lida: true } : n)));
+  async function handleMarcarLida(id: string) {
+    const alvo = (items ?? []).find((n) => n.id === id);
+    if (!alvo || alvo.lida) return;
+    setItems((prev) => (prev ?? []).map((n) => (n.id === id ? { ...n, lida: true } : n)));
+    try {
+      await marcarNotificacaoLida(id);
+    } catch {
+      setItems((prev) => (prev ?? []).map((n) => (n.id === id ? { ...n, lida: false } : n)));
+    }
   }
 
-  const naoLidas = items.filter((n) => !n.lida).length;
+  const naoLidas = (items ?? []).filter((n) => !n.lida).length;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -39,17 +62,29 @@ export function Notificacoes() {
             <Bell className="w-5 h-5 text-gold" /> Notificações
           </h1>
           <p className="text-text-secondary text-sm mt-1">
-            {naoLidas > 0 ? `${naoLidas} não lida${naoLidas > 1 ? 's' : ''}` : 'Tudo em dia por aqui.'}
+            {items === null ? 'Carregando...' : naoLidas > 0 ? `${naoLidas} não lida${naoLidas > 1 ? 's' : ''}` : 'Tudo em dia por aqui.'}
           </p>
         </div>
         {naoLidas > 0 && (
-          <Button variant="outline" size="sm" onClick={marcarTodasLidas}>
+          <Button variant="outline" size="sm" onClick={handleMarcarTodasLidas}>
             <CheckCheck className="w-4 h-4" /> Marcar todas como lidas
           </Button>
         )}
       </div>
 
-      {items.length === 0 ? (
+      {error ? (
+        <Card>
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar as notificações" description={error} />
+        </Card>
+      ) : items === null ? (
+        <Card padded={false}>
+          <div className="p-5 space-y-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </div>
+        </Card>
+      ) : items.length === 0 ? (
         <Card>
           <EmptyState icon={Bell} title="Nenhuma notificação" />
         </Card>
@@ -61,7 +96,7 @@ export function Notificacoes() {
               return (
                 <li
                   key={n.id}
-                  onClick={() => marcarLida(n.id)}
+                  onClick={() => handleMarcarLida(n.id)}
                   className={`flex items-start gap-3 px-5 py-4 cursor-pointer ${!n.lida ? 'bg-gold/5' : ''}`}
                 >
                   <div className="w-9 h-9 rounded-lg bg-navy/8 flex items-center justify-center shrink-0">

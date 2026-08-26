@@ -1,22 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
-import { knowledgeBase } from '../mocks/knowledgeBase';
+import { Skeleton } from '../components/Skeleton';
+import { fetchBaseConhecimento, BaseConhecimentoApiError } from '../api/baseConhecimento';
+import type { KnowledgeArticle } from '../types';
 import { formatDate } from '../utils/format';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const categorias = ['Procedimentos', 'FAQ', 'Sistemas', 'Atendimento', 'Jurídico', 'Administrativo', 'Comercial', 'Financeiro', 'Recursos Humanos', 'Tecnologia'];
 
 export function BaseConhecimento() {
+  const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeArticle[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [categoria, setCategoria] = useState('todas');
   const [busca, setBusca] = useState('');
   const [aberto, setAberto] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
 
-  const filtrados = knowledgeBase.filter((k) => {
+  useEffect(() => {
+    fetchBaseConhecimento()
+      .then(setKnowledgeBase)
+      .catch((err) => setError(err instanceof BaseConhecimentoApiError ? err.message : 'Erro inesperado ao carregar a base de conhecimento.'));
+  }, []);
+
+  const filtrados = (knowledgeBase ?? []).filter((k) => {
     if (categoria !== 'todas' && k.categoria !== categoria) return false;
     if (busca && !`${k.titulo} ${k.tags.join(' ')}`.toLowerCase().includes(busca.toLowerCase())) return false;
     return true;
@@ -54,7 +64,20 @@ export function BaseConhecimento() {
         </select>
       </div>
 
-      {filtrados.length === 0 ? (
+      {error ? (
+        <Card>
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar a base de conhecimento" description={error} />
+        </Card>
+      ) : knowledgeBase === null ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="space-y-2">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-1/3" />
+            </Card>
+          ))}
+        </div>
+      ) : filtrados.length === 0 ? (
         <Card>
           <EmptyState icon={BookOpen} title="Nenhum artigo encontrado" description="Tente outro termo ou categoria." />
         </Card>

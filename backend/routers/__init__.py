@@ -1,4 +1,17 @@
-from . import funcionarios, ferias, feriados, agenda, avisos, solicitacoes
+from . import (
+    funcionarios,
+    ferias,
+    feriados,
+    agenda,
+    avisos,
+    solicitacoes,
+    documentos,
+    cooperativa_ideias,
+    tribunais,
+    base_conhecimento,
+    manual_interno,
+    notificacoes,
+)
 
 all_routers = [
     funcionarios.router,
@@ -7,4 +20,10 @@ all_routers = [
     agenda.router,
     avisos.router,
     solicitacoes.router,
+    documentos.router,
+    cooperativa_ideias.router,
+    tribunais.router,
+    base_conhecimento.router,
+    manual_interno.router,
+    notificacoes.router,
 ]
