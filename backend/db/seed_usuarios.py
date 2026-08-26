@@ -12,7 +12,7 @@ Login continua mockado no frontend (AuthContext usa mocks/employees.ts) —
 por isso senha_hash aqui é só um placeholder, não uma senha usável.
 """
 
-from database import get_connection
+from database import get_connection, standalone_pool
 
 SENHA_PLACEHOLDER = "sem-autenticacao-real-ainda"
 
@@ -29,8 +29,7 @@ FUNCIONARIOS = [
 
 
 def run() -> None:
-    conn = get_connection()
-    try:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             for nome, email, cargo, setor, perfil, data_entrada, aniversario, telefone, status in FUNCIONARIOS:
                 cur.execute(
@@ -60,9 +59,8 @@ def run() -> None:
         print(f"{len(rows)} funcionário(s) na tabela usuarios:")
         for row in rows:
             print(f" - {row['nome']} ({row['email']}) -> {row['id']}")
-    finally:
-        conn.close()
 
 
 if __name__ == "__main__":
-    run()
+    with standalone_pool():
+        run()

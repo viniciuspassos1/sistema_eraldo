@@ -9,7 +9,7 @@ Uso:
 Idempotente: upsert por (nome, data_inicio).
 """
 
-from database import get_connection
+from database import get_connection, standalone_pool
 
 FERIADOS = [
     ("Independência do Brasil", "2026-09-07", None, "FERIADO", True, None),
@@ -20,8 +20,7 @@ FERIADOS = [
 
 
 def run() -> None:
-    conn = get_connection()
-    try:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             for nome, data_inicio, data_fim, tipo, fechado, observacao in FERIADOS:
                 cur.execute(
@@ -42,9 +41,8 @@ def run() -> None:
         print(f"{len(rows)} feriado(s)/recesso(s) na tabela feriados:")
         for row in rows:
             print(f" - {row['nome']}: {row['data_inicio']}" + (f" a {row['data_fim']}" if row["data_fim"] else "") + f" ({row['tipo']})")
-    finally:
-        conn.close()
 
 
 if __name__ == "__main__":
-    run()
+    with standalone_pool():
+        run()

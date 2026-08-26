@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { agendaEvents } from '../mocks/agenda';
+import { fetchAgendaEventos, AgendaApiError } from '../api/agenda';
 import { formatDate } from '../utils/format';
 import { todayISO } from '../utils/date';
 import { loadNotas, saveNotas, type DiaNota } from '../utils/agendaNotas';
+import type { AgendaEvent } from '../types';
 
 const tipoLabel: Record<string, string> = {
   AUDIENCIA: 'Audiência',
@@ -50,6 +51,14 @@ export function Agenda() {
   const weekDates = getWeekDates();
   const todayIso = todayISO();
   const gridHeight = HOURS.length * ROW_HEIGHT;
+  const [eventos, setEventos] = useState<AgendaEvent[]>([]);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAgendaEventos()
+      .then(setEventos)
+      .catch((err) => setErro(err instanceof AgendaApiError ? err.message : 'Erro inesperado ao carregar os compromissos.'));
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -60,6 +69,7 @@ export function Agenda() {
         <p className="text-text-secondary text-sm mt-1">
           Compromissos da semana. Clique em um horário vazio pra anotar algo.
         </p>
+        {erro && <p className="text-xs text-rose-600 mt-1">{erro}</p>}
       </div>
 
       <div className="flex border border-border rounded-xl overflow-hidden bg-white shadow-soft">
@@ -81,7 +91,13 @@ export function Agenda() {
         <div className="flex-1 overflow-x-auto">
           <div className="grid grid-cols-7 min-w-[900px]">
             {weekDates.map((date) => (
-              <DiaColuna key={toISO(date)} date={date} isToday={toISO(date) === todayIso} gridHeight={gridHeight} />
+              <DiaColuna
+                key={toISO(date)}
+                date={date}
+                isToday={toISO(date) === todayIso}
+                gridHeight={gridHeight}
+                eventos={eventos.filter((ev) => ev.data === toISO(date))}
+              />
             ))}
           </div>
         </div>
@@ -94,7 +110,17 @@ export function Agenda() {
   );
 }
 
-function DiaColuna({ date, isToday, gridHeight }: { date: Date; isToday: boolean; gridHeight: number }) {
+function DiaColuna({
+  date,
+  isToday,
+  gridHeight,
+  eventos,
+}: {
+  date: Date;
+  isToday: boolean;
+  gridHeight: number;
+  eventos: AgendaEvent[];
+}) {
   const iso = toISO(date);
   const [notas, setNotas] = useState<DiaNota[]>(() => loadNotas(iso));
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -129,8 +155,6 @@ function DiaColuna({ date, isToday, gridHeight }: { date: Date; isToday: boolean
     }
     setEditandoId(null);
   }
-
-  const eventos = agendaEvents.filter((ev) => ev.data === iso);
 
   return (
     <div className="border-l border-border first:border-l-0">

@@ -13,7 +13,7 @@ além do id gerado) — rodar de novo duplica. Se precisar reprocessar,
 apague as linhas antigas primeiro.
 """
 
-from database import get_connection
+from database import get_connection, standalone_pool
 
 # Mapeia o funcionarioId antigo do mock para o e-mail (chave estável em usuarios).
 FUNCIONARIO_EMAIL = {
@@ -32,8 +32,7 @@ FERIAS = [
 
 
 def run() -> None:
-    conn = get_connection()
-    try:
+    with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id, email FROM usuarios;")
             id_por_email = {row["email"]: row["id"] for row in cur.fetchall()}
@@ -65,9 +64,8 @@ def run() -> None:
         print(f"{len(rows)} período(s) de férias na tabela ferias:")
         for row in rows:
             print(f" - {row['nome']}: {row['inicio']} a {row['fim']} ({row['status']})")
-    finally:
-        conn.close()
 
 
 if __name__ == "__main__":
-    run()
+    with standalone_pool():
+        run()

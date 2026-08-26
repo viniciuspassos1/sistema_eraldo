@@ -41,6 +41,17 @@ def get_connection():
         _pool.putconn(conn)
 
 
+@contextmanager
+def standalone_pool():
+    """Para scripts fora do FastAPI (seeds, migrações) — o app normal inicializa
+    o pool no lifespan de main.py; um script solto precisa fazer isso na mão."""
+    init_pool()
+    try:
+        yield
+    finally:
+        close_pool()
+
+
 def fetch_all(query: str, params: tuple = ()) -> list[dict]:
     with get_connection() as conn:
         with conn.cursor() as cur:

@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useToast } from './Toast';
-import { agendaEvents } from '../mocks/agenda';
+import { fetchAgendaEventos } from '../api/agenda';
 import { todayISO } from '../utils/date';
 import { loadNotas } from '../utils/agendaNotas';
 import { playAlertSound } from '../utils/sound';
+import type { AgendaEvent } from '../types';
 
 const CHECK_INTERVAL_MS = 20_000;
 const ALERT_WINDOW_MIN = 10;
@@ -25,12 +26,24 @@ function dentroDaJanela(minutos: number): boolean {
 export function AgendaAlerts() {
   const { showToast } = useToast();
   const alertadosRef = useRef<Set<string>>(new Set());
+  const eventosRef = useRef<AgendaEvent[]>([]);
+
+  useEffect(() => {
+    fetchAgendaEventos()
+      .then((eventos) => {
+        eventosRef.current = eventos;
+      })
+      .catch(() => {
+        // Sem eventos reais disponíveis (backend fora do ar, etc.) — os
+        // alertas de anotações pessoais continuam funcionando normalmente.
+      });
+  }, []);
 
   useEffect(() => {
     function verificar() {
       const hojeISO = todayISO();
 
-      for (const ev of agendaEvents) {
+      for (const ev of eventosRef.current) {
         if (ev.data !== hojeISO || alertadosRef.current.has(ev.id)) continue;
         const minutos = minutosAte(ev.horario);
         if (dentroDaJanela(minutos)) {
