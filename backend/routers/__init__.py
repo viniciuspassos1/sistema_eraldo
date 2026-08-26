@@ -11,6 +11,7 @@ from . import (
     base_conhecimento,
     manual_interno,
     notificacoes,
+    onboarding,
 )
 
 all_routers = [
@@ -26,4 +27,5 @@ all_routers = [
     base_conhecimento.router,
     manual_interno.router,
     notificacoes.router,
+    onboarding.router,
 ]
