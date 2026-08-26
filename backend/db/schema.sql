@@ -314,6 +314,39 @@ create table authenticator_contas (
 );
 
 -- =============================================================================
+-- 13. ROW LEVEL SECURITY
+-- =============================================================================
+-- O backend conecta como o usuário "postgres" (via DATABASE_URL), que sempre
+-- ignora RLS — regra do próprio Postgres para superusuário, então isso não
+-- muda nada de como a API funciona. A camada de proteção real do app
+-- continua sendo a X-API-Key (backend/security.py).
+--
+-- Isso existe como segurança em camadas: o Supabase expõe cada tabela
+-- automaticamente pela API REST dele (PostgREST), usando uma chave pública
+-- ("anon key"). Sem RLS, qualquer um com essa chave leria/escreveria direto
+-- nas tabelas, pulando o backend inteiro. Como o projeto nunca usa essa
+-- chave em lugar nenhum, o risco hoje é baixo — mas ativar custa uma linha
+-- por tabela e fecha essa porta de vez, mesmo se isso mudar no futuro.
+alter table usuarios enable row level security;
+alter table agenda_eventos enable row level security;
+alter table agenda_anotacoes enable row level security;
+alter table ferias enable row level security;
+alter table feriados enable row level security;
+alter table audiencias enable row level security;
+alter table avisos enable row level security;
+alter table avisos_leituras enable row level security;
+alter table documentos enable row level security;
+alter table base_conhecimento enable row level security;
+alter table manual_interno_capitulos enable row level security;
+alter table tribunais enable row level security;
+alter table solicitacoes enable row level security;
+alter table notificacoes enable row level security;
+alter table cooperativa_ideias enable row level security;
+alter table onboarding_checklist_itens enable row level security;
+alter table onboarding_progresso enable row level security;
+alter table authenticator_contas enable row level security;
+
+-- =============================================================================
 -- Fim do schema principal.
 --
 -- Fora daqui, de propósito:

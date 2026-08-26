@@ -7,15 +7,16 @@ import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { fetchFuncionario, FuncionariosApiError } from '../api/funcionarios';
-import { vacations } from '../mocks/vacations';
+import { fetchFerias } from '../api/ferias';
 import { hearings } from '../mocks/hearings';
 import { formatDateLong, formatDate } from '../utils/format';
-import type { User } from '../types';
+import type { User, Vacation } from '../types';
 
 export function FuncionarioPerfil() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [funcionario, setFuncionario] = useState<User | null>(null);
+  const [vacations, setVacations] = useState<Vacation[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,6 +26,11 @@ export function FuncionarioPerfil() {
     fetchFuncionario(id)
       .then(setFuncionario)
       .catch((err) => setError(err instanceof FuncionariosApiError ? err.message : 'Erro inesperado ao carregar o funcionário.'));
+    // Férias é informação complementar nesta tela — se a busca falhar, a
+    // seção só aparece vazia ("Nenhum período cadastrado"), sem travar a página.
+    fetchFerias()
+      .then(setVacations)
+      .catch(() => setVacations([]));
   }, [id]);
 
   if (error) {
@@ -47,11 +53,8 @@ export function FuncionarioPerfil() {
     );
   }
 
-  // Férias e audiências ainda vêm de mocks/vacations.ts e mocks/hearings.ts,
-  // que referenciam funcionários pelo id antigo do mock (ex.: "u1") — como
-  // usuarios já migrou para o Supabase (ids reais em UUID), a busca por
-  // funcionarioId não bate mais. Volta a funcionar quando ferias/audiencias
-  // também migrarem pro banco. Audiências continua batendo, pois usa o nome.
+  // Audiências ainda vem de mocks/hearings.ts (não migrou pro banco ainda),
+  // mas casa pelo nome, então continua funcionando normalmente.
   const feriasDoFuncionario = vacations.filter((v) => v.funcionarioId === funcionario.id);
   const audienciasDoFuncionario = hearings.filter((h) => h.advogado === funcionario.nome);
 

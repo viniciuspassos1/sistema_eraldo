@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { Palmtree } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Palmtree, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
-import { vacations } from '../mocks/vacations';
+import { Skeleton } from '../components/Skeleton';
+import { fetchFerias, FeriasApiError } from '../api/ferias';
 import { formatDate } from '../utils/format';
+import type { Vacation } from '../types';
 
 const statusTone = {
   AGENDADA: 'warning',
@@ -14,8 +16,16 @@ const statusTone = {
 
 export function Ferias() {
   const [status, setStatus] = useState('todos');
+  const [vacations, setVacations] = useState<Vacation[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const filtradas = vacations.filter((v) => status === 'todos' || v.status === status);
+  useEffect(() => {
+    fetchFerias()
+      .then(setVacations)
+      .catch((err) => setError(err instanceof FeriasApiError ? err.message : 'Erro inesperado ao carregar as férias.'));
+  }, []);
+
+  const filtradas = (vacations ?? []).filter((v) => status === 'todos' || v.status === status);
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -40,7 +50,25 @@ export function Ferias() {
         ))}
       </div>
 
-      {filtradas.length === 0 ? (
+      {error ? (
+        <Card>
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar as férias" description={error} />
+        </Card>
+      ) : vacations === null ? (
+        <Card padded={false}>
+          <ul className="divide-y divide-border">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <li key={i} className="flex items-center justify-between px-5 py-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-40" />
+                </div>
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : filtradas.length === 0 ? (
         <Card>
           <EmptyState icon={Palmtree} title="Nenhum período de férias encontrado" />
         </Card>
