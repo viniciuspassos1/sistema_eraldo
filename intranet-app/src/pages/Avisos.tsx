@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Megaphone } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Megaphone, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
-import { announcements as seed } from '../mocks/announcements';
+import { fetchAvisos, AvisosApiError } from '../api/avisos';
 import { formatDate } from '../utils/format';
+import type { Announcement } from '../types';
 
 const prioridadeTone = {
   INFORMATIVO: 'neutral',
@@ -16,15 +18,22 @@ const prioridadeTone = {
 } as const;
 
 export function Avisos() {
-  const [avisos, setAvisos] = useState(seed);
+  const [avisos, setAvisos] = useState<Announcement[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<'todos' | 'nao_lidos'>('todos');
   const { showToast } = useToast();
 
-  const visiveis = avisos.filter((a) => filtro === 'todos' || !a.lido);
+  useEffect(() => {
+    fetchAvisos()
+      .then(setAvisos)
+      .catch((err) => setError(err instanceof AvisosApiError ? err.message : 'Erro inesperado ao carregar os avisos.'));
+  }, []);
+
+  const visiveis = (avisos ?? []).filter((a) => filtro === 'todos' || !a.lido);
 
   function marcarLido(id: string) {
-    const aviso = avisos.find((a) => a.id === id);
-    setAvisos((prev) => prev.map((a) => (a.id === id ? { ...a, lido: true } : a)));
+    const aviso = (avisos ?? []).find((a) => a.id === id);
+    setAvisos((prev) => (prev ?? []).map((a) => (a.id === id ? { ...a, lido: true } : a)));
     if (aviso && !aviso.lido) showToast('Aviso marcado como lido.');
   }
 
@@ -52,7 +61,21 @@ export function Avisos() {
         </div>
       </div>
 
-      {visiveis.length === 0 ? (
+      {error ? (
+        <Card>
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar os avisos" description={error} />
+        </Card>
+      ) : avisos === null ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="space-y-2">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-1/3" />
+            </Card>
+          ))}
+        </div>
+      ) : visiveis.length === 0 ? (
         <Card>
           <EmptyState icon={Megaphone} title="Nenhum aviso por aqui" description="Você está em dia com os comunicados." />
         </Card>

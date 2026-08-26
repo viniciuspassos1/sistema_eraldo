@@ -1,15 +1,16 @@
-import { useState, type FormEvent } from 'react';
-import { Inbox, Plus } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Inbox, Plus, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
 import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { useToast } from '../components/Toast';
-import { requests as seed } from '../mocks/agenda';
+import { useAuth } from '../context/AuthContext';
+import { fetchSolicitacoes, createSolicitacao, SolicitacoesApiError } from '../api/solicitacoes';
 import type { Request } from '../types';
 import { formatDate } from '../utils/format';
-import { todayISO } from '../utils/date';
 
 const statusTone = {
   ABERTO: 'warning',
@@ -30,41 +31,43 @@ const categorias = [
 ];
 
 export function Solicitacoes() {
+  const { user } = useAuth();
   const [status, setStatus] = useState('todos');
-  const [requests, setRequests] = useState<Request[]>(seed);
+  const [requests, setRequests] = useState<Request[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [categoria, setCategoria] = useState(categorias[0]);
   const [descricao, setDescricao] = useState('');
   const [buttonStatus, setButtonStatus] = useState<'idle' | 'loading' | 'success'>('idle');
   const { showToast } = useToast();
 
-  const filtradas = requests.filter((r) => status === 'todos' || r.status === status);
+  useEffect(() => {
+    fetchSolicitacoes()
+      .then(setRequests)
+      .catch((err) => setError(err instanceof SolicitacoesApiError ? err.message : 'Erro inesperado ao carregar as solicitações.'));
+  }, []);
+
+  const filtradas = (requests ?? []).filter((r) => status === 'todos' || r.status === status);
 
   async function handleCriarSolicitacao(e: FormEvent) {
     e.preventDefault();
-    if (!descricao.trim()) return;
+    if (!descricao.trim() || !user?.email) return;
 
     setButtonStatus('loading');
-    await new Promise((r) => setTimeout(r, 600));
-
-    const novo: Request = {
-      id: crypto.randomUUID(),
-      numero: `SOL-${String(93 + requests.length).padStart(4, '0')}`,
-      solicitante: 'Você',
-      categoria,
-      descricao: descricao.trim(),
-      data: todayISO(),
-      status: 'ABERTO',
-    };
-    setRequests((prev) => [novo, ...prev]);
-    setButtonStatus('success');
-
-    await new Promise((r) => setTimeout(r, 700));
-    setButtonStatus('idle');
-    setModalOpen(false);
-    setDescricao('');
-    setCategoria(categorias[0]);
-    showToast('Solicitação enviada com sucesso.');
+    try {
+      const nova = await createSolicitacao({ categoria, descricao: descricao.trim(), solicitanteEmail: user.email });
+      setRequests((prev) => [nova, ...(prev ?? [])]);
+      setButtonStatus('success');
+      await new Promise((r) => setTimeout(r, 700));
+      setButtonStatus('idle');
+      setModalOpen(false);
+      setDescricao('');
+      setCategoria(categorias[0]);
+      showToast('Solicitação enviada com sucesso.');
+    } catch (err) {
+      setButtonStatus('idle');
+      showToast(err instanceof SolicitacoesApiError ? err.message : 'Erro ao enviar a solicitação.', 'error');
+    }
   }
 
   return (
@@ -95,7 +98,19 @@ export function Solicitacoes() {
         ))}
       </div>
 
-      {filtradas.length === 0 ? (
+      {error ? (
+        <Card>
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar as solicitações" description={error} />
+        </Card>
+      ) : requests === null ? (
+        <Card padded={false}>
+          <div className="p-5 space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-5 w-full" />
+            ))}
+          </div>
+        </Card>
+      ) : filtradas.length === 0 ? (
         <Card>
           <EmptyState icon={Inbox} title="Nenhuma solicitação encontrada" description="Que tal abrir uma nova solicitação?" />
         </Card>
