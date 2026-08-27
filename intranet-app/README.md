@@ -23,9 +23,14 @@ cd dist && python3 -m http.server 8091
 
 ## Backend
 
-Meu Authenticator e o Assistente IA precisam do backend Python rodando (ver
-`../backend/README.md`). Configure `intranet-app/.env` (copie de
-`.env.example`) apontando pra ele.
+Praticamente toda a intranet (login, funcionários, agenda, férias, avisos,
+solicitações, Meu Authenticator, Assistente IA...) depende do backend
+Python rodando com um banco Postgres configurado (ver `../backend/README.md`).
+Configure `intranet-app/.env` (copie de `.env.example`) apontando pra ele.
+
+Login exige um usuário real cadastrado no banco com senha definida (ver
+`db/set_senha.py` no backend) — não há mais credencial fixa no código do
+frontend.
 
 ## Stack
 

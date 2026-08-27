@@ -52,15 +52,21 @@ sistema web:
 ├── site/                  → site institucional (estático, público) — index.html + assets/
 ├── docs/                  → documentação e materiais do projeto (DOCUMENTACAO.docx, proposta visual, levantamento de conteúdo)
 ├── intranet-app/          → frontend da intranet (React + TypeScript + Vite)
-└── backend/                → API Python (FastAPI)
-    ├── main.py             → ponto de entrada, monta os routers, CORS
-    ├── security.py         → checagem da X-API-Key compartilhada
+└── backend/                → API Python (FastAPI) + banco PostgreSQL (Supabase)
+    ├── main.py             → ponto de entrada: monta os routers, CORS, pool de conexão (lifespan)
+    ├── config.py            → variáveis de ambiente centralizadas (API_KEY, DATABASE_URL, JWT_SECRET, CORS...)
+    ├── security.py          → X-API-Key, hash de senha (bcrypt), emissão/validação de sessão (JWT)
+    ├── database.py          → pool de conexões com o Postgres (ThreadedConnectionPool) e helpers de query
+    ├── routers/             → um módulo por área (auth, funcionarios, ferias, agenda, avisos, solicitacoes...)
     ├── assistant/           → Assistente IA (RAG)
     │   ├── router.py        → endpoint POST /api/assistant/ask
     │   ├── rag.py            → busca semântica: embedding, ChromaDB, threshold, fallback
     │   └── ingest.py          → indexação: lê knowledge_base/*.{md,docx,pdf}, gera embeddings
     ├── knowledge_base/      → documentos fonte (.md/.docx/.pdf) que o Assistente IA consulta
-    └── db/schema.sql          → rascunho do schema PostgreSQL (Supabase), ainda não implementado
+    └── db/
+        ├── schema.sql        → schema PostgreSQL completo, já aplicado no Supabase (18 tabelas + RLS)
+        ├── seed_*.py          → scripts que populam cada tabela com dados de demonstração
+        └── set_senha.py       → utilitário de linha de comando pra definir/resetar a senha de um usuário
 ```
 
 Não há build compilado versionado no repositório — `intranet-app/dist/` é
@@ -68,12 +74,16 @@ sempre gerado sob demanda (ver seção 8).
 
 | Arquivo / pasta | Responsabilidade |
 |---|---|
-| `main.py` | App FastAPI; monta o router do Authenticator e do Assistente IA no mesmo processo |
-| `security.py` | Valida a `X-API-Key` enviada pelo frontend, compartilhada pelos dois routers |
+| `main.py` | App FastAPI; monta todos os routers (via `routers.all_routers`) e o do Assistente IA no mesmo processo; abre/fecha o pool de conexão no ciclo de vida da aplicação |
+| `config.py` | Único lugar que lê variáveis de ambiente — evita cada módulo repetir `os.getenv` |
+| `security.py` | Valida a `X-API-Key`; funções de hash/verificação de senha (bcrypt); `require_user`/`require_admin` (dependências FastAPI que decodificam o token de sessão) |
+| `database.py` | `get_connection()` (empresta do pool, com rollback automático em erro), `fetch_all`/`fetch_one` |
+| `routers/` | Cada arquivo é um módulo de dados real (ex.: `funcionarios.py`, `agenda.py`, `onboarding.py`), todos exigindo `X-API-Key`; os que agem em nome de "quem está logado" (Solicitações, Cooperativa de Ideias, Onboarding, Agenda → anotações, Avisos → leitura) também exigem o token de sessão |
 | `assistant/router.py` | Recebe a pergunta, delega pra `rag.py`, devolve resposta + fontes |
 | `assistant/rag.py` | Transforma a pergunta em embedding, busca no ChromaDB, aplica o threshold de distância |
 | `assistant/ingest.py` | Lê `knowledge_base/*.{md,docx,pdf}`, quebra em trechos, gera embeddings, grava no índice |
 | `knowledge_base/` | Documentação fonte — hoje, Manual Interno + Base de Conhecimento transcritos |
+| `db/schema.sql` | Schema completo já aplicado no banco real (Supabase) — não é mais rascunho |
 
 ## 4. Módulos envolvidos
 
@@ -113,9 +123,31 @@ achar o próximo número — não há limite fixo de contas.
 4. Endpoint (`GET /api/authenticator/codes`) exige header `X-API-Key`
    válido (ver `security.py`).
 
-## 6. Fluxo: Assistente IA (`backend/assistant/`)
+## 6. Fluxo: Autenticação (`backend/routers/auth.py`)
 
-### 6.1 Configuração (`rag.py` / `ingest.py`)
+1. **Login** (`POST /api/auth/login`) — recebe e-mail e senha, compara com o
+   hash bcrypt salvo em `usuarios.senha_hash` e, se bater, devolve um token
+   assinado (JWT) mais os dados do usuário (sem a senha).
+2. **Sessão** — o frontend guarda o token em `localStorage` (se "Manter
+   conectado") ou `sessionStorage`, e manda `Authorization: Bearer <token>`
+   nas chamadas que precisam saber quem está logado. Ao recarregar a
+   página, `GET /api/auth/me` valida o token e restaura a sessão.
+3. **Identidade em vez de e-mail confiado** — endpoints que agem em nome do
+   usuário (abrir uma solicitação, sugerir uma ideia, marcar um item do
+   onboarding, criar uma anotação na Agenda, marcar um aviso como lido)
+   usam `Depends(require_user)` para descobrir quem é o chamador a partir
+   do token — o frontend não informa mais quem ele é, só prova via token.
+4. **Perfil administrador** — `Depends(require_admin)` bloqueia com 403
+   quem não tem `perfil = ADMINISTRADOR` (hoje usado no resumo de
+   onboarding; outros endpoints administrativos podem reaproveitar a mesma
+   dependência).
+5. **Troca de senha** (`POST /api/auth/trocar-senha`) — o próprio usuário
+   troca a senha informando a atual; não existe ainda um fluxo de "esqueci
+   minha senha" (só o administrador pode resetar via `db/set_senha.py`).
+
+## 7. Fluxo: Assistente IA (`backend/assistant/`)
+
+### 7.1 Configuração (`rag.py` / `ingest.py`)
 
 | Constante | Valor atual | Descrição |
 |---|---|---|
@@ -123,7 +155,7 @@ achar o próximo número — não há limite fixo de contas.
 | `DISTANCE_THRESHOLD` | `0.65` | Distância de cosseno máxima aceita antes de cair no fallback |
 | `MAX_CHUNK_CHARS` / `CHUNK_OVERLAP` | `800` / `100` | Tamanho e sobreposição dos trechos ao quebrar documentos longos |
 
-### 6.2 Passo a passo
+### 7.2 Passo a passo
 
 1. **Indexação** (`python -m assistant.ingest`) — lê cada `.md`, `.docx` ou
    `.pdf` de `knowledge_base/`. Em `.md`, título e categoria vêm do
@@ -142,7 +174,7 @@ achar o próximo número — não há limite fixo de contas.
    contrário, junta até 2 trechos relevantes (sem duplicar a mesma fonte)
    e devolve como resposta, com a fonte (`titulo` + `categoria`) de cada um.
 
-### 6.3 Regras de negócio implementadas
+### 7.3 Regras de negócio implementadas
 
 | # | Regra |
 |---|---|
@@ -152,15 +184,18 @@ achar o próximo número — não há limite fixo de contas.
 | 4 | Título + categoria entram no texto usado pra gerar o embedding do documento (não só o corpo) — corrige casos onde o corpo sozinho não carrega sinal suficiente (ex.: "sistemas usados" sendo confundido com o documento de horário de expediente) |
 | 5 | Aba "Comunicação" do Assistente IA não passa por esse fluxo — é geração assistida de texto, mockada, não consulta de documentos |
 
-## 7. Pré-requisitos técnicos
+## 8. Pré-requisitos técnicos
 
 - Node.js 18+ e npm (frontend)
 - Python 3.10+ (backend)
-- Dependências Python: `fastapi`, `uvicorn`, `pyotp`, `python-dotenv`,
-  `chromadb`, `sentence-transformers` (`backend/requirements.txt`)
+- Um projeto Supabase (PostgreSQL gerenciado) — ou qualquer Postgres
+  acessível via connection string
+- Dependências Python: `fastapi`, `uvicorn`, `psycopg2-binary`, `bcrypt`,
+  `PyJWT`, `pyotp`, `python-dotenv`, `chromadb`, `sentence-transformers`
+  (`backend/requirements.txt`)
 - Navegador moderno
 
-## 8. Como executar
+## 9. Como executar
 
 ### Frontend
 
@@ -176,19 +211,24 @@ npm run dev        # http://localhost:5173
 cd backend
 python3 -m venv venv
 ./venv/Scripts/python.exe -m pip install -r requirements.txt   # Windows
-cp .env.example .env   # configure suas próprias chaves/segredos
+cp .env.example .env   # configure DATABASE_URL, API_KEY e JWT_SECRET (ver comentários no arquivo)
 
 ./venv/Scripts/python.exe -m assistant.ingest        # indexa a documentação do Assistente IA
 ./venv/Scripts/python.exe -m uvicorn main:app --port 8010
 ```
 
+Primeira vez rodando contra um banco novo: aplique `db/schema.sql` no
+Supabase (SQL Editor) e, se quiser dados de demonstração, rode os scripts
+em `db/seed_*.py` (ex.: `./venv/Scripts/python.exe -m db.seed_usuarios`).
+
 Aponte o frontend pro backend local em `intranet-app/.env` (copie de
 `.env.example`), usando a mesma `API_KEY` configurada em `backend/.env`.
 
-Login de demonstração da intranet: ver `TEST_CREDENTIAL` em
-`intranet-app/src/mocks/employees.ts` (não reproduzido aqui por segurança).
+Login: use um e-mail cadastrado em `usuarios` com senha definida via
+`./venv/Scripts/python.exe -m db.set_senha <email> <senha>` — não existe
+mais credencial fixa hardcoded no frontend.
 
-## 9. Configurações ajustáveis
+## 10. Configurações ajustáveis
 
 | Config | Onde | Efeito |
 |---|---|---|
@@ -196,30 +236,44 @@ Login de demonstração da intranet: ver `TEST_CREDENTIAL` em
 | `DISTANCE_THRESHOLD` | `backend/assistant/rag.py` | Menor = mais rigoroso (mais "não encontrei"); maior = mais permissivo |
 | `MAX_CHUNK_CHARS` / `CHUNK_OVERLAP` | `backend/assistant/ingest.py` | Como documentos longos são divididos antes de indexar |
 | `AUTH_SERVICE_N_NAME` / `AUTH_SERVICE_N_SECRET` | `backend/.env` | Contas de serviço disponíveis no Meu Authenticator |
-| `ALLOWED_ORIGINS` | `backend/main.py` | Origens permitidas por CORS a chamar a API |
+| `DATABASE_URL` | `backend/.env` | Connection string do Postgres (Supabase — usar a versão "Session pooler" se a rede não tiver rota IPv6) |
+| `JWT_SECRET` / `JWT_EXPIRES_HOURS_SESSAO` / `JWT_EXPIRES_HOURS_PERSISTENTE` | `backend/.env` | Chave de assinatura e validade do token de sessão (login) |
+| `DB_POOL_MIN` / `DB_POOL_MAX` | `backend/.env` | Tamanho do pool de conexões com o banco |
+| `ALLOWED_ORIGINS` | `backend/.env` | Origens permitidas por CORS a chamar a API |
 
-## 10. Limitações conhecidas e pontos de atenção
+## 11. Limitações conhecidas e pontos de atenção
 
-- **Autenticação da intranet é mockada** — checa e-mail/senha fixos no
-  frontend, sem sessão real; qualquer role/perfil (ex. Administração) é só
-  uma checagem client-side.
-- **Dados de funcionários, audiências, documentos etc. são mocks fixos**
-  em `intranet-app/src/mocks/` — não persistem entre sessões.
+- **Dashboard e Administração ainda são mockados** — misturam várias
+  fontes de `intranet-app/src/mocks/` (funcionários, férias, audiências,
+  avisos, documentos, ideias); não usam nenhuma API real ainda, embora ela
+  já exista para a maioria dessas entidades. Ficaram assim de propósito
+  para não misturar dado real com mockado na mesma tela.
+- **"Meu perfil" e o perfil de um funcionário ainda usam mocks de férias e
+  audiências** (`mocks/vacations.ts`, `mocks/hearings.ts`) em vez da API
+  real de Férias — pendência de migração pontual.
+- **Audiências não tem mais página própria** — foi removida da sidebar a
+  pedido do escritório; a tabela `audiencias` existe no schema, mas sem
+  nenhum endpoint ligado a ela.
+- **Meu Authenticator continua lendo os segredos TOTP do `.env`**, não do
+  banco — a tabela `authenticator_contas` existe no schema mas não está
+  em uso.
+- **Conteúdo real do escritório ainda não populado** — Base de
+  Conhecimento, Manual Interno, Documentos etc. têm estrutura e API reais,
+  mas o conteúdo é o texto de exemplo original. Ver
+  `docs/Levantamento_Conteudo_Necessario.docx`.
 - **A `X-API-Key` do backend fica embutida no bundle público do
-  frontend** (é compilada no JS estático pelo Vite) — não é uma proteção
-  real caso o backend seja exposto além do localhost de um único
-  desenvolvedor. Ver `docs/DOCUMENTACAO.docx` para o achado completo de
-  segurança.
+  frontend** (é compilada no JS estático pelo Vite). Isso agora é uma
+  segunda camada — a identidade de quem age (Solicitações, Onboarding
+  etc.) vem do token de sessão, não da API Key — mas a chave em si ainda
+  não é segredo de verdade num app publicado. Ver `docs/DOCUMENTACAO.docx`.
+- **Sem fluxo de "esqueci minha senha"** — só um administrador pode
+  resetar a senha de alguém, via `db/set_senha.py`. Também não há
+  bloqueio por tentativas de login incorretas (rate limiting).
 - **Sem controle de acesso por setor/perfil no Assistente IA** — qualquer
-  usuário autenticado (mock) vê toda a documentação indexada.
+  usuário autenticado vê toda a documentação indexada.
 - **Sem LLM** — a resposta é o(s) trecho(s) literal(is); perguntas
   próximas do threshold podem trazer mais de um trecho concatenado, nem
   sempre 100% preciso.
-- **Sem banco de dados real** — tudo roda em memória/mock no frontend; o
-  Assistente IA e o Meu Authenticator são os únicos fluxos com backend de
-  verdade. Existe um rascunho de schema PostgreSQL em `backend/db/schema.sql`
-  (pensado para Supabase) cobrindo todas as entidades hoje mockadas, mas
-  ainda não há nenhuma API usando essas tabelas.
 - **Alerta da Agenda só funciona com a aba aberta** — o aviso 10 min antes
   de um compromisso (toast + som) roda inteiramente no navegador; fechando
   a aba ou o navegador, nenhum alerta é enviado (não há e-mail nem
@@ -227,7 +281,7 @@ Login de demonstração da intranet: ver `TEST_CREDENTIAL` em
 - **Sem hospedagem nem deploy automatizado configurados ainda** — o
   projeto ainda não está publicado em lugar nenhum.
 
-## 11. Glossário rápido
+## 12. Glossário rápido
 
 - **RAG (Retrieval-Augmented Generation)** — aqui, só a parte de
   "Retrieval": busca por similaridade semântica, sem geração de texto por
@@ -244,6 +298,10 @@ Login de demonstração da intranet: ver `TEST_CREDENTIAL` em
   prefere dizer "não encontrei" a arriscar.
 - **Mock** — dado ou comportamento simulado no frontend, sem backend real
   por trás.
+- **JWT (JSON Web Token)** — token de sessão assinado pelo backend; prova
+  quem é o usuário sem precisar guardar sessão em banco (stateless).
+- **bcrypt** — algoritmo de hash de senha; a senha em si nunca é
+  armazenada, só o resultado do hash, que não dá pra reverter.
 
 ---
 
