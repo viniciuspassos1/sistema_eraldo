@@ -65,8 +65,7 @@ create table agenda_eventos (
 create index idx_agenda_eventos_data on agenda_eventos (data);
 create index idx_agenda_eventos_responsavel on agenda_eventos (responsavel_id);
 
--- Anotações livres que o usuário digita na grade de horários da Agenda
--- (hoje ficam só no localStorage do navegador — aqui é a versão persistida).
+-- Anotações livres que o usuário digita na grade de horários da Agenda.
 create table agenda_anotacoes (
   id uuid primary key default gen_random_uuid(),
   usuario_id uuid not null references usuarios (id) on delete cascade,
@@ -92,6 +91,30 @@ create table ferias (
 );
 
 create index idx_ferias_funcionario on ferias (funcionario_id);
+
+create type status_atestado as enum ('PENDENTE', 'APROVADO', 'RECUSADO');
+
+-- Atestados médicos: o próprio funcionário registra (data + motivo + arquivo),
+-- RH/administrador aprova ou recusa. Arquivo guardado como bytea no próprio
+-- Postgres (sem storage externo) — dado sensível (saúde), nunca exposto sem
+-- checagem de dono/perfil no backend.
+create table atestados (
+  id uuid primary key default gen_random_uuid(),
+  funcionario_id uuid not null references usuarios (id) on delete cascade,
+  data_inicio date not null,
+  data_fim date not null,
+  motivo text,
+  arquivo_nome text not null,
+  arquivo_tipo text not null,
+  arquivo_dados bytea not null,
+  status status_atestado not null default 'PENDENTE',
+  observacoes_rh text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (data_fim >= data_inicio)
+);
+
+create index idx_atestados_funcionario on atestados (funcionario_id);
 
 create type tipo_feriado as enum ('FERIADO', 'RECESSO');
 
@@ -331,6 +354,7 @@ alter table usuarios enable row level security;
 alter table agenda_eventos enable row level security;
 alter table agenda_anotacoes enable row level security;
 alter table ferias enable row level security;
+alter table atestados enable row level security;
 alter table feriados enable row level security;
 alter table audiencias enable row level security;
 alter table avisos enable row level security;

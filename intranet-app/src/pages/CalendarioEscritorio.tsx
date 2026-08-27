@@ -1,8 +1,9 @@
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { Calendar, Palmtree, Cake, CalendarDays, Megaphone, Users, UserPlus, type LucideIcon } from 'lucide-react';
+import { Calendar, Palmtree, Stethoscope, Cake, CalendarDays, Megaphone, Users, UserPlus, type LucideIcon } from 'lucide-react';
 import { Agenda } from './Agenda';
 import { Ferias } from './Ferias';
+import { Atestados } from './Atestados';
 import { Aniversarios } from './Aniversarios';
 import { Feriados } from './Feriados';
 import { Avisos } from './Avisos';
@@ -19,6 +20,7 @@ interface TabDef {
 const TABS: TabDef[] = [
   { id: 'agenda', label: 'Agenda', icon: Calendar, Component: Agenda },
   { id: 'ferias', label: 'Férias', icon: Palmtree, Component: Ferias },
+  { id: 'atestado', label: 'Atestado', icon: Stethoscope, Component: Atestados },
   { id: 'aniversarios', label: 'Aniversários', icon: Cake, Component: Aniversarios },
   { id: 'feriados', label: 'Feriados', icon: CalendarDays, Component: Feriados },
   { id: 'avisos', label: 'Avisos', icon: Megaphone, Component: Avisos },

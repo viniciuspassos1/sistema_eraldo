@@ -37,6 +37,20 @@ export interface Vacation {
   observacoes?: string;
 }
 
+export interface Atestado {
+  id: string;
+  dataInicio: string;
+  dataFim: string;
+  motivo?: string;
+  arquivoNome: string;
+  status: 'PENDENTE' | 'APROVADO' | 'RECUSADO';
+  observacoesRh?: string;
+}
+
+export interface AtestadoAdmin extends Atestado {
+  funcionario: string;
+}
+
 export interface Announcement {
   id: string;
   titulo: string;
