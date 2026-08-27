@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from security import require_api_key, require_user, verificar_senha, criar_token, UsuarioAtual
-from database import fetch_one
+from security import require_api_key, require_user, verificar_senha, criar_token, hash_senha, UsuarioAtual
+from database import fetch_one, get_connection
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -71,3 +71,26 @@ def me(usuario: UsuarioAtual = Depends(require_user)):
     if not row:
         raise HTTPException(status_code=401, detail="Sessão inválida ou expirada.")
     return _usuario_publico(row)
+
+
+class TrocarSenhaBody(BaseModel):
+    senhaAtual: str
+    novaSenha: str
+
+
+@router.post("/api/auth/trocar-senha", status_code=204)
+def trocar_senha(body: TrocarSenhaBody, usuario: UsuarioAtual = Depends(require_user)):
+    if len(body.novaSenha) < 8:
+        raise HTTPException(status_code=400, detail="A nova senha precisa ter pelo menos 8 caracteres.")
+
+    row = fetch_one("SELECT senha_hash FROM usuarios WHERE id = %s;", (usuario.id,))
+    if not row or not verificar_senha(body.senhaAtual, row["senha_hash"]):
+        raise HTTPException(status_code=401, detail="Senha atual incorreta.")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE usuarios SET senha_hash = %s, updated_at = now() WHERE id = %s;",
+                (hash_senha(body.novaSenha), usuario.id),
+            )
+        conn.commit()

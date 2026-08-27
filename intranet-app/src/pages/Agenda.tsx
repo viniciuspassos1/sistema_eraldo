@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { fetchAgendaEventos, AgendaApiError } from '../api/agenda';
+import {
+  fetchAnotacoes,
+  criarAnotacao,
+  atualizarAnotacao,
+  apagarAnotacao,
+  AgendaAnotacoesApiError,
+  type AnotacaoAgenda,
+} from '../api/agendaAnotacoes';
+import { useToast } from '../components/Toast';
 import { formatDate } from '../utils/format';
 import { todayISO } from '../utils/date';
-import { loadNotas, saveNotas, type DiaNota } from '../utils/agendaNotas';
 import type { AgendaEvent } from '../types';
 
 const tipoLabel: Record<string, string> = {
@@ -52,13 +60,49 @@ export function Agenda() {
   const todayIso = todayISO();
   const gridHeight = HOURS.length * ROW_HEIGHT;
   const [eventos, setEventos] = useState<AgendaEvent[]>([]);
+  const [notas, setNotas] = useState<AnotacaoAgenda[]>([]);
   const [erro, setErro] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     fetchAgendaEventos()
       .then(setEventos)
       .catch((err) => setErro(err instanceof AgendaApiError ? err.message : 'Erro inesperado ao carregar os compromissos.'));
+    fetchAnotacoes()
+      .then(setNotas)
+      .catch(() => {});
   }, []);
+
+  async function handleCriarNota(data: string, horario: string, texto: string) {
+    try {
+      const nova = await criarAnotacao(data, horario, texto);
+      setNotas((prev) => [...prev, nova]);
+    } catch (err) {
+      showToast(err instanceof AgendaAnotacoesApiError ? err.message : 'Erro ao salvar a anotação.', 'error');
+    }
+  }
+
+  async function handleAtualizarNota(id: string, texto: string) {
+    const anterior = notas;
+    setNotas((prev) => prev.map((n) => (n.id === id ? { ...n, texto } : n)));
+    try {
+      await atualizarAnotacao(id, texto);
+    } catch (err) {
+      setNotas(anterior);
+      showToast(err instanceof AgendaAnotacoesApiError ? err.message : 'Erro ao atualizar a anotação.', 'error');
+    }
+  }
+
+  async function handleApagarNota(id: string) {
+    const anterior = notas;
+    setNotas((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await apagarAnotacao(id);
+    } catch (err) {
+      setNotas(anterior);
+      showToast(err instanceof AgendaAnotacoesApiError ? err.message : 'Erro ao apagar a anotação.', 'error');
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -90,15 +134,22 @@ export function Agenda() {
 
         <div className="flex-1 overflow-x-auto">
           <div className="grid grid-cols-7 min-w-[900px]">
-            {weekDates.map((date) => (
-              <DiaColuna
-                key={toISO(date)}
-                date={date}
-                isToday={toISO(date) === todayIso}
-                gridHeight={gridHeight}
-                eventos={eventos.filter((ev) => ev.data === toISO(date))}
-              />
-            ))}
+            {weekDates.map((date) => {
+              const iso = toISO(date);
+              return (
+                <DiaColuna
+                  key={iso}
+                  date={date}
+                  isToday={iso === todayIso}
+                  gridHeight={gridHeight}
+                  eventos={eventos.filter((ev) => ev.data === iso)}
+                  notas={notas.filter((n) => n.data === iso)}
+                  onCriar={handleCriarNota}
+                  onAtualizar={handleAtualizarNota}
+                  onApagar={handleApagarNota}
+                />
+              );
+            })}
           </div>
         </div>
       </div>
@@ -115,43 +166,49 @@ function DiaColuna({
   isToday,
   gridHeight,
   eventos,
+  notas,
+  onCriar,
+  onAtualizar,
+  onApagar,
 }: {
   date: Date;
   isToday: boolean;
   gridHeight: number;
   eventos: AgendaEvent[];
+  notas: AnotacaoAgenda[];
+  onCriar: (data: string, horario: string, texto: string) => void;
+  onAtualizar: (id: string, texto: string) => void;
+  onApagar: (id: string) => void;
 }) {
   const iso = toISO(date);
-  const [notas, setNotas] = useState<DiaNota[]>(() => loadNotas(iso));
+  const [draft, setDraft] = useState<{ hora: string; texto: string } | null>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
-
-  function persist(next: DiaNota[]) {
-    setNotas(next);
-    saveNotas(iso, next);
-  }
+  const [textoEdicao, setTextoEdicao] = useState('');
 
   function handleSlotClick(hora: string) {
-    const existente = notas.find((n) => n.hora === hora);
+    const existente = notas.find((n) => n.horario === hora);
     if (existente) {
       setEditandoId(existente.id);
+      setTextoEdicao(existente.texto);
       return;
     }
-    const nova: DiaNota = { id: `${iso}-${hora}-${Date.now()}`, hora, texto: '' };
-    persist([...notas, nova]);
-    setEditandoId(nova.id);
+    setDraft({ hora, texto: '' });
   }
 
-  function handleTextoChange(id: string, texto: string) {
-    setNotas((prev) => {
-      const next = prev.map((n) => (n.id === id ? { ...n, texto } : n));
-      saveNotas(iso, next);
-      return next;
-    });
+  function handleDraftBlur() {
+    const texto = draft?.texto.trim();
+    if (draft && texto) {
+      onCriar(iso, draft.hora, texto);
+    }
+    setDraft(null);
   }
 
-  function handleBlur(nota: DiaNota) {
-    if (!nota.texto.trim()) {
-      persist(notas.filter((n) => n.id !== nota.id));
+  function handleEdicaoBlur(nota: AnotacaoAgenda) {
+    const texto = textoEdicao.trim();
+    if (!texto) {
+      onApagar(nota.id);
+    } else if (texto !== nota.texto) {
+      onAtualizar(nota.id, texto);
     }
     setEditandoId(null);
   }
@@ -195,7 +252,7 @@ function DiaColuna({
         })}
 
         {notas.map((n) => {
-          const top = horaParaOffset(n.hora);
+          const top = horaParaOffset(n.horario);
           if (top === null) return null;
           const isEditing = editandoId === n.id;
           return (
@@ -207,22 +264,51 @@ function DiaColuna({
               {isEditing ? (
                 <textarea
                   autoFocus
-                  value={n.texto}
-                  onChange={(e) => handleTextoChange(n.id, e.target.value)}
-                  onBlur={() => handleBlur(n)}
+                  value={textoEdicao}
+                  onChange={(e) => setTextoEdicao(e.target.value)}
+                  onBlur={() => handleEdicaoBlur(n)}
                   placeholder="Anotação..."
                   rows={2}
                   className="w-full bg-transparent text-[10px] text-navy resize-none focus:outline-none placeholder:text-navy/40"
                 />
               ) : (
-                <button type="button" onClick={() => setEditandoId(n.id)} className="w-full text-left">
-                  <p className="text-[10px] font-medium text-navy leading-tight">{n.hora}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditandoId(n.id);
+                    setTextoEdicao(n.texto);
+                  }}
+                  className="w-full text-left"
+                >
+                  <p className="text-[10px] font-medium text-navy leading-tight">{n.horario}</p>
                   <p className="text-[10px] text-navy/80 leading-tight break-words">{n.texto}</p>
                 </button>
               )}
             </div>
           );
         })}
+
+        {draft &&
+          (() => {
+            const top = horaParaOffset(draft.hora);
+            if (top === null) return null;
+            return (
+              <div
+                className="absolute left-1 right-1 rounded-md bg-gold/15 border border-gold/40 px-1.5 py-1"
+                style={{ top, minHeight: ROW_HEIGHT - 6, zIndex: 20 }}
+              >
+                <textarea
+                  autoFocus
+                  value={draft.texto}
+                  onChange={(e) => setDraft({ ...draft, texto: e.target.value })}
+                  onBlur={handleDraftBlur}
+                  placeholder="Anotação..."
+                  rows={2}
+                  className="w-full bg-transparent text-[10px] text-navy resize-none focus:outline-none placeholder:text-navy/40"
+                />
+              </div>
+            );
+          })()}
       </div>
     </div>
   );

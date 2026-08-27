@@ -1,4 +1,5 @@
 import type { User } from '../types';
+import { getStoredToken } from '../utils/authToken';
 
 interface UsuarioResponse {
   id: string;
@@ -62,6 +63,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new AuthApiError(body?.detail ?? `Erro do servidor (HTTP ${response.status}).`);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return response.json();
 }
 
@@ -83,4 +87,16 @@ export async function me(token: string): Promise<User> {
     headers: { Authorization: `Bearer ${token}` },
   });
   return toUser(data);
+}
+
+export async function trocarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
+  const token = getStoredToken();
+  await request<void>('/api/auth/trocar-senha', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ senhaAtual, novaSenha }),
+  });
 }

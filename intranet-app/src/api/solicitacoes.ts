@@ -1,5 +1,5 @@
 import type { Request } from '../types';
-import { getStoredToken } from '../context/AuthContext';
+import { getStoredToken } from '../utils/authToken';
 
 const API_URL = import.meta.env.VITE_AUTHENTICATOR_API_URL as string | undefined;
 const API_KEY = import.meta.env.VITE_AUTHENTICATOR_API_KEY as string | undefined;

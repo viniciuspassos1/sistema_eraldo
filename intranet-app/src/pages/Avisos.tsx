@@ -5,7 +5,7 @@ import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
-import { fetchAvisos, AvisosApiError } from '../api/avisos';
+import { fetchAvisos, marcarAvisoLido, AvisosApiError } from '../api/avisos';
 import { formatDate } from '../utils/format';
 import type { Announcement } from '../types';
 
@@ -31,10 +31,18 @@ export function Avisos() {
 
   const visiveis = (avisos ?? []).filter((a) => filtro === 'todos' || !a.lido);
 
-  function marcarLido(id: string) {
+  async function marcarLido(id: string) {
     const aviso = (avisos ?? []).find((a) => a.id === id);
+    if (!aviso || aviso.lido) return;
+
     setAvisos((prev) => (prev ?? []).map((a) => (a.id === id ? { ...a, lido: true } : a)));
-    if (aviso && !aviso.lido) showToast('Aviso marcado como lido.');
+    try {
+      await marcarAvisoLido(id);
+      showToast('Aviso marcado como lido.');
+    } catch (err) {
+      setAvisos((prev) => (prev ?? []).map((a) => (a.id === id ? { ...a, lido: false } : a)));
+      showToast(err instanceof AvisosApiError ? err.message : 'Erro ao marcar aviso como lido.', 'error');
+    }
   }
 
   return (

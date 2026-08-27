@@ -1,4 +1,4 @@
-import { getStoredToken } from '../context/AuthContext';
+import { getStoredToken } from '../utils/authToken';
 
 export interface ItemProgresso {
   itemId: string;

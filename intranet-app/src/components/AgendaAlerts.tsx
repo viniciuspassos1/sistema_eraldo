@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useToast } from './Toast';
 import { fetchAgendaEventos } from '../api/agenda';
+import { fetchAnotacoes } from '../api/agendaAnotacoes';
 import { todayISO } from '../utils/date';
-import { loadNotas } from '../utils/agendaNotas';
 import { playAlertSound } from '../utils/sound';
 import type { AgendaEvent } from '../types';
 
@@ -22,7 +22,9 @@ function dentroDaJanela(minutos: number): boolean {
 }
 
 /** Sem servidor rodando o dia todo: só dispara enquanto a intranet estiver
- * aberta no navegador (verifica a cada 20s os eventos e anotações de hoje). */
+ * aberta no navegador (verifica a cada 20s os eventos e anotações de hoje).
+ * Anotações são recarregadas a cada verificação porque podem ser criadas
+ * durante a própria sessão (eventos não, então ficam num ref fixo). */
 export function AgendaAlerts() {
   const { showToast } = useToast();
   const alertadosRef = useRef<Set<string>>(new Set());
@@ -40,7 +42,7 @@ export function AgendaAlerts() {
   }, []);
 
   useEffect(() => {
-    function verificar() {
+    async function verificar() {
       const hojeISO = todayISO();
 
       for (const ev of eventosRef.current) {
@@ -53,12 +55,13 @@ export function AgendaAlerts() {
         }
       }
 
-      for (const nota of loadNotas(hojeISO)) {
-        if (!nota.texto.trim() || alertadosRef.current.has(nota.id)) continue;
-        const minutos = minutosAte(nota.hora);
+      const anotacoes = await fetchAnotacoes().catch(() => []);
+      for (const nota of anotacoes) {
+        if (nota.data !== hojeISO || !nota.texto.trim() || alertadosRef.current.has(nota.id)) continue;
+        const minutos = minutosAte(nota.horario);
         if (dentroDaJanela(minutos)) {
           alertadosRef.current.add(nota.id);
-          showToast(`Em ${Math.ceil(minutos)} min: ${nota.texto} (${nota.hora})`, 'info', 10000);
+          showToast(`Em ${Math.ceil(minutos)} min: ${nota.texto} (${nota.horario})`, 'info', 10000);
           playAlertSound();
         }
       }

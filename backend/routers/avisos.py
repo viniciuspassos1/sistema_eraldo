@@ -1,15 +1,17 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from security import require_api_key
-from database import fetch_all
+from security import require_api_key, require_user, UsuarioAtual
+from database import fetch_all, get_connection
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
 _QUERY = """
-    SELECT a.id, a.titulo, a.conteudo, u.nome AS autor, a.data, a.prioridade, a.publico
+    SELECT a.id, a.titulo, a.conteudo, u.nome AS autor, a.data, a.prioridade, a.publico,
+           (al.usuario_id IS NOT NULL) AS lido
     FROM avisos a
     LEFT JOIN usuarios u ON u.id = a.autor_id
+    LEFT JOIN avisos_leituras al ON al.aviso_id = a.id AND al.usuario_id = %s
     ORDER BY a.data DESC;
 """
 
@@ -22,10 +24,7 @@ class Aviso(BaseModel):
     data: str
     prioridade: str
     publico: str
-    # "Não lido" ainda é um estado só do navegador (useState em Avisos.tsx) —
-    # persistir por usuário depende de autenticação real (avisos_leituras já
-    # existe no schema, esperando isso). Todo aviso chega do backend como não lido.
-    lido: bool = False
+    lido: bool
 
 
 def _serialize(row: dict) -> Aviso:
@@ -37,10 +36,26 @@ def _serialize(row: dict) -> Aviso:
         data=row["data"].isoformat(),
         prioridade=row["prioridade"],
         publico=row["publico"],
+        lido=row["lido"],
     )
 
 
 @router.get("/api/avisos", response_model=list[Aviso])
-def listar_avisos():
-    rows = fetch_all(_QUERY)
+def listar_avisos(usuario: UsuarioAtual = Depends(require_user)):
+    rows = fetch_all(_QUERY, (usuario.id,))
     return [_serialize(r) for r in rows]
+
+
+@router.post("/api/avisos/{aviso_id}/marcar-lido", status_code=204)
+def marcar_lido(aviso_id: str, usuario: UsuarioAtual = Depends(require_user)):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO avisos_leituras (aviso_id, usuario_id)
+                VALUES (%s, %s)
+                ON CONFLICT (aviso_id, usuario_id) DO NOTHING;
+                """,
+                (aviso_id, usuario.id),
+            )
+        conn.commit()

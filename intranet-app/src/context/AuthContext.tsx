@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { login as apiLogin, me as apiMe, AuthApiError } from '../api/auth';
+import { getStoredToken, setStoredToken, clearStoredToken } from '../utils/authToken';
 import type { User } from '../types';
 
 interface AuthContextValue {
@@ -10,16 +11,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-const TOKEN_KEY = 'intranet_ej_token';
-
-export function getStoredToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
-}
-
-function clearStoredToken() {
-  localStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(TOKEN_KEY);
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -40,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login: AuthContextValue['login'] = async (email, senha, manterConectado = false) => {
     try {
       const { token, usuario } = await apiLogin(email.trim().toLowerCase(), senha, manterConectado);
-      (manterConectado ? localStorage : sessionStorage).setItem(TOKEN_KEY, token);
+      setStoredToken(token, manterConectado);
       setUser(usuario);
       return { ok: true };
     } catch (err) {
