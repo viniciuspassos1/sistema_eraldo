@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from security import require_api_key
+from security import require_api_key, require_user, require_admin, UsuarioAtual
 from database import fetch_all, get_connection
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
@@ -15,7 +15,6 @@ class ItemProgresso(BaseModel):
 
 
 class AtualizarProgresso(BaseModel):
-    email: str
     itemId: str
     concluido: bool
 
@@ -27,17 +26,15 @@ class ResumoFuncionario(BaseModel):
     percentual: int
 
 
-@router.get("/api/onboarding/progresso", response_model=list[ItemProgresso])
-def obter_progresso(email: str):
+def _progresso_usuario(usuario_id: str) -> list[ItemProgresso]:
     rows = fetch_all(
         """
         SELECT i.id AS item_id, i.item, i.ordem, COALESCE(p.concluido, false) AS concluido
         FROM onboarding_checklist_itens i
-        LEFT JOIN usuarios u ON u.email = %s
-        LEFT JOIN onboarding_progresso p ON p.item_id = i.id AND p.funcionario_id = u.id
+        LEFT JOIN onboarding_progresso p ON p.item_id = i.id AND p.funcionario_id = %s
         ORDER BY i.ordem;
         """,
-        (email,),
+        (usuario_id,),
     )
     return [
         ItemProgresso(itemId=str(r["item_id"]), item=r["item"], ordem=r["ordem"], concluido=r["concluido"])
@@ -45,15 +42,15 @@ def obter_progresso(email: str):
     ]
 
 
+@router.get("/api/onboarding/progresso", response_model=list[ItemProgresso])
+def obter_progresso(usuario: UsuarioAtual = Depends(require_user)):
+    return _progresso_usuario(usuario.id)
+
+
 @router.patch("/api/onboarding/progresso", response_model=list[ItemProgresso])
-def atualizar_progresso(body: AtualizarProgresso):
+def atualizar_progresso(body: AtualizarProgresso, usuario: UsuarioAtual = Depends(require_user)):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id FROM usuarios WHERE email = %s;", (body.email,))
-            usuario = cur.fetchone()
-            if not usuario:
-                raise HTTPException(status_code=400, detail="Funcionário não encontrado.")
-
             cur.execute(
                 """
                 INSERT INTO onboarding_progresso (funcionario_id, item_id, concluido, concluido_em)
@@ -62,15 +59,15 @@ def atualizar_progresso(body: AtualizarProgresso):
                     concluido = EXCLUDED.concluido,
                     concluido_em = EXCLUDED.concluido_em;
                 """,
-                (usuario["id"], body.itemId, body.concluido, body.concluido),
+                (usuario.id, body.itemId, body.concluido, body.concluido),
             )
         conn.commit()
 
-    return obter_progresso(body.email)
+    return _progresso_usuario(usuario.id)
 
 
 @router.get("/api/onboarding/resumo", response_model=list[ResumoFuncionario])
-def resumo_onboarding():
+def resumo_onboarding(_admin: UsuarioAtual = Depends(require_admin)):
     rows = fetch_all(
         """
         SELECT u.id AS funcionario_id, u.nome, u.cargo,

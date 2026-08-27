@@ -2,7 +2,7 @@ import psycopg2
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from security import require_api_key
+from security import require_api_key, require_user, UsuarioAtual
 from database import fetch_all, get_connection
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
@@ -35,9 +35,6 @@ class NovaIdeia(BaseModel):
     formato: str
     tema: str
     referencia: str | None = None
-    # Mesma solução transitória do endpoint de Solicitações: sem sessão real
-    # ainda, o autor é resolvido pelo e-mail do usuário logado (mockado).
-    autorEmail: str
 
 
 class AtualizarStatus(BaseModel):
@@ -65,21 +62,16 @@ def listar_ideias():
 
 
 @router.post("/api/cooperativa-ideias", response_model=Ideia, status_code=201)
-def criar_ideia(body: NovaIdeia):
+def criar_ideia(body: NovaIdeia, usuario: UsuarioAtual = Depends(require_user)):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id FROM usuarios WHERE email = %s;", (body.autorEmail,))
-            autor = cur.fetchone()
-            if not autor:
-                raise HTTPException(status_code=400, detail="Autor não encontrado.")
-
             cur.execute(
                 """
                 INSERT INTO cooperativa_ideias (titulo, descricao, formato, tema, referencia, autor_id)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id;
                 """,
-                (body.titulo, body.descricao, body.formato, body.tema, body.referencia, autor["id"]),
+                (body.titulo, body.descricao, body.formato, body.tema, body.referencia, usuario.id),
             )
             nova_id = cur.fetchone()["id"]
         conn.commit()

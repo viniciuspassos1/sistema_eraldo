@@ -1,4 +1,5 @@
 from . import (
+    auth,
     funcionarios,
     ferias,
     feriados,
@@ -15,6 +16,7 @@ from . import (
 )
 
 all_routers = [
+    auth.router,
     funcionarios.router,
     ferias.router,
     feriados.router,

@@ -80,7 +80,7 @@ export function CooperativaIdeias() {
 
   async function handleEnviarIdeia(e: FormEvent) {
     e.preventDefault();
-    if (!titulo.trim() || !descricao.trim() || !user?.email) return;
+    if (!titulo.trim() || !descricao.trim() || !user) return;
 
     setButtonStatus('loading');
     try {
@@ -90,7 +90,6 @@ export function CooperativaIdeias() {
         formato,
         tema,
         referencia: referencia.trim() || undefined,
-        autorEmail: user.email,
       });
       setIdeias((prev) => [nova, ...(prev ?? [])]);
       setButtonStatus('success');

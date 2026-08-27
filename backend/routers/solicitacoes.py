@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from security import require_api_key
+from security import require_api_key, require_user, UsuarioAtual
 from database import fetch_all, get_connection
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
@@ -29,11 +29,6 @@ class Solicitacao(BaseModel):
 class NovaSolicitacao(BaseModel):
     categoria: str
     descricao: str
-    # Sem sessão/login real ainda — o frontend manda o e-mail de quem está
-    # logado (AuthContext, hoje mockado) pra gente achar o usuário real no
-    # banco. Isso troca pra um token de sessão de verdade assim que a
-    # autenticação real existir, sem mudar o resto deste endpoint.
-    solicitanteEmail: str
 
 
 def _serialize(row: dict) -> Solicitacao:
@@ -65,14 +60,9 @@ def listar_solicitacoes():
 
 
 @router.post("/api/solicitacoes", response_model=Solicitacao, status_code=201)
-def criar_solicitacao(body: NovaSolicitacao):
+def criar_solicitacao(body: NovaSolicitacao, usuario: UsuarioAtual = Depends(require_user)):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id FROM usuarios WHERE email = %s;", (body.solicitanteEmail,))
-            solicitante = cur.fetchone()
-            if not solicitante:
-                raise HTTPException(status_code=400, detail="Solicitante não encontrado.")
-
             numero = _proximo_numero(cur)
             cur.execute(
                 """
@@ -80,7 +70,7 @@ def criar_solicitacao(body: NovaSolicitacao):
                 VALUES (%s, %s, %s, %s)
                 RETURNING id;
                 """,
-                (numero, solicitante["id"], body.categoria, body.descricao),
+                (numero, usuario.id, body.categoria, body.descricao),
             )
             nova_id = cur.fetchone()["id"]
         conn.commit()

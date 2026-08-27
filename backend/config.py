@@ -12,3 +12,7 @@ ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", _DE
 
 DB_POOL_MIN = int(os.getenv("DB_POOL_MIN", "1"))
 DB_POOL_MAX = int(os.getenv("DB_POOL_MAX", "10"))
+
+JWT_SECRET = os.getenv("JWT_SECRET", "")
+JWT_EXPIRES_HOURS_SESSAO = int(os.getenv("JWT_EXPIRES_HOURS_SESSAO", "12"))
+JWT_EXPIRES_HOURS_PERSISTENTE = int(os.getenv("JWT_EXPIRES_HOURS_PERSISTENTE", "720"))

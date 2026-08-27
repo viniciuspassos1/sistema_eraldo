@@ -22,26 +22,26 @@ export function Onboarding() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user?.email) return;
-    fetchProgresso(user.email)
+    if (!user) return;
+    fetchProgresso()
       .then(setChecklist)
       .catch((err) => setError(err instanceof OnboardingApiError ? err.message : 'Erro inesperado ao carregar o checklist.'));
     fetchResumoOnboarding()
       .then(setResumo)
       .catch(() => setResumo([]));
-  }, [user?.email]);
+  }, [user]);
 
   const concluido = (checklist ?? []).filter((c) => c.concluido).length;
   const percentual = checklist && checklist.length > 0 ? Math.round((concluido / checklist.length) * 100) : 0;
 
   async function toggleItem(item: ItemProgresso) {
-    if (!user?.email) return;
+    if (!user) return;
     const anterior = checklist;
     const novoConcluido = !item.concluido;
     setChecklist((prev) => (prev ?? []).map((c) => (c.itemId === item.itemId ? { ...c, concluido: novoConcluido } : c)));
 
     try {
-      await atualizarProgresso(user.email, item.itemId, novoConcluido);
+      await atualizarProgresso(item.itemId, novoConcluido);
       if (novoConcluido) {
         const restantes = (checklist ?? []).filter((c) => c.itemId !== item.itemId && !c.concluido).length;
         showToast(restantes === 0 ? 'Checklist concluído! 🎉' : `"${item.item}" concluído.`);

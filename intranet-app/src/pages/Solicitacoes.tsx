@@ -51,11 +51,11 @@ export function Solicitacoes() {
 
   async function handleCriarSolicitacao(e: FormEvent) {
     e.preventDefault();
-    if (!descricao.trim() || !user?.email) return;
+    if (!descricao.trim() || !user) return;
 
     setButtonStatus('loading');
     try {
-      const nova = await createSolicitacao({ categoria, descricao: descricao.trim(), solicitanteEmail: user.email });
+      const nova = await createSolicitacao({ categoria, descricao: descricao.trim() });
       setRequests((prev) => [nova, ...(prev ?? [])]);
       setButtonStatus('success');
       await new Promise((r) => setTimeout(r, 700));

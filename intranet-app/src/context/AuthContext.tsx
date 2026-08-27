@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { employees, TEST_CREDENTIAL } from '../mocks/employees';
+import { login as apiLogin, me as apiMe, AuthApiError } from '../api/auth';
 import type { User } from '../types';
 
 interface AuthContextValue {
@@ -10,40 +10,46 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-const SESSION_KEY = 'intranet_ej_session';
+const TOKEN_KEY = 'intranet_ej_token';
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+}
+
+function clearStoredToken() {
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem(SESSION_KEY) ?? sessionStorage.getItem(SESSION_KEY);
-    if (stored) {
-      const found = employees.find((e) => e.id === stored);
-      if (found) setUser(found);
+    const token = getStoredToken();
+    if (!token) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+    apiMe(token)
+      .then(setUser)
+      .catch(clearStoredToken)
+      .finally(() => setLoading(false));
   }, []);
 
   const login: AuthContextValue['login'] = async (email, senha, manterConectado = false) => {
-    // Autenticação mockada — em produção isso vira uma chamada de API
-    // com hash de senha e sessão/JWT emitidos pelo backend.
-    await new Promise((r) => setTimeout(r, 350));
-
-    const emailNormalizado = email.trim().toLowerCase();
-    if (emailNormalizado === TEST_CREDENTIAL.email && senha === TEST_CREDENTIAL.senha) {
-      const admin = employees.find((e) => e.email === TEST_CREDENTIAL.email)!;
-      (manterConectado ? localStorage : sessionStorage).setItem(SESSION_KEY, admin.id);
-      setUser(admin);
+    try {
+      const { token, usuario } = await apiLogin(email.trim().toLowerCase(), senha, manterConectado);
+      (manterConectado ? localStorage : sessionStorage).setItem(TOKEN_KEY, token);
+      setUser(usuario);
       return { ok: true };
+    } catch (err) {
+      return { ok: false, erro: err instanceof AuthApiError ? err.message : 'Não foi possível entrar.' };
     }
-
-    return { ok: false, erro: 'E-mail ou senha inválidos.' };
   };
 
   const logout = () => {
-    sessionStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem(SESSION_KEY);
+    clearStoredToken();
     setUser(null);
   };
 

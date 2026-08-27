@@ -1,3 +1,5 @@
+import { getStoredToken } from '../context/AuthContext';
+
 export interface ItemProgresso {
   itemId: string;
   item: string;
@@ -22,11 +24,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new OnboardingApiError('Backend não configurado. Veja intranet-app/.env.example.');
   }
 
+  const token = getStoredToken();
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...init,
-      headers: { 'X-API-Key': API_KEY, ...(init?.headers ?? {}) },
+      headers: {
+        'X-API-Key': API_KEY,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.headers ?? {}),
+      },
     });
   } catch {
     throw new OnboardingApiError(
@@ -34,9 +41,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
 
-  if (response.status === 401) {
-    throw new OnboardingApiError('Chave de API inválida — confira o .env do frontend e do backend.');
-  }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new OnboardingApiError(body?.detail ?? `Erro do servidor (HTTP ${response.status}).`);
@@ -45,15 +49,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json();
 }
 
-export function fetchProgresso(email: string): Promise<ItemProgresso[]> {
-  return request(`/api/onboarding/progresso?email=${encodeURIComponent(email)}`);
+export function fetchProgresso(): Promise<ItemProgresso[]> {
+  return request('/api/onboarding/progresso');
 }
 
-export function atualizarProgresso(email: string, itemId: string, concluido: boolean): Promise<ItemProgresso[]> {
+export function atualizarProgresso(itemId: string, concluido: boolean): Promise<ItemProgresso[]> {
   return request('/api/onboarding/progresso', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, itemId, concluido }),
+    body: JSON.stringify({ itemId, concluido }),
   });
 }
 
