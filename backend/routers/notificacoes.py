@@ -2,10 +2,10 @@ import psycopg2
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from security import require_api_key
+from security import require_api_key, require_pagina
 from database import fetch_all, get_connection
 
-router = APIRouter(dependencies=[Depends(require_api_key)])
+router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("notificacoes"))])
 
 _COLUNAS = "id, mensagem, data, lida, tipo"
 

@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from security import require_api_key, require_user, UsuarioAtual
+from security import require_api_key, require_user, require_pagina, UsuarioAtual
 from database import fetch_all, get_connection
 
-router = APIRouter(dependencies=[Depends(require_api_key)])
+router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("solicitacoes"))])
 
 _SELECT = """
     SELECT s.id, s.numero, su.nome AS solicitante, s.categoria, s.descricao,

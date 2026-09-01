@@ -13,6 +13,7 @@ interface UsuarioResponse {
   aniversario: string;
   telefone: string | null;
   status: User['status'];
+  permissoes: Record<string, boolean>;
 }
 
 interface LoginResponse {
@@ -38,6 +39,7 @@ function toUser(u: UsuarioResponse): User {
     aniversario: u.aniversario,
     telefone: u.telefone ?? undefined,
     status: u.status,
+    permissoes: u.permissoes,
   };
 }
 

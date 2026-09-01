@@ -28,7 +28,7 @@ create table usuarios (
   id uuid primary key default gen_random_uuid(),
   nome text not null,
   email text not null unique,
-  senha_hash text not null, -- login hoje é mockado no frontend; isso é o que falta pra virar real (bcrypt/argon2)
+  senha_hash text not null, -- hash bcrypt; login real via backend/routers/auth.py
   cargo text not null,
   setor text not null,
   foto_url text,
@@ -42,6 +42,16 @@ create table usuarios (
 );
 
 create index idx_usuarios_status on usuarios (status);
+
+-- Modelo "opt-out": ausência de linha para (usuario_id, pagina) = permitido.
+-- ADMINISTRADOR sempre passa, independente do que estiver aqui (checado no
+-- backend, não faz sentido gravar linha pra quem já ignora a checagem).
+create table permissoes_acesso (
+  usuario_id uuid not null references usuarios (id) on delete cascade,
+  pagina text not null,
+  permitido boolean not null default true,
+  primary key (usuario_id, pagina)
+);
 
 -- =============================================================================
 -- 2. CALENDÁRIO DO ESCRITÓRIO
@@ -351,6 +361,7 @@ create table authenticator_contas (
 -- chave em lugar nenhum, o risco hoje é baixo — mas ativar custa uma linha
 -- por tabela e fecha essa porta de vez, mesmo se isso mudar no futuro.
 alter table usuarios enable row level security;
+alter table permissoes_acesso enable row level security;
 alter table agenda_eventos enable row level security;
 alter table agenda_anotacoes enable row level security;
 alter table ferias enable row level security;

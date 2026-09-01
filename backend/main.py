@@ -3,7 +3,7 @@ import time
 from contextlib import asynccontextmanager
 
 import pyotp
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -11,7 +11,7 @@ from assistant.router import router as assistant_router
 from routers import all_routers
 from config import ALLOWED_ORIGINS
 from database import init_pool, close_pool
-from security import require_api_key
+from security import require_api_key, require_pagina
 
 
 @asynccontextmanager
@@ -62,7 +62,7 @@ def load_services() -> list[dict]:
 
 
 @app.get("/api/authenticator/codes")
-def get_codes(x_api_key: str | None = Header(default=None)):
+def get_codes(x_api_key: str | None = Header(default=None), _=Depends(require_pagina("meu-authenticator"))):
     require_api_key(x_api_key)
 
     services = load_services()

@@ -119,3 +119,37 @@ def require_admin(usuario: UsuarioAtual = Depends(require_user)) -> UsuarioAtual
     if usuario.perfil != "ADMINISTRADOR":
         raise HTTPException(status_code=403, detail="Acesso restrito a administradores.")
     return usuario
+
+
+# As 11 páginas do menu que aceitam permissão granular por usuário
+# (Administração fica de fora — trancada só por perfil, ver require_admin).
+PAGINAS_PERMISSAO = [
+    "dashboard",
+    "meu-authenticator",
+    "assistente-ia",
+    "base-conhecimento",
+    "calendario",
+    "manual",
+    "documentos",
+    "cooperativa-ideias",
+    "tribunais",
+    "solicitacoes",
+    "notificacoes",
+]
+
+
+def usuario_tem_permissao(usuario_id: str, pagina: str) -> bool:
+    row = fetch_one(
+        "SELECT permitido FROM permissoes_acesso WHERE usuario_id = %s AND pagina = %s;",
+        (usuario_id, pagina),
+    )
+    return row["permitido"] if row else True
+
+
+def require_pagina(pagina: str):
+    def _checagem(usuario: UsuarioAtual = Depends(require_user)) -> UsuarioAtual:
+        if usuario.perfil != "ADMINISTRADOR" and not usuario_tem_permissao(usuario.id, pagina):
+            raise HTTPException(status_code=403, detail="Sem permissão para acessar esta área.")
+        return usuario
+
+    return _checagem

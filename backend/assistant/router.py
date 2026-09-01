@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from security import require_api_key, require_user, UsuarioAtual
+from security import require_api_key, require_user, require_pagina, UsuarioAtual
 
 from .rag import answer_question
 
-router = APIRouter(dependencies=[Depends(require_api_key)])
+router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("assistente-ia"))])
 
 
 class AskRequest(BaseModel):

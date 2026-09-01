@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from security import require_api_key
+from security import require_api_key, require_pagina
 from database import fetch_all
 
-router = APIRouter(dependencies=[Depends(require_api_key)])
+router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("documentos"))])
 
 _QUERY = """
     SELECT d.id, d.titulo, d.categoria, u.nome AS autor, d.data, d.atualizado_em,

@@ -12,6 +12,9 @@ export interface User {
   aniversario: string;
   telefone?: string;
   status: 'ATIVO' | 'INATIVO' | 'FERIAS';
+  /** Só vem preenchido no usuário logado (resposta de /api/auth/login e /me);
+   * outros usuários (ex.: lista de Funcionários) não carregam isso. */
+  permissoes?: Record<string, boolean>;
 }
 
 export interface Hearing {

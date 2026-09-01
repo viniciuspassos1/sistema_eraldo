@@ -2,7 +2,16 @@ import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export function ProtectedRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
+export function ProtectedRoute({
+  children,
+  adminOnly = false,
+  pagina,
+}: {
+  children: ReactNode;
+  adminOnly?: boolean;
+  /** Chave de user.permissoes — se a página estiver desmarcada pro usuário, redireciona. */
+  pagina?: string;
+}) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -15,6 +24,9 @@ export function ProtectedRoute({ children, adminOnly = false }: { children: Reac
 
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && user.perfil !== 'ADMINISTRADOR') return <Navigate to="/" replace />;
+  if (pagina && user.perfil !== 'ADMINISTRADOR' && user.permissoes?.[pagina] === false) {
+    return <Navigate to="/" replace />;
+  }
 
   return <>{children}</>;
 }

@@ -10,6 +10,8 @@ from security import (
     login_bloqueado,
     registrar_falha_login,
     limpar_falhas_login,
+    usuario_tem_permissao,
+    PAGINAS_PERMISSAO,
     UsuarioAtual,
 )
 from database import fetch_one, get_connection
@@ -38,11 +40,18 @@ class UsuarioPublico(BaseModel):
     aniversario: str
     telefone: str | None = None
     status: str
+    permissoes: dict[str, bool]
 
 
 class LoginResposta(BaseModel):
     token: str
     usuario: UsuarioPublico
+
+
+def _permissoes_do_usuario(usuario_id: str, perfil: str) -> dict[str, bool]:
+    if perfil == "ADMINISTRADOR":
+        return {pagina: True for pagina in PAGINAS_PERMISSAO}
+    return {pagina: usuario_tem_permissao(usuario_id, pagina) for pagina in PAGINAS_PERMISSAO}
 
 
 def _usuario_publico(row: dict) -> UsuarioPublico:
@@ -58,6 +67,7 @@ def _usuario_publico(row: dict) -> UsuarioPublico:
         aniversario=row["aniversario"].isoformat(),
         telefone=row["telefone"],
         status=row["status"],
+        permissoes=_permissoes_do_usuario(str(row["id"]), row["perfil"]),
     )
 
 

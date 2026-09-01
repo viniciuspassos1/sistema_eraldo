@@ -55,17 +55,80 @@ function App() {
             }
           >
             <Route path="/" element={<Dashboard />} />
-            <Route path="/assistente-ia" element={<AssistenteIA />} />
-            <Route path="/base-conhecimento" element={<BaseConhecimento />} />
+            <Route
+              path="/assistente-ia"
+              element={
+                <ProtectedRoute pagina="assistente-ia">
+                  <AssistenteIA />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/base-conhecimento"
+              element={
+                <ProtectedRoute pagina="base-conhecimento">
+                  <BaseConhecimento />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/calendario" element={<CalendarioEscritorio />} />
             <Route path="/funcionarios/:id" element={<FuncionarioPerfil />} />
-            <Route path="/manual" element={<ManualInterno />} />
-            <Route path="/documentos" element={<Documentos />} />
-            <Route path="/cooperativa-ideias" element={<CooperativaIdeias />} />
-            <Route path="/tribunais" element={<Tribunais />} />
-            <Route path="/solicitacoes" element={<Solicitacoes />} />
-            <Route path="/notificacoes" element={<Notificacoes />} />
-            <Route path="/meu-authenticator" element={<MeuAuthenticator />} />
+            <Route
+              path="/manual"
+              element={
+                <ProtectedRoute pagina="manual">
+                  <ManualInterno />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/documentos"
+              element={
+                <ProtectedRoute pagina="documentos">
+                  <Documentos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/cooperativa-ideias"
+              element={
+                <ProtectedRoute pagina="cooperativa-ideias">
+                  <CooperativaIdeias />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tribunais"
+              element={
+                <ProtectedRoute pagina="tribunais">
+                  <Tribunais />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/solicitacoes"
+              element={
+                <ProtectedRoute pagina="solicitacoes">
+                  <Solicitacoes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notificacoes"
+              element={
+                <ProtectedRoute pagina="notificacoes">
+                  <Notificacoes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/meu-authenticator"
+              element={
+                <ProtectedRoute pagina="meu-authenticator">
+                  <MeuAuthenticator />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/perfil" element={<Perfil />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
 

@@ -30,7 +30,11 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
   const reduceMotion = useReducedMotion();
   const [tooltip, setTooltip] = useState<HoveredTooltip | null>(null);
 
-  const items = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const items = navItems.filter(
+    (item) =>
+      (!item.adminOnly || isAdmin) &&
+      (!item.permissionKey || isAdmin || user?.permissoes?.[item.permissionKey] !== false)
+  );
 
   function handleEnter(e: React.MouseEvent<HTMLElement>, label: string) {
     if (!collapsed || window.innerWidth < 1024) return;
