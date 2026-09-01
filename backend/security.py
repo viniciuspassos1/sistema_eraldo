@@ -1,3 +1,5 @@
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -9,6 +11,33 @@ from config import API_KEY, JWT_SECRET, JWT_EXPIRES_HOURS_SESSAO, JWT_EXPIRES_HO
 from database import fetch_one
 
 JWT_ALGORITHM = "HS256"
+
+# Bloqueio de login por tentativas incorretas — em memória (sem Redis/tabela
+# nova), por e-mail normalizado. Suficiente para o tamanho do time; reseta
+# se o processo reiniciar, o que é aceitável aqui (não é uma defesa contra
+# um atacante persistente, é um freio contra tentativa automatizada básica).
+_MAX_TENTATIVAS = 5
+_JANELA_BLOQUEIO_SEGUNDOS = 15 * 60
+_tentativas_falhas: dict[str, list[float]] = defaultdict(list)
+
+
+def _tentativas_recentes(chave: str) -> list[float]:
+    agora = time.time()
+    recentes = [t for t in _tentativas_falhas.get(chave, []) if agora - t < _JANELA_BLOQUEIO_SEGUNDOS]
+    _tentativas_falhas[chave] = recentes
+    return recentes
+
+
+def login_bloqueado(chave: str) -> bool:
+    return len(_tentativas_recentes(chave)) >= _MAX_TENTATIVAS
+
+
+def registrar_falha_login(chave: str) -> None:
+    _tentativas_recentes(chave).append(time.time())
+
+
+def limpar_falhas_login(chave: str) -> None:
+    _tentativas_falhas.pop(chave, None)
 
 
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:

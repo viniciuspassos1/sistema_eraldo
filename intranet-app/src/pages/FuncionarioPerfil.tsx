@@ -8,7 +8,6 @@ import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { fetchFuncionario, FuncionariosApiError } from '../api/funcionarios';
 import { fetchFerias } from '../api/ferias';
-import { hearings } from '../mocks/hearings';
 import { formatDateLong, formatDate } from '../utils/format';
 import type { User, Vacation } from '../types';
 
@@ -53,10 +52,7 @@ export function FuncionarioPerfil() {
     );
   }
 
-  // Audiências ainda vem de mocks/hearings.ts (não migrou pro banco ainda),
-  // mas casa pelo nome, então continua funcionando normalmente.
   const feriasDoFuncionario = vacations.filter((v) => v.funcionarioId === funcionario.id);
-  const audienciasDoFuncionario = hearings.filter((h) => h.advogado === funcionario.nome);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -114,20 +110,6 @@ export function FuncionarioPerfil() {
           </ul>
         )}
       </Card>
-
-      {audienciasDoFuncionario.length > 0 && (
-        <Card>
-          <h2 className="text-sm font-semibold text-navy mb-4">Audiências sob responsabilidade</h2>
-          <ul className="space-y-2">
-            {audienciasDoFuncionario.map((h) => (
-              <li key={h.id} className="flex items-center justify-between text-sm">
-                <span className="text-navy">{h.cliente} · {h.processo}</span>
-                <span className="text-text-secondary">{formatDate(h.data)} às {h.horario}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
     </div>
   );
 }

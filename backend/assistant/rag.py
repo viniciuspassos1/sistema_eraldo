@@ -24,6 +24,12 @@ NOT_FOUND_MESSAGE = (
     "Recomendo consultar o responsável pelo setor."
 )
 
+# Categorias que coincidem com um setor real (usuarios.setor) são tratadas
+# como restritas a esse setor; qualquer outra categoria (Atendimento,
+# Sistemas, Manual Interno etc.) é considerada geral, visível a todos.
+# ADMINISTRADOR sempre vê tudo, independente do próprio setor.
+SETORES_CONHECIDOS = {"Jurídico", "Financeiro", "Recursos Humanos", "Previdenciário", "Administrativo"}
+
 _model: SentenceTransformer | None = None
 _collection = None
 
@@ -49,11 +55,23 @@ def _not_found() -> dict:
     return {"resposta": NOT_FOUND_MESSAGE, "fontes": [], "encontrado": False}
 
 
-def answer_question(pergunta: str, top_k: int = 3) -> dict:
+def _visivel(categoria: str | None, setor_usuario: str, is_admin: bool) -> bool:
+    if is_admin:
+        return True
+    if categoria not in SETORES_CONHECIDOS:
+        return True
+    return categoria == setor_usuario
+
+
+def answer_question(pergunta: str, setor_usuario: str, is_admin: bool, top_k: int = 3) -> dict:
     """
     Busca puramente por retrieval: nenhum LLM reescreve o texto. A "resposta"
     é o(s) trecho(s) mais relevante(s) da documentação, tal como estão
     escritos — garante que o assistente nunca inventa nem extrapola.
+
+    Busca mais candidatos do que top_k e filtra por setor depois, em vez de
+    filtrar na query do ChromaDB — a base é pequena, e assim o critério de
+    "geral vs setor" fica só aqui, sem espalhar lógica de metadado na busca.
     """
     collection = _get_collection()
     if collection.count() == 0:
@@ -64,21 +82,23 @@ def answer_question(pergunta: str, top_k: int = 3) -> dict:
 
     result = collection.query(
         query_embeddings=query_embedding,
-        n_results=min(top_k, collection.count()),
+        n_results=min(max(top_k * 3, 10), collection.count()),
     )
 
     documents = result["documents"][0]
     metadatas = result["metadatas"][0]
     distances = result["distances"][0]
 
-    if not documents or distances[0] > DISTANCE_THRESHOLD:
+    candidatos = [
+        (doc, meta, dist)
+        for doc, meta, dist in zip(documents, metadatas, distances)
+        if _visivel(meta.get("categoria"), setor_usuario, is_admin)
+    ]
+
+    if not candidatos or candidatos[0][2] > DISTANCE_THRESHOLD:
         return _not_found()
 
-    relevantes = [
-        (doc, meta)
-        for doc, meta, dist in zip(documents, metadatas, distances)
-        if dist <= DISTANCE_THRESHOLD
-    ][:2]
+    relevantes = [(doc, meta) for doc, meta, dist in candidatos if dist <= DISTANCE_THRESHOLD][:2]
 
     resposta = "\n\n".join(doc for doc, _ in relevantes)
 

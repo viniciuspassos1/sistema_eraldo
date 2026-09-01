@@ -1,3 +1,5 @@
+import { getStoredToken } from '../utils/authToken';
+
 export interface AssistantFonte {
   documento: string;
   secao: string;
@@ -28,6 +30,7 @@ export async function askAssistant(pergunta: string): Promise<AssistantAnswer> {
     );
   }
 
+  const token = getStoredToken();
   let response: Response;
   try {
     response = await fetch(`${API_URL}/api/assistant/ask`, {
@@ -35,6 +38,7 @@ export async function askAssistant(pergunta: string): Promise<AssistantAnswer> {
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': API_KEY,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ pergunta }),
     });
@@ -44,9 +48,6 @@ export async function askAssistant(pergunta: string): Promise<AssistantAnswer> {
     );
   }
 
-  if (response.status === 401) {
-    throw new AssistantApiError('Chave de API inválida — confira o .env do frontend e do backend.');
-  }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new AssistantApiError(body?.detail ?? `Erro do servidor (HTTP ${response.status}).`);

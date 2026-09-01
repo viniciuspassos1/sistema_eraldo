@@ -1,19 +1,29 @@
-import { Mail, Phone, Calendar, Briefcase } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Mail, Phone, Calendar, Briefcase, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
+import { Skeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
-import { vacations } from '../mocks/vacations';
-import { hearings } from '../mocks/hearings';
+import { fetchFerias, FeriasApiError } from '../api/ferias';
 import { formatDateLong, formatDate } from '../utils/format';
+import type { Vacation } from '../types';
 
 export function Perfil() {
   const { user } = useAuth();
+  const [ferias, setFerias] = useState<Vacation[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchFerias()
+      .then(setFerias)
+      .catch((err) => setError(err instanceof FeriasApiError ? err.message : 'Erro inesperado ao carregar as férias.'));
+  }, []);
+
   if (!user) return null;
 
-  const minhasFerias = vacations.filter((v) => v.funcionarioId === user.id);
-  const minhasAudiencias = hearings.filter((h) => h.advogado === user.nome);
+  const minhasFerias = (ferias ?? []).filter((v) => v.funcionarioId === user.id);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -52,7 +62,14 @@ export function Perfil() {
 
       <Card>
         <h3 className="text-sm font-semibold text-navy mb-4">Minhas férias</h3>
-        {minhasFerias.length === 0 ? (
+        {error ? (
+          <EmptyState icon={ShieldAlert} title="Não foi possível carregar as férias" description={error} />
+        ) : ferias === null ? (
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-2/3" />
+          </div>
+        ) : minhasFerias.length === 0 ? (
           <EmptyState title="Nenhum período de férias cadastrado" />
         ) : (
           <ul className="space-y-2">
@@ -60,22 +77,6 @@ export function Perfil() {
               <li key={v.id} className="flex items-center justify-between text-sm">
                 <span className="text-navy">{formatDate(v.inicio)} a {formatDate(v.fim)}</span>
                 <Badge tone={v.status === 'EM_ANDAMENTO' ? 'gold' : 'neutral'}>{v.status.replace('_', ' ')}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      <Card>
-        <h3 className="text-sm font-semibold text-navy mb-4">Minhas audiências</h3>
-        {minhasAudiencias.length === 0 ? (
-          <EmptyState title="Nenhuma audiência sob sua responsabilidade" />
-        ) : (
-          <ul className="space-y-2">
-            {minhasAudiencias.map((h) => (
-              <li key={h.id} className="flex items-center justify-between text-sm">
-                <span className="text-navy">{h.cliente} · {h.processo}</span>
-                <span className="text-text-secondary">{formatDate(h.data)} às {h.horario}</span>
               </li>
             ))}
           </ul>

@@ -1,7 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from security import require_api_key, require_user, verificar_senha, criar_token, hash_senha, UsuarioAtual
+from security import (
+    require_api_key,
+    require_user,
+    verificar_senha,
+    criar_token,
+    hash_senha,
+    login_bloqueado,
+    registrar_falha_login,
+    limpar_falhas_login,
+    UsuarioAtual,
+)
 from database import fetch_one, get_connection
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
@@ -53,14 +63,22 @@ def _usuario_publico(row: dict) -> UsuarioPublico:
 
 @router.post("/api/auth/login", response_model=LoginResposta)
 def login(body: LoginBody):
-    row = fetch_one(f"SELECT {_COLUNAS} FROM usuarios WHERE email = %s;", (body.email.strip().lower(),))
+    email = body.email.strip().lower()
+
+    if login_bloqueado(email):
+        raise HTTPException(
+            status_code=429,
+            detail="Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
+        )
+
+    row = fetch_one(f"SELECT {_COLUNAS} FROM usuarios WHERE email = %s;", (email,))
 
     credenciais_invalidas = HTTPException(status_code=401, detail="E-mail ou senha inválidos.")
-    if not row or row["status"] == "INATIVO":
-        raise credenciais_invalidas
-    if not verificar_senha(body.senha, row["senha_hash"]):
+    if not row or row["status"] == "INATIVO" or not verificar_senha(body.senha, row["senha_hash"]):
+        registrar_falha_login(email)
         raise credenciais_invalidas
 
+    limpar_falhas_login(email)
     token = criar_token(str(row["id"]), row["perfil"], body.manterConectado)
     return LoginResposta(token=token, usuario=_usuario_publico(row))
 

@@ -1,49 +1,90 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Scale, Palmtree, Megaphone, Cake, Bot, FileText, Link2 } from 'lucide-react';
+import { Palmtree, Megaphone, Cake, Bot, FileText, Link2, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/Card';
 import { StatCard } from '../components/StatCard';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
-import { hearings } from '../mocks/hearings';
-import { employees } from '../mocks/employees';
-import { vacations } from '../mocks/vacations';
-import { announcements } from '../mocks/announcements';
-import { agendaEvents } from '../mocks/agenda';
+import { Skeleton } from '../components/Skeleton';
+import { fetchFuncionarios, FuncionariosApiError } from '../api/funcionarios';
+import { fetchFerias } from '../api/ferias';
+import { fetchAvisos } from '../api/avisos';
+import { fetchAgendaEventos } from '../api/agenda';
 import { greeting, formatDate } from '../utils/format';
 import { todayISO, daysUntilNextOccurrence } from '../utils/date';
 import { buildTrend } from '../utils/trend';
+import type { User, Vacation, Announcement, AgendaEvent } from '../types';
+
+interface DashboardDados {
+  funcionarios: User[];
+  ferias: Vacation[];
+  avisos: Announcement[];
+  agenda: AgendaEvent[];
+}
+
+const shortcuts = [
+  { label: 'Perguntar à IA', icon: Bot, path: '/assistente-ia' },
+  { label: 'Documentos', icon: FileText, path: '/documentos' },
+  { label: 'Tribunais', icon: Link2, path: '/tribunais' },
+  { label: 'Férias', icon: Palmtree, path: '/calendario?tab=ferias' },
+];
 
 export function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const today = todayISO();
 
+  const [dados, setDados] = useState<DashboardDados | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([fetchFuncionarios(), fetchFerias(), fetchAvisos(), fetchAgendaEventos()])
+      .then(([funcionarios, ferias, avisos, agenda]) => setDados({ funcionarios, ferias, avisos, agenda }))
+      .catch((err) => setErro(err instanceof FuncionariosApiError ? err.message : 'Erro inesperado ao carregar o dashboard.'));
+  }, []);
+
   const nomePrimeiro = user?.nome.split(' ')[0] ?? '';
 
-  // Personalizado por quem está logado — cada pessoa vê as suas audiências e sua agenda, não a do escritório inteiro.
-  const minhasAudiencias = hearings.filter(
-    (h) => h.advogado === user?.nome && h.data >= today && h.status === 'AGENDADA'
-  );
-  const funcionariosFerias = employees.filter((e) => e.status === 'FERIAS');
-  const avisosNaoLidos = announcements.filter((a) => !a.lido);
-  const aniversariantesProximos = employees.filter((e) => daysUntilNextOccurrence(e.aniversario) <= 30);
-  const aniversarianteHoje = employees.find((e) => daysUntilNextOccurrence(e.aniversario) === 0);
+  if (erro) {
+    return (
+      <Card className="max-w-2xl">
+        <EmptyState icon={ShieldAlert} title="Não foi possível carregar o dashboard" description={erro} />
+      </Card>
+    );
+  }
 
-  const minhaFerias = vacations.find((v) => v.funcionarioId === user?.id && v.status !== 'CONCLUIDA');
+  if (!dados) {
+    return (
+      <div className="space-y-6 max-w-6xl">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      </div>
+    );
+  }
 
-  const minhaAgendaHoje = agendaEvents
+  const { funcionarios, ferias, avisos, agenda } = dados;
+
+  const funcionariosFerias = funcionarios.filter((f) => f.status === 'FERIAS');
+  const avisosNaoLidos = avisos.filter((a) => !a.lido);
+  const aniversariantesProximos = funcionarios.filter((f) => daysUntilNextOccurrence(f.aniversario) <= 30);
+  const aniversarianteHoje = funcionarios.find((f) => daysUntilNextOccurrence(f.aniversario) === 0);
+
+  const minhaFerias = ferias.find((v) => v.funcionarioId === user?.id && v.status !== 'CONCLUIDA');
+
+  const minhaAgendaHoje = agenda
     .filter((e) => e.data === today && e.responsavel === user?.nome)
     .sort((a, b) => a.horario.localeCompare(b.horario));
 
-  const avisosRecentes = [...announcements].sort((a, b) => (a.data < b.data ? 1 : -1)).slice(0, 3);
-
-  const shortcuts = [
-    { label: 'Perguntar à IA', icon: Bot, path: '/assistente-ia' },
-    { label: 'Documentos', icon: FileText, path: '/documentos' },
-    { label: 'Tribunais', icon: Link2, path: '/tribunais' },
-    { label: 'Férias', icon: Palmtree, path: '/calendario?tab=ferias' },
-  ];
+  const avisosRecentes = [...avisos].sort((a, b) => (a.data < b.data ? 1 : -1)).slice(0, 3);
 
   return (
     <div className="stagger-fade space-y-6 max-w-6xl">
@@ -78,19 +119,12 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={Scale}
-          label="Minhas audiências próximas"
-          value={minhasAudiencias.length}
-          countDelay={0}
-          trend={buildTrend(minhasAudiencias.length, 1)}
-        />
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           icon={Palmtree}
           label="Funcionários de férias"
           value={funcionariosFerias.length}
-          countDelay={60}
+          countDelay={0}
           trend={buildTrend(funcionariosFerias.length, 2)}
         />
         <StatCard
@@ -98,14 +132,14 @@ export function Dashboard() {
           label="Avisos não lidos"
           value={avisosNaoLidos.length}
           tone="gold"
-          countDelay={120}
+          countDelay={60}
           trend={buildTrend(avisosNaoLidos.length, 3)}
         />
         <StatCard
           icon={Cake}
           label="Aniversariantes próximos"
           value={aniversariantesProximos.length}
-          countDelay={180}
+          countDelay={120}
           trend={buildTrend(aniversariantesProximos.length, 4)}
         />
       </div>
