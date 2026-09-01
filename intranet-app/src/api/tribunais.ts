@@ -1,4 +1,5 @@
 import type { CourtLink } from '../types';
+import { getStoredToken } from '../utils/authToken';
 
 const API_URL = import.meta.env.VITE_AUTHENTICATOR_API_URL as string | undefined;
 const API_KEY = import.meta.env.VITE_AUTHENTICATOR_API_KEY as string | undefined;
@@ -10,10 +11,11 @@ export async function fetchTribunais(): Promise<CourtLink[]> {
     throw new TribunaisApiError('Backend não configurado. Veja intranet-app/.env.example.');
   }
 
+  const token = getStoredToken();
   let response: Response;
   try {
     response = await fetch(`${API_URL}/api/tribunais`, {
-      headers: { 'X-API-Key': API_KEY },
+      headers: { 'X-API-Key': API_KEY, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
   } catch {
     throw new TribunaisApiError(
@@ -21,9 +23,6 @@ export async function fetchTribunais(): Promise<CourtLink[]> {
     );
   }
 
-  if (response.status === 401) {
-    throw new TribunaisApiError('Chave de API inválida — confira o .env do frontend e do backend.');
-  }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new TribunaisApiError(body?.detail ?? `Erro do servidor (HTTP ${response.status}).`);

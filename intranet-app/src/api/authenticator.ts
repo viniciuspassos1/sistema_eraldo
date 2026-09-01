@@ -11,6 +11,8 @@ interface CodesResponse {
   serverTime: number;
 }
 
+import { getStoredToken } from '../utils/authToken';
+
 const API_URL = import.meta.env.VITE_AUTHENTICATOR_API_URL as string | undefined;
 const API_KEY = import.meta.env.VITE_AUTHENTICATOR_API_KEY as string | undefined;
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
@@ -51,10 +53,11 @@ export async function fetchAuthenticatorCodes(): Promise<AuthenticatorService[]>
     );
   }
 
+  const token = getStoredToken();
   let response: Response;
   try {
     response = await fetch(`${API_URL}/api/authenticator/codes`, {
-      headers: { 'X-API-Key': API_KEY },
+      headers: { 'X-API-Key': API_KEY, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
   } catch {
     throw new AuthenticatorApiError(
@@ -62,9 +65,6 @@ export async function fetchAuthenticatorCodes(): Promise<AuthenticatorService[]>
     );
   }
 
-  if (response.status === 401) {
-    throw new AuthenticatorApiError('Chave de API inválida — confira o .env do frontend e do backend.');
-  }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new AuthenticatorApiError(body?.detail ?? `Erro do servidor (HTTP ${response.status}).`);
