@@ -40,6 +40,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json();
 }
 
+export function fetchTodasPermissoes(): Promise<Record<string, Record<string, boolean>>> {
+  return request('/api/permissoes');
+}
+
 export function fetchPermissoes(usuarioId: string): Promise<PermissaoPagina[]> {
   return request(`/api/permissoes/${usuarioId}`);
 }

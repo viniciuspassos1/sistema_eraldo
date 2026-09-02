@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from security import require_api_key, require_admin, usuario_tem_permissao, PAGINAS_PERMISSAO
-from database import get_connection
+from database import get_connection, fetch_all
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_admin)])
 
@@ -10,6 +10,26 @@ router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_admin
 class PermissaoPagina(BaseModel):
     pagina: str
     permitido: bool
+
+
+@router.get("/api/permissoes", response_model=dict[str, dict[str, bool]])
+def obter_todas_permissoes():
+    usuarios = fetch_all("SELECT id, perfil FROM usuarios;")
+    linhas = fetch_all("SELECT usuario_id, pagina, permitido FROM permissoes_acesso;")
+
+    excecoes: dict[str, dict[str, bool]] = {}
+    for r in linhas:
+        excecoes.setdefault(str(r["usuario_id"]), {})[r["pagina"]] = r["permitido"]
+
+    resultado: dict[str, dict[str, bool]] = {}
+    for u in usuarios:
+        uid = str(u["id"])
+        if u["perfil"] == "ADMINISTRADOR":
+            resultado[uid] = {pagina: True for pagina in PAGINAS_PERMISSAO}
+        else:
+            base = excecoes.get(uid, {})
+            resultado[uid] = {pagina: base.get(pagina, True) for pagina in PAGINAS_PERMISSAO}
+    return resultado
 
 
 @router.get("/api/permissoes/{usuario_id}", response_model=list[PermissaoPagina])

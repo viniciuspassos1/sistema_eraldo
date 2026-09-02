@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, ShieldAlert, Settings2 } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
-import { Button } from '../components/Button';
-import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { fetchFuncionarios, FuncionariosApiError } from '../api/funcionarios';
-import { fetchPermissoes, salvarPermissoes, PermissoesApiError, type PermissaoPagina } from '../api/permissoes';
+import { fetchTodasPermissoes, salvarPermissoes, PermissoesApiError } from '../api/permissoes';
 import type { User } from '../types';
 
 const perfilTone = {
@@ -19,69 +17,65 @@ const perfilTone = {
   FUNCIONARIO: 'neutral',
 } as const;
 
-const PAGINA_LABEL: Record<string, string> = {
-  dashboard: 'Dashboard',
-  'meu-authenticator': 'Meu Authenticator',
-  'assistente-ia': 'Assistente de IA',
-  'base-conhecimento': 'Base de Conhecimento',
-  calendario: 'Calendário do Escritório',
-  manual: 'Manual Interno',
-  documentos: 'Documentos',
-  'cooperativa-ideias': 'Cooperativa de Ideias',
-  tribunais: 'Portais Jurídicos (Tribunais)',
-  solicitacoes: 'Solicitações',
-  notificacoes: 'Notificações',
-};
+const PAGINAS: { chave: string; label: string }[] = [
+  { chave: 'dashboard', label: 'Início' },
+  { chave: 'meu-authenticator', label: 'Authenticator' },
+  { chave: 'assistente-ia', label: 'Assistente IA' },
+  { chave: 'base-conhecimento', label: 'Base de Conhecimento' },
+  { chave: 'calendario', label: 'Calendário' },
+  { chave: 'manual', label: 'Manual Interno' },
+  { chave: 'documentos', label: 'Documentos' },
+  { chave: 'cooperativa-ideias', label: 'Cooperativa' },
+  { chave: 'tribunais', label: 'Tribunais' },
+  { chave: 'solicitacoes', label: 'Solicitações' },
+  { chave: 'notificacoes', label: 'Notificações' },
+];
 
 export function AdministracaoUsuarios() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [employees, setEmployees] = useState<User[] | null>(null);
+  const [permissoes, setPermissoes] = useState<Record<string, Record<string, boolean>> | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const [funcionarioSelecionado, setFuncionarioSelecionado] = useState<User | null>(null);
-  const [permissoes, setPermissoes] = useState<PermissaoPagina[] | null>(null);
-  const [salvando, setSalvando] = useState<'idle' | 'loading' | 'success'>('idle');
+  const [salvandoCelula, setSalvandoCelula] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchFuncionarios()
-      .then(setEmployees)
-      .catch((err) => setError(err instanceof FuncionariosApiError ? err.message : 'Erro inesperado ao carregar funcionários.'));
+    Promise.all([fetchFuncionarios(), fetchTodasPermissoes()])
+      .then(([funcionarios, todasPermissoes]) => {
+        setEmployees(funcionarios);
+        setPermissoes(todasPermissoes);
+      })
+      .catch((err) =>
+        setError(
+          err instanceof FuncionariosApiError || err instanceof PermissoesApiError
+            ? err.message
+            : 'Erro inesperado ao carregar usuários e permissões.'
+        )
+      );
   }, []);
 
-  function abrirPermissoes(funcionario: User) {
-    setFuncionarioSelecionado(funcionario);
-    setPermissoes(null);
-    fetchPermissoes(funcionario.id)
-      .then(setPermissoes)
-      .catch((err) => {
-        showToast(err instanceof PermissoesApiError ? err.message : 'Erro ao carregar permissões.', 'error');
-        setFuncionarioSelecionado(null);
-      });
-  }
+  async function alternar(usuarioId: string, pagina: string) {
+    const anterior = permissoes;
+    const novoValor = !(permissoes?.[usuarioId]?.[pagina] ?? true);
 
-  function alternarPagina(pagina: string) {
-    setPermissoes((prev) => (prev ?? []).map((p) => (p.pagina === pagina ? { ...p, permitido: !p.permitido } : p)));
-  }
+    setPermissoes((prev) => ({
+      ...prev,
+      [usuarioId]: { ...prev?.[usuarioId], [pagina]: novoValor },
+    }));
+    setSalvandoCelula(`${usuarioId}:${pagina}`);
 
-  async function handleSalvar() {
-    if (!funcionarioSelecionado || !permissoes) return;
-    setSalvando('loading');
     try {
-      await salvarPermissoes(funcionarioSelecionado.id, permissoes);
-      setSalvando('success');
-      await new Promise((r) => setTimeout(r, 700));
-      setSalvando('idle');
-      setFuncionarioSelecionado(null);
-      showToast('Permissões atualizadas.');
+      await salvarPermissoes(usuarioId, [{ pagina, permitido: novoValor }]);
     } catch (err) {
-      setSalvando('idle');
-      showToast(err instanceof PermissoesApiError ? err.message : 'Erro ao salvar permissões.', 'error');
+      setPermissoes(anterior);
+      showToast(err instanceof PermissoesApiError ? err.message : 'Erro ao salvar permissão.', 'error');
+    } finally {
+      setSalvandoCelula(null);
     }
   }
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-full space-y-6">
       <button
         onClick={() => navigate('/administracao')}
         className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-navy"
@@ -93,93 +87,77 @@ export function AdministracaoUsuarios() {
         <h1 className="text-2xl font-semibold text-navy flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-gold" /> Usuários e Permissões
         </h1>
-        <p className="text-text-secondary text-sm mt-1">Perfis de acesso e páginas liberadas para cada funcionário.</p>
+        <p className="text-text-secondary text-sm mt-1">
+          Marque ou desmarque pra liberar/tirar o acesso à página na hora — cada clique salva sozinho.
+        </p>
       </div>
 
       {error ? (
         <Card>
           <EmptyState icon={ShieldAlert} title="Não foi possível carregar os usuários" description={error} />
         </Card>
-      ) : employees === null ? (
+      ) : employees === null || permissoes === null ? (
         <Card padded={false}>
-          <ul className="divide-y divide-border">
+          <div className="p-5 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
-              <li key={i} className="flex items-center gap-4 px-5 py-3.5">
-                <Skeleton className="w-9 h-9 rounded-full shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-1/3" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              </li>
+              <Skeleton key={i} className="h-10 w-full" />
             ))}
-          </ul>
+          </div>
         </Card>
       ) : (
         <Card padded={false}>
-          <ul className="divide-y divide-border">
-            {employees.map((e) => (
-              <li key={e.id} className="flex items-center gap-4 px-5 py-3.5">
-                <Avatar nome={e.nome} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-navy truncate">{e.nome}</p>
-                  <p className="text-xs text-text-secondary truncate">{e.email}</p>
-                </div>
-                <Badge tone={perfilTone[e.perfil]}>{e.perfil}</Badge>
-                {e.perfil === 'ADMINISTRADOR' ? (
-                  <span className="text-xs text-text-secondary w-[168px] text-right shrink-0">Acesso total</span>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={() => abrirPermissoes(e)}>
-                    <Settings2 className="w-3.5 h-3.5" /> Gerenciar permissões
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="text-sm border-collapse">
+              <thead>
+                <tr className="text-left text-xs text-text-secondary border-b border-border">
+                  <th className="px-4 py-3 font-medium sticky left-0 bg-white">Funcionário</th>
+                  <th className="px-3 py-3 font-medium whitespace-nowrap">Setor</th>
+                  {PAGINAS.map((p) => (
+                    <th key={p.chave} className="px-3 py-3 font-medium text-center whitespace-nowrap">
+                      {p.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map((e) => {
+                  const isAdmin = e.perfil === 'ADMINISTRADOR';
+                  const linha = permissoes[e.id] ?? {};
+                  return (
+                    <tr key={e.id} className="border-b border-border last:border-0 hover:bg-cream/60">
+                      <td className="px-4 py-3 sticky left-0 bg-white">
+                        <div className="flex items-center gap-2.5 min-w-[180px]">
+                          <Avatar nome={e.nome} size="sm" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-navy truncate">{e.nome}</p>
+                            <Badge tone={perfilTone[e.perfil]}>{e.perfil}</Badge>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-text-secondary whitespace-nowrap">{e.setor}</td>
+                      {PAGINAS.map((p) => {
+                        const marcado = isAdmin ? true : (linha[p.chave] ?? true);
+                        const salvandoEssa = salvandoCelula === `${e.id}:${p.chave}`;
+                        return (
+                          <td key={p.chave} className="px-3 py-3 text-center">
+                            <input
+                              type="checkbox"
+                              checked={marcado}
+                              disabled={isAdmin || salvandoEssa}
+                              onChange={() => alternar(e.id, p.chave)}
+                              className="w-4 h-4 rounded border-border text-navy focus:ring-gold/40 accent-navy disabled:opacity-40"
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
-
-      <Modal
-        open={!!funcionarioSelecionado}
-        onClose={() => setFuncionarioSelecionado(null)}
-        title={funcionarioSelecionado ? `Permissões de ${funcionarioSelecionado.nome}` : 'Permissões'}
-      >
-        {permissoes === null ? (
-          <div className="space-y-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-9 w-full" />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-xs text-text-secondary">
-              Páginas desmarcadas ficam ocultas no menu e bloqueadas mesmo por link direto.
-            </p>
-            <ul className="space-y-1 max-h-[360px] overflow-y-auto">
-              {permissoes.map((p) => (
-                <li key={p.pagina}>
-                  <label className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-cream cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={p.permitido}
-                      onChange={() => alternarPagina(p.pagina)}
-                      className="w-4 h-4 rounded border-border text-navy focus:ring-gold/40 accent-navy"
-                    />
-                    <span className="text-sm text-navy">{PAGINA_LABEL[p.pagina] ?? p.pagina}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="outline" onClick={() => setFuncionarioSelecionado(null)}>
-                Cancelar
-              </Button>
-              <Button type="button" status={salvando} onClick={handleSalvar}>
-                {salvando === 'success' ? 'Salvo' : 'Salvar permissões'}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }
