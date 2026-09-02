@@ -40,6 +40,7 @@ interface AdministracaoDados {
 
 const modules = [
   { label: 'Funcionários', icon: Users, path: '/calendario?tab=funcionarios' },
+  { label: 'Usuários e permissões', icon: ShieldCheck, path: '/administracao/usuarios' },
   { label: 'Férias', icon: Palmtree, path: '/calendario?tab=ferias' },
   { label: 'Agenda', icon: Calendar, path: '/calendario?tab=agenda' },
   { label: 'Aniversários', icon: Cake, path: '/calendario?tab=aniversarios' },
@@ -50,7 +51,6 @@ const modules = [
   { label: 'Cooperativa de Ideias', icon: Lightbulb, path: '/cooperativa-ideias' },
   { label: 'Novos funcionários', icon: UserPlus, path: '/calendario?tab=onboarding' },
   { label: 'Links dos tribunais', icon: Link2, path: '/tribunais' },
-  { label: 'Usuários e permissões', icon: ShieldCheck, path: '/administracao/usuarios' },
 ];
 
 export function Administracao() {
