@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from 'react';
-import { Settings, ShieldCheck, KeyRound, Lock } from 'lucide-react';
+import { Settings, ShieldCheck, KeyRound, Lock, Cake } from 'lucide-react';
 import { Card, CardHeader } from '../components/Card';
 import { Button } from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { trocarSenha, AuthApiError } from '../api/auth';
+import { atualizarMinhaAlergia, FuncionariosApiError } from '../api/funcionarios';
 
 export function Configuracoes() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { showToast } = useToast();
 
   const [senhaAtual, setSenhaAtual] = useState('');
@@ -15,6 +16,24 @@ export function Configuracoes() {
   const [confirmarSenha, setConfirmarSenha] = useState('');
   const [erro, setErro] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+
+  const [alergia, setAlergia] = useState(user?.alergiaAlimentar ?? '');
+  const [statusAlergia, setStatusAlergia] = useState<'idle' | 'loading' | 'success'>('idle');
+
+  async function handleSalvarAlergia(e: FormEvent) {
+    e.preventDefault();
+    setStatusAlergia('loading');
+    try {
+      const atualizado = await atualizarMinhaAlergia(alergia);
+      updateUser({ alergiaAlimentar: atualizado.alergiaAlimentar });
+      setStatusAlergia('success');
+      showToast('Informação de alergia atualizada.');
+      setTimeout(() => setStatusAlergia('idle'), 1500);
+    } catch (err) {
+      setStatusAlergia('idle');
+      showToast(err instanceof FuncionariosApiError ? err.message : 'Erro ao salvar.', 'error');
+    }
+  }
 
   async function handleTrocarSenha(e: FormEvent) {
     e.preventDefault();
@@ -103,6 +122,28 @@ export function Configuracoes() {
           <div className="flex justify-end">
             <Button type="submit" size="sm" status={status}>
               {status === 'success' ? 'Senha atualizada' : 'Trocar senha'}
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card>
+        <CardHeader title="Restrição alimentar" action={<Cake className="w-4 h-4 text-gold" />} />
+        <p className="text-sm text-text-secondary leading-relaxed mb-4">
+          Se você tiver alguma alergia ou restrição alimentar, conte aqui — usamos essa informação na hora de
+          escolher o bolo dos aniversários da equipe.
+        </p>
+        <form onSubmit={handleSalvarAlergia} className="space-y-3">
+          <input
+            type="text"
+            value={alergia}
+            onChange={(e) => setAlergia(e.target.value)}
+            placeholder="Ex.: alergia a amendoim, intolerância a lactose... (deixe em branco se não tiver)"
+            className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy placeholder:text-text-secondary/60 focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
+          />
+          <div className="flex justify-end">
+            <Button type="submit" size="sm" status={statusAlergia}>
+              {statusAlergia === 'success' ? 'Salvo' : 'Salvar'}
             </Button>
           </div>
         </form>

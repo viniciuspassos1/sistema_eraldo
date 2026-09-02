@@ -1,4 +1,5 @@
 import type { User } from '../types';
+import { getStoredToken } from '../utils/authToken';
 
 interface FuncionarioResponse {
   id: string;
@@ -12,6 +13,7 @@ interface FuncionarioResponse {
   aniversario: string;
   telefone: string | null;
   status: User['status'];
+  alergiaAlimentar: string | null;
 }
 
 const API_URL = import.meta.env.VITE_AUTHENTICATOR_API_URL as string | undefined;
@@ -32,18 +34,25 @@ function toUser(f: FuncionarioResponse): User {
     aniversario: f.aniversario,
     telefone: f.telefone ?? undefined,
     status: f.status,
+    alergiaAlimentar: f.alergiaAlimentar ?? undefined,
   };
 }
 
-async function request<T>(path: string): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!API_URL || !API_KEY) {
     throw new FuncionariosApiError('Backend não configurado. Veja intranet-app/.env.example.');
   }
 
+  const token = getStoredToken();
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
-      headers: { 'X-API-Key': API_KEY },
+      ...init,
+      headers: {
+        'X-API-Key': API_KEY,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.headers ?? {}),
+      },
     });
   } catch {
     throw new FuncionariosApiError(
@@ -51,9 +60,6 @@ async function request<T>(path: string): Promise<T> {
     );
   }
 
-  if (response.status === 401) {
-    throw new FuncionariosApiError('Chave de API inválida — confira o .env do frontend e do backend.');
-  }
   if (response.status === 404) {
     throw new FuncionariosApiError('Funcionário não encontrado.');
   }
@@ -72,5 +78,14 @@ export async function fetchFuncionarios(): Promise<User[]> {
 
 export async function fetchFuncionario(id: string): Promise<User> {
   const data = await request<FuncionarioResponse>(`/api/funcionarios/${id}`);
+  return toUser(data);
+}
+
+export async function atualizarMinhaAlergia(alergiaAlimentar: string): Promise<User> {
+  const data = await request<FuncionarioResponse>('/api/funcionarios/minha-alergia', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alergiaAlimentar: alergiaAlimentar.trim() || null }),
+  });
   return toUser(data);
 }

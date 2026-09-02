@@ -13,6 +13,7 @@ interface UsuarioResponse {
   aniversario: string;
   telefone: string | null;
   status: User['status'];
+  alergiaAlimentar: string | null;
   permissoes: Record<string, boolean>;
 }
 
@@ -39,6 +40,7 @@ function toUser(u: UsuarioResponse): User {
     aniversario: u.aniversario,
     telefone: u.telefone ?? undefined,
     status: u.status,
+    alergiaAlimentar: u.alergiaAlimentar ?? undefined,
     permissoes: u.permissoes,
   };
 }

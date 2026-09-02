@@ -18,8 +18,8 @@ from database import fetch_one, get_connection
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
-_COLUNAS = "id, nome, email, senha_hash, cargo, setor, foto_url, perfil, data_entrada, aniversario, telefone, status"
-_COLUNAS_PUBLICAS = "id, nome, email, cargo, setor, foto_url, perfil, data_entrada, aniversario, telefone, status"
+_COLUNAS = "id, nome, email, senha_hash, cargo, setor, foto_url, perfil, data_entrada, aniversario, telefone, status, alergia_alimentar"
+_COLUNAS_PUBLICAS = "id, nome, email, cargo, setor, foto_url, perfil, data_entrada, aniversario, telefone, status, alergia_alimentar"
 
 
 class LoginBody(BaseModel):
@@ -40,6 +40,7 @@ class UsuarioPublico(BaseModel):
     aniversario: str
     telefone: str | None = None
     status: str
+    alergiaAlimentar: str | None = None
     permissoes: dict[str, bool]
 
 
@@ -67,6 +68,7 @@ def _usuario_publico(row: dict) -> UsuarioPublico:
         aniversario=row["aniversario"].isoformat(),
         telefone=row["telefone"],
         status=row["status"],
+        alergiaAlimentar=row["alergia_alimentar"],
         permissoes=_permissoes_do_usuario(str(row["id"]), row["perfil"]),
     )
 

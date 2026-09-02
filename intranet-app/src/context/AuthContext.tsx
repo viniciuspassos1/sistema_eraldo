@@ -8,6 +8,9 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, senha: string, manterConectado?: boolean) => Promise<{ ok: boolean; erro?: string }>;
   logout: () => void;
+  /** Atualiza campos do usuário logado em memória, sem precisar relogar
+   * (usado depois de uma edição de auto-serviço, ex.: alergia alimentar). */
+  updateUser: (dados: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -44,7 +47,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const value = useMemo(() => ({ user, loading, login, logout }), [user, loading]);
+  const updateUser: AuthContextValue['updateUser'] = (dados) => {
+    setUser((prev) => (prev ? { ...prev, ...dados } : prev));
+  };
+
+  const value = useMemo(() => ({ user, loading, login, logout, updateUser }), [user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

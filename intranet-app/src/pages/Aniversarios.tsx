@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Cake, ShieldAlert } from 'lucide-react';
+import { Cake, ShieldAlert, TriangleAlert } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
@@ -68,6 +68,11 @@ export function Aniversarios() {
                     <p className="text-xs text-text-secondary">
                       {f.cargo} · {formatDateLong(f.aniversario).replace(/de \d{4}/, '').trim()}
                     </p>
+                    {f.alergiaAlimentar && (
+                      <p className="text-xs text-amber-700 flex items-center gap-1 mt-1">
+                        <TriangleAlert className="w-3 h-3 shrink-0" /> {f.alergiaAlimentar}
+                      </p>
+                    )}
                   </div>
                   {dias === 0 ? (
                     <Badge tone="gold">Hoje 🎂</Badge>

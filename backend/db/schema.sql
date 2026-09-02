@@ -36,6 +36,7 @@ create table usuarios (
   data_entrada date not null,
   aniversario date not null, -- só dia/mês importam pro app, mas guarda a data completa
   telefone text,
+  alergia_alimentar text, -- autodeclarado pelo próprio usuário; usado pra saber restrições no bolo de aniversário
   status status_usuario not null default 'ATIVO',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
