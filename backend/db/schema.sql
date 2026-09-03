@@ -351,6 +351,7 @@ create table notas_pessoais (
   usuario_id uuid not null references usuarios (id) on delete cascade,
   titulo text not null,
   conteudo text not null,
+  concluida boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

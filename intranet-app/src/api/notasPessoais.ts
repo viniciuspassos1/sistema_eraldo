@@ -62,3 +62,11 @@ export function atualizarNota(id: string, titulo: string, conteudo: string): Pro
 export function apagarNota(id: string): Promise<void> {
   return request(`/api/notas-pessoais/${id}`, { method: 'DELETE' });
 }
+
+export function alternarConcluida(id: string, concluida: boolean): Promise<NotaPessoal> {
+  return request(`/api/notas-pessoais/${id}/concluida`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ concluida }),
+  });
+}

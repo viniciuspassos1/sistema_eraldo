@@ -11,13 +11,14 @@ from database import fetch_all, get_connection
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
-_COLUNAS = "id, titulo, conteudo, updated_at"
+_COLUNAS = "id, titulo, conteudo, concluida, updated_at"
 
 
 class Nota(BaseModel):
     id: str
     titulo: str
     conteudo: str
+    concluida: bool
     atualizadoEm: str
 
 
@@ -31,11 +32,16 @@ class AtualizarNota(BaseModel):
     conteudo: str
 
 
+class AlternarConcluida(BaseModel):
+    concluida: bool
+
+
 def _serialize(row: dict) -> Nota:
     return Nota(
         id=str(row["id"]),
         titulo=row["titulo"],
         conteudo=row["conteudo"],
+        concluida=row["concluida"],
         atualizadoEm=row["updated_at"].isoformat(),
     )
 
@@ -89,6 +95,29 @@ def atualizar_nota(nota_id: str, body: AtualizarNota, usuario: UsuarioAtual = De
                     RETURNING {_COLUNAS};
                     """,
                     (titulo, conteudo, nota_id, usuario.id),
+                )
+                row = cur.fetchone()
+            conn.commit()
+    except psycopg2.errors.InvalidTextRepresentation:
+        raise HTTPException(status_code=404, detail="Anotação não encontrada.")
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Anotação não encontrada.")
+    return _serialize(row)
+
+
+@router.patch("/api/notas-pessoais/{nota_id}/concluida", response_model=Nota)
+def alternar_concluida(nota_id: str, body: AlternarConcluida, usuario: UsuarioAtual = Depends(require_user)):
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE notas_pessoais SET concluida = %s, updated_at = now()
+                    WHERE id = %s AND usuario_id = %s
+                    RETURNING {_COLUNAS};
+                    """,
+                    (body.concluida, nota_id, usuario.id),
                 )
                 row = cur.fetchone()
             conn.commit()

@@ -155,6 +155,7 @@ export interface NotaPessoal {
   id: string;
   titulo: string;
   conteudo: string;
+  concluida: boolean;
   atualizadoEm: string;
 }
 
