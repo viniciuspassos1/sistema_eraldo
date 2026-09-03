@@ -243,43 +243,45 @@ mais credencial fixa hardcoded no frontend.
 
 ## 11. Limitações conhecidas e pontos de atenção
 
-- **Dashboard e Administração ainda são mockados** — misturam várias
-  fontes de `intranet-app/src/mocks/` (funcionários, férias, audiências,
-  avisos, documentos, ideias); não usam nenhuma API real ainda, embora ela
-  já exista para a maioria dessas entidades. Ficaram assim de propósito
-  para não misturar dado real com mockado na mesma tela.
-- **"Meu perfil" e o perfil de um funcionário ainda usam mocks de férias e
-  audiências** (`mocks/vacations.ts`, `mocks/hearings.ts`) em vez da API
-  real de Férias — pendência de migração pontual.
 - **Audiências não tem mais página própria** — foi removida da sidebar a
   pedido do escritório; a tabela `audiencias` existe no schema, mas sem
   nenhum endpoint ligado a ela.
 - **Meu Authenticator continua lendo os segredos TOTP do `.env`**, não do
   banco — a tabela `authenticator_contas` existe no schema mas não está
   em uso.
-- **Conteúdo real do escritório ainda não populado** — Base de
-  Conhecimento, Manual Interno, Documentos etc. têm estrutura e API reais,
-  mas o conteúdo é o texto de exemplo original. Ver
+- **Conteúdo real do escritório ainda não populado por completo** — Base
+  de Conhecimento e Documentos têm estrutura e API reais, mas parte do
+  conteúdo ainda é texto de exemplo; Manual Interno e Tribunais já foram
+  atualizados com conteúdo real do escritório. Ver
   `docs/Levantamento_Conteudo_Necessario.docx`.
 - **A `X-API-Key` do backend fica embutida no bundle público do
-  frontend** (é compilada no JS estático pelo Vite). Isso agora é uma
-  segunda camada — a identidade de quem age (Solicitações, Onboarding
-  etc.) vem do token de sessão, não da API Key — mas a chave em si ainda
-  não é segredo de verdade num app publicado. Ver `docs/DOCUMENTACAO.docx`.
+  frontend** (é compilada no JS estático pelo Vite). Isso é uma segunda
+  camada — a identidade de quem age (Solicitações, Onboarding etc.) vem
+  do token de sessão, não da API Key — mas a chave em si ainda não é
+  segredo de verdade num app publicado. Ver `docs/DOCUMENTACAO.docx`.
 - **Sem fluxo de "esqueci minha senha"** — só um administrador pode
-  resetar a senha de alguém, via `db/set_senha.py`. Também não há
-  bloqueio por tentativas de login incorretas (rate limiting).
-- **Sem controle de acesso por setor/perfil no Assistente IA** — qualquer
-  usuário autenticado vê toda a documentação indexada.
+  resetar a senha de alguém, via `db/set_senha.py`.
 - **Sem LLM** — a resposta é o(s) trecho(s) literal(is); perguntas
   próximas do threshold podem trazer mais de um trecho concatenado, nem
-  sempre 100% preciso.
-- **Alerta da Agenda só funciona com a aba aberta** — o aviso 10 min antes
-  de um compromisso (toast + som) roda inteiramente no navegador; fechando
-  a aba ou o navegador, nenhum alerta é enviado (não há e-mail nem
-  notificação do sistema operacional).
+  sempre 100% preciso. Duas perguntas ("missão" e "visão" da empresa)
+  ainda retornam o trecho errado por limitação do modelo de embeddings —
+  ver `backend/README.md`.
+- **Alerta sonoro da Agenda ainda depende da aba aberta**, mas agora tem
+  um lembrete por e-mail complementar (`backend/jobs.py`) — que por sua
+  vez depende de SMTP real configurado, que este projeto ainda não tem
+  (`ENABLE_BACKGROUND_JOBS`/`SMTP_*` em `backend/.env.example`).
 - **Sem hospedagem nem deploy automatizado configurados ainda** — o
-  projeto ainda não está publicado em lugar nenhum.
+  projeto roda localmente (frontend + backend) contra o banco real do
+  Supabase, mas ainda não está publicado em nenhum servidor/domínio.
+
+Itens que **já foram resolvidos** nesta mesma fase do projeto (documentados
+aqui só para não achar, por engano, que ainda são limitações): Dashboard,
+Administração e Meu Perfil usam dados reais (sem mocks); há permissão de
+acesso por página, editável por administrador (`permissoes_acesso`);
+rate limiting de login (5 tentativas / 15 min); RBAC por setor no
+Assistente IA; suíte de testes automatizados (`backend/tests/`); widget
+"Minhas pendências" no Dashboard (onboarding, solicitações, atestados,
+cooperativa de ideias num só lugar).
 
 ## 12. Glossário rápido
 
