@@ -1,12 +1,22 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { Menu, Bell, ChevronDown, User, LogOut, Settings } from 'lucide-react';
+import { Menu, Bell, ChevronDown, User, LogOut, Settings, Scale, Palmtree, Megaphone, Cake, FileText, Inbox as InboxIcon } from 'lucide-react';
 import { SearchBar } from './SearchBar';
 import { Avatar } from './Avatar';
 import { useAuth } from '../context/AuthContext';
 import { useReducedMotion } from '../hooks/useReducedMotion';
-import { notifications as mockNotifications } from '../mocks/agenda';
+import { fetchNotificacoes, marcarNotificacaoLida } from '../api/notificacoes';
+import type { Notification } from '../types';
+
+const tipoIcon = {
+  AUDIENCIA: Scale,
+  FERIAS: Palmtree,
+  AVISO: Megaphone,
+  ANIVERSARIO: Cake,
+  DOCUMENTO: FileText,
+  SOLICITACAO: InboxIcon,
+} as const;
 
 export function Header({ onOpenMobileMenu }: { onOpenMobileMenu: () => void }) {
   const { user, logout } = useAuth();
@@ -16,6 +26,27 @@ export function Header({ onOpenMobileMenu }: { onOpenMobileMenu: () => void }) {
   const menuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
+  const [notificacoes, setNotificacoes] = useState<Notification[] | null>(null);
+
+  useEffect(() => {
+    // Complementar ao sino, não uma página própria — se a busca falhar (ex.:
+    // permissão de "notificações" desmarcada pro usuário), some silenciosamente
+    // em vez de quebrar o header, que é renderizado em toda tela do app.
+    fetchNotificacoes()
+      .then(setNotificacoes)
+      .catch(() => setNotificacoes([]));
+  }, []);
+
+  async function handleMarcarLida(id: string) {
+    const alvo = (notificacoes ?? []).find((n) => n.id === id);
+    if (!alvo || alvo.lida) return;
+    setNotificacoes((prev) => (prev ?? []).map((n) => (n.id === id ? { ...n, lida: true } : n)));
+    try {
+      await marcarNotificacaoLida(id);
+    } catch {
+      setNotificacoes((prev) => (prev ?? []).map((n) => (n.id === id ? { ...n, lida: false } : n)));
+    }
+  }
 
   const dropdownMotion = {
     initial: { opacity: 0, y: reduceMotion ? 0 : -6, scale: reduceMotion ? 1 : 0.98 },
@@ -24,7 +55,8 @@ export function Header({ onOpenMobileMenu }: { onOpenMobileMenu: () => void }) {
     transition: { duration: reduceMotion ? 0.1 : 0.18, ease: [0.4, 0, 0.2, 1] as const },
   };
 
-  const unread = mockNotifications.filter((n) => !n.lida).length;
+  const unread = (notificacoes ?? []).filter((n) => !n.lida).length;
+  const recentes = (notificacoes ?? []).slice(0, 6);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -68,12 +100,30 @@ export function Header({ onOpenMobileMenu }: { onOpenMobileMenu: () => void }) {
                   Notificações
                 </div>
                 <div className="max-h-72 overflow-y-auto">
-                  {mockNotifications.map((n) => (
-                    <div key={n.id} className="px-4 py-2.5 hover:bg-cream transition-colors duration-150 flex gap-2 items-start">
-                      {!n.lida && <span className="w-1.5 h-1.5 rounded-full bg-gold mt-1.5 shrink-0" />}
-                      <p className={`text-xs ${n.lida ? 'text-text-secondary' : 'text-navy'}`}>{n.mensagem}</p>
+                  {notificacoes === null ? (
+                    <div className="px-4 py-3 space-y-2.5">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="h-3 bg-cream rounded animate-pulse" />
+                      ))}
                     </div>
-                  ))}
+                  ) : recentes.length === 0 ? (
+                    <p className="px-4 py-4 text-xs text-text-secondary text-center">Nenhuma notificação por aqui.</p>
+                  ) : (
+                    recentes.map((n) => {
+                      const Icon = tipoIcon[n.tipo];
+                      return (
+                        <button
+                          key={n.id}
+                          onClick={() => handleMarcarLida(n.id)}
+                          className="w-full text-left px-4 py-2.5 hover:bg-cream transition-colors duration-150 flex gap-2 items-start"
+                        >
+                          <Icon className="w-3.5 h-3.5 text-navy/70 mt-0.5 shrink-0" strokeWidth={1.75} />
+                          <p className={`text-xs flex-1 ${n.lida ? 'text-text-secondary' : 'text-navy'}`}>{n.mensagem}</p>
+                          {!n.lida && <span className="w-1.5 h-1.5 rounded-full bg-gold mt-1.5 shrink-0" />}
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
                 <button
                   onClick={() => {
