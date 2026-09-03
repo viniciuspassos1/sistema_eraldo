@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Palmtree, Megaphone, Cake, Bot, FileText, Link2, ShieldAlert } from 'lucide-react';
+import { Palmtree, Megaphone, Cake, Bot, FileText, Link2, ShieldAlert, GraduationCap, Inbox as InboxIcon, Stethoscope, Lightbulb, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/Card';
 import { StatCard } from '../components/StatCard';
@@ -11,16 +11,25 @@ import { fetchFuncionarios, FuncionariosApiError } from '../api/funcionarios';
 import { fetchFerias } from '../api/ferias';
 import { fetchAvisos } from '../api/avisos';
 import { fetchAgendaEventos } from '../api/agenda';
+import { fetchPendencias, type Pendencia } from '../api/pendencias';
 import { greeting, formatDate } from '../utils/format';
 import { todayISO, daysUntilNextOccurrence } from '../utils/date';
 import { buildTrend } from '../utils/trend';
 import type { User, Vacation, Announcement, AgendaEvent } from '../types';
+
+const pendenciaIcon = {
+  ONBOARDING: GraduationCap,
+  SOLICITACAO: InboxIcon,
+  ATESTADO: Stethoscope,
+  IDEIA: Lightbulb,
+} as const;
 
 interface DashboardDados {
   funcionarios: User[];
   ferias: Vacation[];
   avisos: Announcement[];
   agenda: AgendaEvent[];
+  pendencias: Pendencia[];
 }
 
 const shortcuts = [
@@ -39,8 +48,16 @@ export function Dashboard() {
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([fetchFuncionarios(), fetchFerias(), fetchAvisos(), fetchAgendaEventos()])
-      .then(([funcionarios, ferias, avisos, agenda]) => setDados({ funcionarios, ferias, avisos, agenda }))
+    Promise.all([
+      fetchFuncionarios(),
+      fetchFerias(),
+      fetchAvisos(),
+      fetchAgendaEventos(),
+      // Widget complementar: se falhar (ex.: backend antigo sem essa rota
+      // ainda), o resto do dashboard continua funcionando normalmente.
+      fetchPendencias().catch(() => []),
+    ])
+      .then(([funcionarios, ferias, avisos, agenda, pendencias]) => setDados({ funcionarios, ferias, avisos, agenda, pendencias }))
       .catch((err) => setErro(err instanceof FuncionariosApiError ? err.message : 'Erro inesperado ao carregar o dashboard.'));
   }, []);
 
@@ -71,7 +88,7 @@ export function Dashboard() {
     );
   }
 
-  const { funcionarios, ferias, avisos, agenda } = dados;
+  const { funcionarios, ferias, avisos, agenda, pendencias } = dados;
 
   const funcionariosFerias = funcionarios.filter((f) => f.status === 'FERIAS');
   const avisosNaoLidos = avisos.filter((a) => !a.lido);
@@ -117,6 +134,31 @@ export function Dashboard() {
             )}
           </p>
         </div>
+      )}
+
+      {pendencias.length > 0 && (
+        <Card>
+          <CardHeader title="Minhas pendências" />
+          <ul className="divide-y divide-border -mt-1">
+            {pendencias.map((p, i) => {
+              const Icon = pendenciaIcon[p.tipo];
+              return (
+                <li key={i}>
+                  <button
+                    onClick={() => navigate(p.link)}
+                    className="w-full flex items-center gap-3 py-3 text-left hover:bg-cream transition-colors duration-150 -mx-1 px-1 rounded-lg"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4 text-[#8a6d34]" strokeWidth={1.75} />
+                    </div>
+                    <span className="text-sm text-navy flex-1">{p.mensagem}</span>
+                    <ChevronRight className="w-4 h-4 text-text-secondary shrink-0" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">

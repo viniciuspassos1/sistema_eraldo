@@ -96,6 +96,7 @@ Todo router exige `X-API-Key`. Os que agem em nome de "quem está logado"
 | `onboarding` (resumo — admin) | Sim, e exige perfil ADMINISTRADOR |
 | `agenda_anotacoes` (tudo) | Sim |
 | `avisos` (listar e marcar lido) | Sim |
+| `pendencias` | Sim |
 | Demais (`funcionarios`, `ferias`, `feriados`, `agenda` eventos, `documentos`, `tribunais`, `base_conhecimento`, `manual_interno`, `notificacoes`) | Só `X-API-Key` — leitura sem identidade |
 
 ## Autenticação
