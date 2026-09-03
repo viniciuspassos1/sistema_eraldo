@@ -38,4 +38,4 @@ SMTP_FROM = os.getenv("SMTP_FROM", "").strip()
 # da Cooperativa de Ideias. A busca da aba "Processos Gerais" continua sem
 # LLM, de propósito (só o texto literal do documento — ver assistant/rag.py).
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest").strip()

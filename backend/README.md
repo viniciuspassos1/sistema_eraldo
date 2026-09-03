@@ -209,15 +209,22 @@ depende disso. Para ativar:
 
 ```
 GEMINI_API_KEY=sua-chave-aqui
-GEMINI_MODEL=gemini-2.0-flash   # opcional, esse já é o padrão
+GEMINI_MODEL=gemini-flash-lite-latest   # opcional, esse já é o padrão
 ```
 
 Gere a chave em <https://aistudio.google.com/apikey> — tem tier gratuito
 com limite de uso (ao esgotar, a API para de responder, não cobra
-automaticamente). Nenhum envio de texto de verdade para o Gemini foi
-testado neste projeto, porque este ambiente não tem uma chave real — os
-testes automatizados cobrem só o comportamento sem chave configurada (erro
-claro, não tela quebrada) e a exigência de sessão.
+automaticamente).
+
+O modelo padrão usa o alias `-latest` (em vez de um nome de versão fixo)
+de propósito: durante o desenvolvimento, `gemini-2.0-flash` já tinha sido
+descontinuado pelo Google, e os sucessores diretos (`gemini-3.6-flash`,
+`gemini-3.7-flash`) devolviam 503 "alta demanda" no tier gratuito — a
+variante "lite" respondeu de forma estável. Um alias `-latest` reduz a
+chance de o modelo configurado simplesmente parar de existir de novo; se
+`GEMINI_MODEL` começar a devolver 404 ou 503 persistente, rode
+`client.models.list()` (ver histórico do projeto) para ver o que está
+disponível para a chave configurada.
 
 ## Meu Authenticator
 
