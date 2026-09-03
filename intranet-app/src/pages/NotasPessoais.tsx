@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { NotebookPen, Search, Pencil, Trash2, ShieldAlert, Check, Circle, CheckCircle2 } from 'lucide-react';
+import { useEffect, useState, type FormEvent, type DragEvent } from 'react';
+import { NotebookPen, Search, Pencil, Trash2, ShieldAlert, Check, Circle, CheckCircle2, GripVertical } from 'lucide-react';
 import { Card, CardHeader } from '../components/Card';
 import { Button } from '../components/Button';
 import { EmptyState } from '../components/EmptyState';
@@ -23,6 +23,9 @@ export function NotasPessoais() {
   const [tituloEdicao, setTituloEdicao] = useState('');
   const [conteudoEdicao, setConteudoEdicao] = useState('');
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+
+  const [arrastandoId, setArrastandoId] = useState<string | null>(null);
+  const [colunaAlvo, setColunaAlvo] = useState<'pendentes' | 'concluidas' | null>(null);
 
   useEffect(() => {
     fetchNotas()
@@ -91,16 +94,25 @@ export function NotasPessoais() {
     }
   }
 
-  async function handleAlternarConcluida(nota: NotaPessoal) {
+  async function handleDefinirConcluida(id: string, concluida: boolean) {
     const anterior = notas;
-    const novoValor = !nota.concluida;
-    setNotas((prev) => (prev ?? []).map((n) => (n.id === nota.id ? { ...n, concluida: novoValor } : n)));
+    const atual = (notas ?? []).find((n) => n.id === id);
+    if (!atual || atual.concluida === concluida) return;
+
+    setNotas((prev) => (prev ?? []).map((n) => (n.id === id ? { ...n, concluida } : n)));
     try {
-      await alternarConcluida(nota.id, novoValor);
+      await alternarConcluida(id, concluida);
     } catch (err) {
       setNotas(anterior ?? null);
       showToast(err instanceof NotasPessoaisApiError ? err.message : 'Erro ao atualizar a anotação.', 'error');
     }
+  }
+
+  function handleDropNaColuna(e: DragEvent, coluna: 'pendentes' | 'concluidas') {
+    e.preventDefault();
+    setColunaAlvo(null);
+    const id = e.dataTransfer.getData('text/plain');
+    if (id) handleDefinirConcluida(id, coluna === 'concluidas');
   }
 
   function renderNota(n: NotaPessoal) {
@@ -139,10 +151,21 @@ export function NotasPessoais() {
     }
 
     return (
-      <Card key={n.id}>
+      <Card
+        key={n.id}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', n.id);
+          e.dataTransfer.effectAllowed = 'move';
+          setArrastandoId(n.id);
+        }}
+        onDragEnd={() => setArrastandoId(null)}
+        className={`cursor-grab active:cursor-grabbing transition-opacity duration-150 ${arrastandoId === n.id ? 'opacity-40' : ''}`}
+      >
         <div className="flex items-start gap-3">
+          <GripVertical className="w-3.5 h-3.5 text-text-secondary/40 mt-1 shrink-0" />
           <button
-            onClick={() => handleAlternarConcluida(n)}
+            onClick={() => handleDefinirConcluida(n.id, !n.concluida)}
             className={`w-5 h-5 mt-0.5 rounded-md border flex items-center justify-center shrink-0 transition-colors duration-150 ${
               n.concluida ? 'bg-navy border-navy' : 'border-border hover:border-navy/40'
             }`}
@@ -250,26 +273,46 @@ export function NotasPessoais() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-          <div className="space-y-3">
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setColunaAlvo('pendentes');
+            }}
+            onDragLeave={() => setColunaAlvo((c) => (c === 'pendentes' ? null : c))}
+            onDrop={(e) => handleDropNaColuna(e, 'pendentes')}
+            className={`space-y-3 rounded-xl transition-[outline] duration-150 ${
+              colunaAlvo === 'pendentes' ? 'outline outline-2 outline-gold/50 outline-offset-4' : ''
+            }`}
+          >
             <div className="flex items-center gap-2 text-xs font-semibold text-navy uppercase tracking-wide px-1">
               <Circle className="w-3.5 h-3.5 text-gold" /> Pendentes ({pendentes.length})
             </div>
             {pendentes.length === 0 ? (
               <Card>
-                <EmptyState icon={Circle} title="Nada pendente" />
+                <EmptyState icon={Circle} title="Nada pendente" description="Arraste uma anotação concluída pra cá se precisar reabrir." />
               </Card>
             ) : (
               <div className="stagger-fade space-y-3">{pendentes.map(renderNota)}</div>
             )}
           </div>
 
-          <div className="space-y-3">
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setColunaAlvo('concluidas');
+            }}
+            onDragLeave={() => setColunaAlvo((c) => (c === 'concluidas' ? null : c))}
+            onDrop={(e) => handleDropNaColuna(e, 'concluidas')}
+            className={`space-y-3 rounded-xl transition-[outline] duration-150 ${
+              colunaAlvo === 'concluidas' ? 'outline outline-2 outline-emerald-500/50 outline-offset-4' : ''
+            }`}
+          >
             <div className="flex items-center gap-2 text-xs font-semibold text-navy uppercase tracking-wide px-1">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Concluídas ({concluidas.length})
             </div>
             {concluidas.length === 0 ? (
               <Card>
-                <EmptyState icon={CheckCircle2} title="Nada concluído ainda" />
+                <EmptyState icon={CheckCircle2} title="Nada concluído ainda" description="Arraste uma anotação pra cá quando terminar." />
               </Card>
             ) : (
               <div className="stagger-fade space-y-3">{concluidas.map(renderNota)}</div>
