@@ -70,6 +70,7 @@ create table agenda_eventos (
   responsavel_id uuid references usuarios (id) on delete set null,
   local text,
   observacoes text,
+  lembrete_email_enviado boolean not null default false, -- ver backend/jobs.py
   created_at timestamptz not null default now()
 );
 
@@ -83,6 +84,7 @@ create table agenda_anotacoes (
   data date not null,
   horario time not null,
   texto text not null,
+  lembrete_email_enviado boolean not null default false, -- ver backend/jobs.py
   created_at timestamptz not null default now()
 );
 
@@ -276,7 +278,7 @@ create index idx_solicitacoes_solicitante on solicitacoes (solicitante_id);
 -- 9. NOTIFICAÇÕES
 -- =============================================================================
 
-create type tipo_notificacao as enum ('AUDIENCIA', 'FERIAS', 'AVISO', 'ANIVERSARIO', 'DOCUMENTO', 'SOLICITACAO');
+create type tipo_notificacao as enum ('AUDIENCIA', 'FERIAS', 'AVISO', 'ANIVERSARIO', 'DOCUMENTO', 'SOLICITACAO', 'ONBOARDING');
 
 create table notificacoes (
   id uuid primary key default gen_random_uuid(),

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Scale, Palmtree, Megaphone, Cake, FileText, Inbox as InboxIcon, CheckCheck, ShieldAlert } from 'lucide-react';
+import { Bell, Scale, Palmtree, Megaphone, Cake, FileText, Inbox as InboxIcon, CheckCheck, ShieldAlert, GraduationCap } from 'lucide-react';
 import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
@@ -16,6 +16,7 @@ const tipoIcon = {
   ANIVERSARIO: Cake,
   DOCUMENTO: FileText,
   SOLICITACAO: InboxIcon,
+  ONBOARDING: GraduationCap,
 } as const;
 
 export function Notificacoes() {

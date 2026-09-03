@@ -155,6 +155,41 @@ Pra adicionar documentação nova, basta soltar o arquivo em
 
 Depois é só rodar o `ingest` de novo.
 
+## Jobs de fundo (lembrete por e-mail, onboarding parado, SLA de solicitações)
+
+Três alertas que não dependem de alguém estar com a intranet aberta na tela,
+implementados em `jobs.py` como dois loops assíncronos iniciados no lifespan
+do FastAPI (sem scheduler externo):
+
+- **Lembrete de reunião por e-mail** — complementar ao alerta sonoro do
+  frontend (`AgendaAlerts.tsx`, que só dispara com a aba aberta). A cada 60s,
+  verifica eventos da Agenda e anotações pessoais de hoje entre 0 e 10
+  minutos de distância e manda um e-mail ao responsável/dono, uma vez só por
+  evento (`lembrete_email_enviado`).
+- **Onboarding parado** — a cada 6h, avisa (notificação interna) o próprio
+  funcionário e os administradores quando o checklist de onboarding não
+  avança há 7 dias ou mais.
+- **SLA de solicitações** — a cada 6h, avisa o responsável (ou os
+  administradores, se a solicitação não tiver responsável) quando ela
+  continua aberta/em análise 5 dias ou mais depois de criada.
+
+**Desligado por padrão** (`ENABLE_BACKGROUND_JOBS=false`) — inclusive
+durante os testes automatizados, de propósito: os testes sobem o app real
+via `TestClient`, e sem esse cuidado cada rodada de teste dispararia
+notificações reais para funcionários reais. Para ativar em produção:
+
+```
+ENABLE_BACKGROUND_JOBS=true
+```
+
+O lembrete por e-mail precisa, além disso, de SMTP configurado
+(`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` — ver
+`.env.example`). **Sem essas credenciais reais do escritório, esse e-mail
+específico fica desativado silenciosamente** (os avisos de onboarding/SLA
+continuam funcionando normalmente, pois são notificações internas, não
+e-mail) — nenhum envio de e-mail foi testado de ponta a ponta neste projeto
+por falta de um servidor SMTP real para testar contra.
+
 ## Meu Authenticator
 
 API mínima que calcula códigos TOTP a partir de segredos guardados só no
@@ -176,8 +211,10 @@ criam dado (solicitação, ideia, atestado) apagam o que criaram ao final,
 e nenhum teste altera senha ou dado de conta que outra pessoa usa pra
 navegar na intranet. Cobre login/sessão, bloqueio por tentativas
 incorretas, `require_admin`/`require_pagina` (bloqueio e liberação),
-isolamento de acesso a arquivo de atestado entre usuários, e identidade
-via token (não confiar em e-mail vindo do corpo da requisição).
+isolamento de acesso a arquivo de atestado entre usuários, identidade
+via token (não confiar em e-mail vindo do corpo da requisição), e as
+checagens dos jobs de fundo (`jobs.py` — geração e dedupe do alerta de
+SLA de solicitações).
 
 ## Importante
 

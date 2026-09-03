@@ -136,7 +136,7 @@ export interface Notification {
   mensagem: string;
   data: string;
   lida: boolean;
-  tipo: 'AUDIENCIA' | 'FERIAS' | 'AVISO' | 'ANIVERSARIO' | 'DOCUMENTO' | 'SOLICITACAO';
+  tipo: 'AUDIENCIA' | 'FERIAS' | 'AVISO' | 'ANIVERSARIO' | 'DOCUMENTO' | 'SOLICITACAO' | 'ONBOARDING';
 }
 
 export interface IdeiaConteudo {

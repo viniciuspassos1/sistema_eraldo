@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { Menu, Bell, ChevronDown, User, LogOut, Settings, Scale, Palmtree, Megaphone, Cake, FileText, Inbox as InboxIcon } from 'lucide-react';
+import { Menu, Bell, ChevronDown, User, LogOut, Settings, Scale, Palmtree, Megaphone, Cake, FileText, Inbox as InboxIcon, GraduationCap } from 'lucide-react';
 import { SearchBar } from './SearchBar';
 import { Avatar } from './Avatar';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +16,7 @@ const tipoIcon = {
   ANIVERSARIO: Cake,
   DOCUMENTO: FileText,
   SOLICITACAO: InboxIcon,
+  ONBOARDING: GraduationCap,
 } as const;
 
 export function Header({ onOpenMobileMenu }: { onOpenMobileMenu: () => void }) {

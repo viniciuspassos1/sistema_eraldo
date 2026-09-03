@@ -9,15 +9,20 @@ from fastapi.responses import JSONResponse
 
 from assistant.router import router as assistant_router
 from routers import all_routers
-from config import ALLOWED_ORIGINS
+from config import ALLOWED_ORIGINS, ENABLE_BACKGROUND_JOBS
 from database import init_pool, close_pool
+from jobs import iniciar_jobs, parar_jobs
 from security import require_api_key, require_pagina
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_pool()
+    if ENABLE_BACKGROUND_JOBS:
+        iniciar_jobs()
     yield
+    if ENABLE_BACKGROUND_JOBS:
+        parar_jobs()
     close_pool()
 
 
