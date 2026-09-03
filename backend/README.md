@@ -97,6 +97,7 @@ Todo router exige `X-API-Key`. Os que agem em nome de "quem está logado"
 | `agenda_anotacoes` (tudo) | Sim |
 | `avisos` (listar e marcar lido) | Sim |
 | `pendencias` | Sim |
+| `notas_pessoais` (tudo) | Sim |
 | Demais (`funcionarios`, `ferias`, `feriados`, `agenda` eventos, `documentos`, `tribunais`, `base_conhecimento`, `manual_interno`, `notificacoes`) | Só `X-API-Key` — leitura sem identidade |
 
 ## Autenticação

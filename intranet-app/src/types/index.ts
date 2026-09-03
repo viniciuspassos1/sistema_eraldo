@@ -151,6 +151,13 @@ export interface IdeiaConteudo {
   status: 'NOVA' | 'EM_ANALISE' | 'APROVADA' | 'EM_PRODUCAO' | 'PUBLICADA' | 'NAO_APROVADA';
 }
 
+export interface NotaPessoal {
+  id: string;
+  titulo: string;
+  conteudo: string;
+  atualizadoEm: string;
+}
+
 export interface ChatMessage {
   id: string;
   autor: 'usuario' | 'ia';

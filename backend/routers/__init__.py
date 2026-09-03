@@ -17,6 +17,7 @@ from . import (
     notificacoes,
     onboarding,
     pendencias,
+    notas_pessoais,
 )
 
 all_routers = [
@@ -38,4 +39,5 @@ all_routers = [
     notificacoes.router,
     onboarding.router,
     pendencias.router,
+    notas_pessoais.router,
 ]

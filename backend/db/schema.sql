@@ -334,6 +334,24 @@ create table onboarding_progresso (
 );
 
 -- =============================================================================
+-- 11a. NOTAS PESSOAIS
+--     Bloco de notas pessoal — diferente de agenda_anotacoes (que é presa a
+--     um dia/horário da grade da Agenda), aqui é um espaço livre pra
+--     lembrete/observação avulsa, sem data ou hora vinculada.
+-- =============================================================================
+
+create table notas_pessoais (
+  id uuid primary key default gen_random_uuid(),
+  usuario_id uuid not null references usuarios (id) on delete cascade,
+  titulo text not null,
+  conteudo text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index idx_notas_pessoais_usuario on notas_pessoais (usuario_id, updated_at desc);
+
+-- =============================================================================
 -- 12. MEU AUTHENTICATOR (2FA)
 -- =============================================================================
 -- ATENÇÃO: segredo_totp é uma credencial sensível de verdade. Não guarde em
@@ -382,6 +400,7 @@ alter table notificacoes enable row level security;
 alter table cooperativa_ideias enable row level security;
 alter table onboarding_checklist_itens enable row level security;
 alter table onboarding_progresso enable row level security;
+alter table notas_pessoais enable row level security;
 alter table authenticator_contas enable row level security;
 
 -- =============================================================================
