@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Lightbulb, Plus, ShieldAlert } from 'lucide-react';
+import { Lightbulb, Plus, ShieldAlert, Sparkles } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
@@ -8,7 +8,7 @@ import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
-import { fetchIdeias, createIdeia, updateIdeiaStatus, CooperativaIdeiasApiError } from '../api/cooperativaIdeias';
+import { fetchIdeias, createIdeia, updateIdeiaStatus, redigirIdeia, CooperativaIdeiasApiError } from '../api/cooperativaIdeias';
 import type { IdeiaConteudo } from '../types';
 import { formatDate } from '../utils/format';
 
@@ -58,6 +58,7 @@ export function CooperativaIdeias() {
   const [tema, setTema] = useState(temas[0]);
   const [referencia, setReferencia] = useState('');
   const [buttonStatus, setButtonStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+  const [redigindo, setRedigindo] = useState(false);
 
   useEffect(() => {
     fetchIdeias()
@@ -75,6 +76,22 @@ export function CooperativaIdeias() {
     } catch (err) {
       setIdeias(anterior ?? null);
       showToast(err instanceof CooperativaIdeiasApiError ? err.message : 'Erro ao atualizar status.', 'error');
+    }
+  }
+
+  async function handleAjudarARedigir() {
+    if (!titulo.trim()) {
+      showToast('Escreva um título antes de pedir ajuda à IA.', 'error');
+      return;
+    }
+    setRedigindo(true);
+    try {
+      const { descricaoSugerida } = await redigirIdeia({ titulo: titulo.trim(), formato, tema });
+      setDescricao(descricaoSugerida);
+    } catch (err) {
+      showToast(err instanceof CooperativaIdeiasApiError ? err.message : 'Erro ao pedir ajuda à IA.', 'error');
+    } finally {
+      setRedigindo(false);
     }
   }
 
@@ -243,7 +260,18 @@ export function CooperativaIdeias() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-navy mb-1.5">Descrição do conteúdo</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-navy">Descrição do conteúdo</label>
+              <button
+                type="button"
+                onClick={handleAjudarARedigir}
+                disabled={redigindo || !titulo.trim()}
+                className="flex items-center gap-1 text-xs text-gold font-medium hover:underline disabled:opacity-50 disabled:no-underline"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {redigindo ? 'Escrevendo...' : 'Ajudar a escrever'}
+              </button>
+            </div>
             <textarea
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}

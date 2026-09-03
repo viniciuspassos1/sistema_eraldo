@@ -61,3 +61,11 @@ export function updateIdeiaStatus(id: string, status: IdeiaConteudo['status']): 
     body: JSON.stringify({ status }),
   });
 }
+
+export function redigirIdeia(input: { titulo: string; formato: string; tema: string }): Promise<{ descricaoSugerida: string }> {
+  return request('/api/cooperativa-ideias/redigir', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}

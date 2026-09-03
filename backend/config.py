@@ -32,3 +32,10 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "").strip()
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "").strip()
+
+# IA generativa (Gemini) — só usada em dois lugares que precisam de texto
+# gerado de verdade: aba "Comunicação" do Assistente IA e "ajudar a redigir"
+# da Cooperativa de Ideias. A busca da aba "Processos Gerais" continua sem
+# LLM, de propósito (só o texto literal do documento — ver assistant/rag.py).
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash").strip()

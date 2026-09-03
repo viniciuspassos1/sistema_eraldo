@@ -4,10 +4,19 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_user, require_pagina, UsuarioAtual
 from database import fetch_all, get_connection
+from llm import gerar_texto
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("cooperativa-ideias"))])
 
 _STATUS_VALIDOS = {"NOVA", "EM_ANALISE", "APROVADA", "EM_PRODUCAO", "PUBLICADA", "NAO_APROVADA"}
+
+_INSTRUCAO_REDIGIR = (
+    "Você ajuda a equipe de marketing de um escritório de advocacia brasileiro a "
+    "detalhar ideias de conteúdo para redes sociais. Dado um título, formato e tema, "
+    "escreva uma descrição objetiva (3 a 5 frases) explicando a ideia, o gancho e o "
+    "público-alvo. Responda em português do Brasil, devolva só a descrição pronta, "
+    "sem introduções nem explicações sobre o que você fez."
+)
 
 _SELECT = """
     SELECT i.id, i.titulo, i.descricao, i.formato, i.tema, i.referencia,
@@ -81,6 +90,23 @@ def criar_ideia(body: NovaIdeia, usuario: UsuarioAtual = Depends(require_user)):
             row = cur.fetchone()
 
     return _serialize(row)
+
+
+class RedigirRequest(BaseModel):
+    titulo: str
+    formato: str
+    tema: str
+
+
+class RedigirResponse(BaseModel):
+    descricaoSugerida: str
+
+
+@router.post("/api/cooperativa-ideias/redigir", response_model=RedigirResponse)
+def redigir_ideia(body: RedigirRequest, _usuario: UsuarioAtual = Depends(require_user)) -> RedigirResponse:
+    prompt = f"Título: {body.titulo}\nFormato: {body.formato}\nTema: {body.tema}"
+    descricao = gerar_texto(prompt, _INSTRUCAO_REDIGIR)
+    return RedigirResponse(descricaoSugerida=descricao)
 
 
 @router.patch("/api/cooperativa-ideias/{ideia_id}", response_model=Ideia)

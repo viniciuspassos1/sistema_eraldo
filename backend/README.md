@@ -191,6 +191,34 @@ continuam funcionando normalmente, pois são notificações internas, não
 e-mail) — nenhum envio de e-mail foi testado de ponta a ponta neste projeto
 por falta de um servidor SMTP real para testar contra.
 
+## IA generativa (Gemini) — aba Comunicação e "ajudar a redigir"
+
+Dois recursos usam um LLM de verdade (`llm.py`, Google Gemini) para gerar
+texto — diferente do Assistente IA "Processos Gerais", que continua sem
+LLM, de propósito, respondendo sempre com o texto literal do documento:
+
+- **`POST /api/assistant/comunicacao`** — aba "Comunicação" do Assistente
+  IA: ajuda a redigir avisos, e-mails e respostas a clientes.
+- **`POST /api/cooperativa-ideias/redigir`** — botão "Ajudar a escrever" no
+  formulário de nova ideia: a partir de título/formato/tema, sugere uma
+  descrição para a ideia de conteúdo.
+
+Sem `GEMINI_API_KEY` configurada, os dois devolvem HTTP 503 com uma
+mensagem clara em vez de quebrar a tela — nenhum outro recurso do sistema
+depende disso. Para ativar:
+
+```
+GEMINI_API_KEY=sua-chave-aqui
+GEMINI_MODEL=gemini-2.0-flash   # opcional, esse já é o padrão
+```
+
+Gere a chave em <https://aistudio.google.com/apikey> — tem tier gratuito
+com limite de uso (ao esgotar, a API para de responder, não cobra
+automaticamente). Nenhum envio de texto de verdade para o Gemini foi
+testado neste projeto, porque este ambiente não tem uma chave real — os
+testes automatizados cobrem só o comportamento sem chave configurada (erro
+claro, não tela quebrada) e a exigência de sessão.
+
 ## Meu Authenticator
 
 API mínima que calcula códigos TOTP a partir de segredos guardados só no

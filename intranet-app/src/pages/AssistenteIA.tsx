@@ -2,8 +2,7 @@ import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { Bot, Send, FileSearch, Briefcase, MessageSquareText, Copy, Check, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { communicationAnswers, communicationFallback } from '../mocks/communicationKnowledge';
-import { askAssistant, AssistantApiError } from '../api/assistant';
+import { askAssistant, askComunicacao, AssistantApiError } from '../api/assistant';
 import { useToast } from '../components/Toast';
 import type { ChatMessage } from '../types';
 
@@ -17,16 +16,16 @@ interface AssistantConfig {
   answerFor: (question: string) => Promise<{ texto: string; fonte?: string }>;
 }
 
-// Aba "Comunicação": segue mockada (é um caso de geração/redação, não de
-// consulta a documentação — fora do escopo do RAG).
-function buildMockAnswerFn(base: typeof communicationAnswers, fallback: string): AssistantConfig['answerFor'] {
-  return async (question: string) => {
-    const q = question.toLowerCase();
-    const match = base.find((a) => a.keywords.some((k) => q.includes(k)));
-    await new Promise((r) => setTimeout(r, 500));
-    if (match) return { texto: match.resposta, fonte: match.fonte };
-    return { texto: fallback };
-  };
+// Aba "Comunicação": geração de texto de verdade via IA (Gemini, backend),
+// não consulta a documentação — por isso não tem "fonte" como a outra aba.
+async function answerFromComunicacao(question: string): Promise<{ texto: string; fonte?: string }> {
+  try {
+    const resposta = await askComunicacao(question);
+    return { texto: resposta };
+  } catch (err) {
+    const texto = err instanceof AssistantApiError ? err.message : 'Erro inesperado ao consultar o assistente.';
+    return { texto };
+  }
 }
 
 // Aba "Processos Gerais": busca real (RAG) na documentação interna via
@@ -76,7 +75,7 @@ const ASSISTANTS: AssistantConfig[] = [
       'Estrutura de e-mail para cliente',
     ],
     thinkingLabel: 'Pensando...',
-    answerFor: buildMockAnswerFn(communicationAnswers, communicationFallback),
+    answerFor: answerFromComunicacao,
   },
 ];
 

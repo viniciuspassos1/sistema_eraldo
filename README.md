@@ -240,6 +240,7 @@ mais credencial fixa hardcoded no frontend.
 | `JWT_SECRET` / `JWT_EXPIRES_HOURS_SESSAO` / `JWT_EXPIRES_HOURS_PERSISTENTE` | `backend/.env` | Chave de assinatura e validade do token de sessão (login) |
 | `DB_POOL_MIN` / `DB_POOL_MAX` | `backend/.env` | Tamanho do pool de conexões com o banco |
 | `ALLOWED_ORIGINS` | `backend/.env` | Origens permitidas por CORS a chamar a API |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | `backend/.env` | IA generativa (Gemini) usada na aba Comunicação do Assistente e no "ajudar a redigir" da Cooperativa de Ideias — sem chave, os dois ficam desativados com erro claro |
 
 ## 11. Limitações conhecidas e pontos de atenção
 
@@ -261,11 +262,15 @@ mais credencial fixa hardcoded no frontend.
   segredo de verdade num app publicado. Ver `docs/DOCUMENTACAO.docx`.
 - **Sem fluxo de "esqueci minha senha"** — só um administrador pode
   resetar a senha de alguém, via `db/set_senha.py`.
-- **Sem LLM** — a resposta é o(s) trecho(s) literal(is); perguntas
-  próximas do threshold podem trazer mais de um trecho concatenado, nem
-  sempre 100% preciso. Duas perguntas ("missão" e "visão" da empresa)
-  ainda retornam o trecho errado por limitação do modelo de embeddings —
-  ver `backend/README.md`.
+- **Aba "Processos Gerais" do Assistente IA continua sem LLM, por
+  decisão deliberada** — a resposta é sempre o(s) trecho(s) literal(is) do
+  documento, pra nunca inventar informação sobre processo interno;
+  perguntas próximas do threshold podem trazer mais de um trecho
+  concatenado, nem sempre 100% preciso. Duas perguntas ("missão" e "visão"
+  da empresa) ainda retornam o trecho errado por limitação do modelo de
+  embeddings — ver `backend/README.md`. A aba "Comunicação" e o "ajudar a
+  redigir" da Cooperativa de Ideias, esses sim, usam um LLM de verdade
+  (Gemini) — ver `backend/README.md`.
 - **Alerta sonoro da Agenda ainda depende da aba aberta**, mas agora tem
   um lembrete por e-mail complementar (`backend/jobs.py`) — que por sua
   vez depende de SMTP real configurado, que este projeto ainda não tem

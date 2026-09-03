@@ -56,3 +56,37 @@ export async function askAssistant(pergunta: string): Promise<AssistantAnswer> {
   const data: AskResponse = await response.json();
   return data;
 }
+
+export async function askComunicacao(pergunta: string): Promise<string> {
+  if (!API_URL || !API_KEY) {
+    throw new AssistantApiError(
+      'Backend do Assistente não configurado. Veja intranet-app/.env.example.'
+    );
+  }
+
+  const token = getStoredToken();
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/assistant/comunicacao`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': API_KEY,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ pergunta }),
+    });
+  } catch {
+    throw new AssistantApiError(
+      'Não foi possível conectar ao backend local. Ele está rodando? (uvicorn main:app --port 8010)'
+    );
+  }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new AssistantApiError(body?.detail ?? `Erro do servidor (HTTP ${response.status}).`);
+  }
+
+  const data: { resposta: string } = await response.json();
+  return data.resposta;
+}
