@@ -82,10 +82,10 @@ def _checar_lembretes_reuniao() -> None:
 
     anotacoes = fetch_all(
         """
-        SELECT a.id, a.texto, a.horario, u.email, u.nome
+        SELECT a.id, a.titulo, a.horario, u.email, u.nome
         FROM agenda_anotacoes a
         JOIN usuarios u ON u.id = a.usuario_id
-        WHERE a.data = %s AND a.lembrete_email_enviado = false AND btrim(a.texto) <> '';
+        WHERE a.data = %s AND a.lembrete_email_enviado = false;
         """,
         (hoje,),
     )
@@ -95,9 +95,9 @@ def _checar_lembretes_reuniao() -> None:
             continue
         enviado = enviar_email(
             nota["email"],
-            f"Lembrete: {nota['texto']} às {nota['horario'].strftime('%H:%M')}",
+            f"Lembrete: {nota['titulo']} às {nota['horario'].strftime('%H:%M')}",
             f"Olá, {nota['nome']}.\n\n"
-            f'Você anotou "{nota["texto"]}" para {nota["horario"].strftime("%H:%M")} de hoje, '
+            f'Você tem "{nota["titulo"]}" marcado para {nota["horario"].strftime("%H:%M")} de hoje, '
             f"daqui a {round(minutos)} minutos.",
         )
         if enviado:

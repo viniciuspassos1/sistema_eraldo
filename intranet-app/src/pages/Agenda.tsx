@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { useState, useEffect, type FormEvent } from 'react';
+import { Calendar as CalendarIcon, MapPin, Trash2 } from 'lucide-react';
 import { fetchAgendaEventos, AgendaApiError } from '../api/agenda';
 import {
   fetchAnotacoes,
@@ -8,8 +8,11 @@ import {
   apagarAnotacao,
   AgendaAnotacoesApiError,
   type AnotacaoAgenda,
+  type DadosAnotacao,
 } from '../api/agendaAnotacoes';
 import { useToast } from '../components/Toast';
+import { Modal } from '../components/Modal';
+import { Button } from '../components/Button';
 import { formatDate } from '../utils/format';
 import { todayISO } from '../utils/date';
 import type { AgendaEvent } from '../types';
@@ -21,6 +24,8 @@ const tipoLabel: Record<string, string> = {
   EVENTO: 'Evento',
   OUTRO: 'Outro',
 };
+
+const tiposDisponiveis = Object.keys(tipoLabel) as AnotacaoAgenda['tipo'][];
 
 const diaLabel = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
@@ -55,6 +60,17 @@ function horaParaOffset(hora: string): number | null {
   return (decimal - START_HOUR) * ROW_HEIGHT;
 }
 
+interface ModalState {
+  modo: 'novo' | 'editar';
+  data: string;
+  id?: string;
+  horario: string;
+  titulo: string;
+  tipo: AnotacaoAgenda['tipo'];
+  local: string;
+  texto: string;
+}
+
 export function Agenda() {
   const weekDates = getWeekDates();
   const todayIso = todayISO();
@@ -62,6 +78,8 @@ export function Agenda() {
   const [eventos, setEventos] = useState<AgendaEvent[]>([]);
   const [notas, setNotas] = useState<AnotacaoAgenda[]>([]);
   const [erro, setErro] = useState<string | null>(null);
+  const [modal, setModal] = useState<ModalState | null>(null);
+  const [salvando, setSalvando] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -73,34 +91,64 @@ export function Agenda() {
       .catch(() => {});
   }, []);
 
-  async function handleCriarNota(data: string, horario: string, texto: string) {
+  function abrirModalNovo(data: string, horario: string) {
+    setModal({ modo: 'novo', data, horario, titulo: '', tipo: 'OUTRO', local: '', texto: '' });
+  }
+
+  function abrirModalEdicao(nota: AnotacaoAgenda) {
+    setModal({
+      modo: 'editar',
+      data: nota.data,
+      id: nota.id,
+      horario: nota.horario,
+      titulo: nota.titulo,
+      tipo: nota.tipo,
+      local: nota.local ?? '',
+      texto: nota.texto ?? '',
+    });
+  }
+
+  async function handleSalvar(e: FormEvent) {
+    e.preventDefault();
+    if (!modal || !modal.titulo.trim()) return;
+
+    const dados: DadosAnotacao = {
+      titulo: modal.titulo.trim(),
+      tipo: modal.tipo,
+      local: modal.local.trim() || undefined,
+      texto: modal.texto.trim() || undefined,
+    };
+
+    setSalvando(true);
     try {
-      const nova = await criarAnotacao(data, horario, texto);
-      setNotas((prev) => [...prev, nova]);
+      if (modal.modo === 'novo') {
+        const nova = await criarAnotacao(modal.data, modal.horario, dados);
+        setNotas((prev) => [...prev, nova]);
+        showToast('Compromisso salvo.');
+      } else if (modal.id) {
+        const atualizada = await atualizarAnotacao(modal.id, dados);
+        setNotas((prev) => prev.map((n) => (n.id === atualizada.id ? atualizada : n)));
+        showToast('Compromisso atualizado.');
+      }
+      setModal(null);
     } catch (err) {
-      showToast(err instanceof AgendaAnotacoesApiError ? err.message : 'Erro ao salvar a anotação.', 'error');
+      showToast(err instanceof AgendaAnotacoesApiError ? err.message : 'Erro ao salvar o compromisso.', 'error');
+    } finally {
+      setSalvando(false);
     }
   }
 
-  async function handleAtualizarNota(id: string, texto: string) {
-    const anterior = notas;
-    setNotas((prev) => prev.map((n) => (n.id === id ? { ...n, texto } : n)));
-    try {
-      await atualizarAnotacao(id, texto);
-    } catch (err) {
-      setNotas(anterior);
-      showToast(err instanceof AgendaAnotacoesApiError ? err.message : 'Erro ao atualizar a anotação.', 'error');
-    }
-  }
-
-  async function handleApagarNota(id: string) {
-    const anterior = notas;
+  async function handleApagar() {
+    if (!modal?.id) return;
+    const id = modal.id;
+    setModal(null);
     setNotas((prev) => prev.filter((n) => n.id !== id));
     try {
       await apagarAnotacao(id);
+      showToast('Compromisso apagado.');
     } catch (err) {
-      setNotas(anterior);
-      showToast(err instanceof AgendaAnotacoesApiError ? err.message : 'Erro ao apagar a anotação.', 'error');
+      showToast(err instanceof AgendaAnotacoesApiError ? err.message : 'Erro ao apagar o compromisso.', 'error');
+      fetchAnotacoes().then(setNotas).catch(() => {});
     }
   }
 
@@ -111,7 +159,7 @@ export function Agenda() {
           <CalendarIcon className="w-5 h-5 text-gold" /> Agenda
         </h1>
         <p className="text-text-secondary text-sm mt-1">
-          Compromissos da semana. Clique em um horário vazio pra anotar algo.
+          Compromissos da semana. Clique em um horário vazio pra marcar algo — só você vê o que criar aqui.
         </p>
         {erro && <p className="text-xs text-rose-600 mt-1">{erro}</p>}
       </div>
@@ -144,9 +192,8 @@ export function Agenda() {
                   gridHeight={gridHeight}
                   eventos={eventos.filter((ev) => ev.data === iso)}
                   notas={notas.filter((n) => n.data === iso)}
-                  onCriar={handleCriarNota}
-                  onAtualizar={handleAtualizarNota}
-                  onApagar={handleApagarNota}
+                  onSlotClick={(horario) => abrirModalNovo(iso, horario)}
+                  onNotaClick={abrirModalEdicao}
                 />
               );
             })}
@@ -157,6 +204,96 @@ export function Agenda() {
       <p className="text-xs text-text-secondary">
         Semana de {formatDate(toISO(weekDates[0]))} a {formatDate(toISO(weekDates[6]))}.
       </p>
+
+      <Modal
+        open={modal !== null}
+        onClose={() => setModal(null)}
+        title={modal?.modo === 'novo' ? 'Novo compromisso' : 'Editar compromisso'}
+        footer={
+          modal && (
+            <>
+              {modal.modo === 'editar' && (
+                <Button type="button" variant="outline" onClick={handleApagar} className="mr-auto text-rose-600">
+                  <Trash2 className="w-3.5 h-3.5" /> Apagar
+                </Button>
+              )}
+              <Button type="button" variant="outline" onClick={() => setModal(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" form="form-compromisso" loading={salvando} disabled={!modal.titulo.trim()}>
+                Salvar
+              </Button>
+            </>
+          )
+        }
+      >
+        {modal && (
+          <form id="form-compromisso" onSubmit={handleSalvar} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-navy mb-1.5">Título</label>
+              <input
+                autoFocus
+                value={modal.titulo}
+                onChange={(e) => setModal({ ...modal, titulo: e.target.value })}
+                placeholder="Adicionar título"
+                className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy placeholder:text-text-secondary/60 focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-navy mb-1.5">Data</label>
+                <input
+                  type="date"
+                  value={modal.data}
+                  disabled
+                  className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy/60 disabled:cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-navy mb-1.5">Horário</label>
+                <input
+                  type="time"
+                  value={modal.horario}
+                  onChange={(e) => setModal({ ...modal, horario: e.target.value })}
+                  className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-navy mb-1.5">Tipo</label>
+              <select
+                value={modal.tipo}
+                onChange={(e) => setModal({ ...modal, tipo: e.target.value as AnotacaoAgenda['tipo'] })}
+                className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
+              >
+                {tiposDisponiveis.map((t) => (
+                  <option key={t} value={t}>
+                    {tipoLabel[t]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-navy mb-1.5">Local (opcional)</label>
+              <input
+                value={modal.local}
+                onChange={(e) => setModal({ ...modal, local: e.target.value })}
+                placeholder="Ex.: Sala de reuniões, Fórum..."
+                className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy placeholder:text-text-secondary/60 focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-navy mb-1.5">Observações (opcional)</label>
+              <textarea
+                value={modal.texto}
+                onChange={(e) => setModal({ ...modal, texto: e.target.value })}
+                rows={2}
+                className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150 resize-none"
+              />
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }
@@ -167,52 +304,17 @@ function DiaColuna({
   gridHeight,
   eventos,
   notas,
-  onCriar,
-  onAtualizar,
-  onApagar,
+  onSlotClick,
+  onNotaClick,
 }: {
   date: Date;
   isToday: boolean;
   gridHeight: number;
   eventos: AgendaEvent[];
   notas: AnotacaoAgenda[];
-  onCriar: (data: string, horario: string, texto: string) => void;
-  onAtualizar: (id: string, texto: string) => void;
-  onApagar: (id: string) => void;
+  onSlotClick: (horario: string) => void;
+  onNotaClick: (nota: AnotacaoAgenda) => void;
 }) {
-  const iso = toISO(date);
-  const [draft, setDraft] = useState<{ hora: string; texto: string } | null>(null);
-  const [editandoId, setEditandoId] = useState<string | null>(null);
-  const [textoEdicao, setTextoEdicao] = useState('');
-
-  function handleSlotClick(hora: string) {
-    const existente = notas.find((n) => n.horario === hora);
-    if (existente) {
-      setEditandoId(existente.id);
-      setTextoEdicao(existente.texto);
-      return;
-    }
-    setDraft({ hora, texto: '' });
-  }
-
-  function handleDraftBlur() {
-    const texto = draft?.texto.trim();
-    if (draft && texto) {
-      onCriar(iso, draft.hora, texto);
-    }
-    setDraft(null);
-  }
-
-  function handleEdicaoBlur(nota: AnotacaoAgenda) {
-    const texto = textoEdicao.trim();
-    if (!texto) {
-      onApagar(nota.id);
-    } else if (texto !== nota.texto) {
-      onAtualizar(nota.id, texto);
-    }
-    setEditandoId(null);
-  }
-
   return (
     <div className="border-l border-border first:border-l-0">
       <div
@@ -228,7 +330,7 @@ function DiaColuna({
           <button
             key={h}
             type="button"
-            onClick={() => handleSlotClick(`${String(h).padStart(2, '0')}:00`)}
+            onClick={() => onSlotClick(`${String(h).padStart(2, '0')}:00`)}
             className="absolute left-0 right-0 border-t border-border/60 hover:bg-gold/5 transition-colors"
             style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
           />
@@ -254,61 +356,25 @@ function DiaColuna({
         {notas.map((n) => {
           const top = horaParaOffset(n.horario);
           if (top === null) return null;
-          const isEditing = editandoId === n.id;
           return (
-            <div
+            <button
               key={n.id}
-              className="absolute left-1 right-1 rounded-md bg-gold/15 border border-gold/40 px-1.5 py-1"
-              style={{ top, minHeight: ROW_HEIGHT - 6, zIndex: isEditing ? 20 : 1 }}
+              type="button"
+              onClick={() => onNotaClick(n)}
+              className="absolute left-1 right-1 rounded-md bg-gold/15 border border-gold/40 px-1.5 py-1 text-left hover:bg-gold/25 transition-colors"
+              style={{ top, minHeight: ROW_HEIGHT - 6, zIndex: 1 }}
             >
-              {isEditing ? (
-                <textarea
-                  autoFocus
-                  value={textoEdicao}
-                  onChange={(e) => setTextoEdicao(e.target.value)}
-                  onBlur={() => handleEdicaoBlur(n)}
-                  placeholder="Anotação..."
-                  rows={2}
-                  className="w-full bg-transparent text-[10px] text-navy resize-none focus:outline-none placeholder:text-navy/40"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditandoId(n.id);
-                    setTextoEdicao(n.texto);
-                  }}
-                  className="w-full text-left"
-                >
-                  <p className="text-[10px] font-medium text-navy leading-tight">{n.horario}</p>
-                  <p className="text-[10px] text-navy/80 leading-tight break-words">{n.texto}</p>
-                </button>
+              <p className="text-[10px] font-semibold text-navy leading-tight truncate">
+                {n.horario} · {n.titulo}
+              </p>
+              {n.local && (
+                <p className="text-[9px] text-navy/70 leading-tight truncate flex items-center gap-0.5">
+                  <MapPin className="w-2.5 h-2.5 shrink-0" /> {n.local}
+                </p>
               )}
-            </div>
+            </button>
           );
         })}
-
-        {draft &&
-          (() => {
-            const top = horaParaOffset(draft.hora);
-            if (top === null) return null;
-            return (
-              <div
-                className="absolute left-1 right-1 rounded-md bg-gold/15 border border-gold/40 px-1.5 py-1"
-                style={{ top, minHeight: ROW_HEIGHT - 6, zIndex: 20 }}
-              >
-                <textarea
-                  autoFocus
-                  value={draft.texto}
-                  onChange={(e) => setDraft({ ...draft, texto: e.target.value })}
-                  onBlur={handleDraftBlur}
-                  placeholder="Anotação..."
-                  rows={2}
-                  className="w-full bg-transparent text-[10px] text-navy resize-none focus:outline-none placeholder:text-navy/40"
-                />
-              </div>
-            );
-          })()}
       </div>
     </div>
   );

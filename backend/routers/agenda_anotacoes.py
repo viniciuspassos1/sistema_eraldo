@@ -7,24 +7,35 @@ from database import fetch_all, get_connection
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
-_COLUNAS = "id, data, horario, texto"
+_COLUNAS = "id, data, horario, titulo, tipo, local, texto"
+
+_TIPOS_VALIDOS = {"AUDIENCIA", "REUNIAO", "COMPROMISSO", "EVENTO", "OUTRO"}
 
 
 class Anotacao(BaseModel):
     id: str
     data: str
     horario: str
-    texto: str
+    titulo: str
+    tipo: str
+    local: str | None = None
+    texto: str | None = None
 
 
 class NovaAnotacao(BaseModel):
     data: str
     horario: str
-    texto: str
+    titulo: str
+    tipo: str = "OUTRO"
+    local: str | None = None
+    texto: str | None = None
 
 
 class AtualizarAnotacao(BaseModel):
-    texto: str
+    titulo: str
+    tipo: str = "OUTRO"
+    local: str | None = None
+    texto: str | None = None
 
 
 def _serialize(row: dict) -> Anotacao:
@@ -32,6 +43,9 @@ def _serialize(row: dict) -> Anotacao:
         id=str(row["id"]),
         data=row["data"].isoformat(),
         horario=row["horario"].isoformat(timespec="minutes"),
+        titulo=row["titulo"],
+        tipo=row["tipo"],
+        local=row["local"],
         texto=row["texto"],
     )
 
@@ -47,15 +61,21 @@ def listar_anotacoes(usuario: UsuarioAtual = Depends(require_user)):
 
 @router.post("/api/agenda/anotacoes", response_model=Anotacao, status_code=201)
 def criar_anotacao(body: NovaAnotacao, usuario: UsuarioAtual = Depends(require_user)):
+    titulo = body.titulo.strip()
+    if not titulo:
+        raise HTTPException(status_code=400, detail="Dê um título ao compromisso.")
+    if body.tipo not in _TIPOS_VALIDOS:
+        raise HTTPException(status_code=400, detail="Tipo inválido.")
+
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 f"""
-                INSERT INTO agenda_anotacoes (usuario_id, data, horario, texto)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO agenda_anotacoes (usuario_id, data, horario, titulo, tipo, local, texto)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING {_COLUNAS};
                 """,
-                (usuario.id, body.data, body.horario, body.texto),
+                (usuario.id, body.data, body.horario, titulo, body.tipo, body.local, body.texto),
             )
             row = cur.fetchone()
         conn.commit()
@@ -65,24 +85,30 @@ def criar_anotacao(body: NovaAnotacao, usuario: UsuarioAtual = Depends(require_u
 
 @router.put("/api/agenda/anotacoes/{anotacao_id}", response_model=Anotacao)
 def atualizar_anotacao(anotacao_id: str, body: AtualizarAnotacao, usuario: UsuarioAtual = Depends(require_user)):
+    titulo = body.titulo.strip()
+    if not titulo:
+        raise HTTPException(status_code=400, detail="Dê um título ao compromisso.")
+    if body.tipo not in _TIPOS_VALIDOS:
+        raise HTTPException(status_code=400, detail="Tipo inválido.")
+
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     f"""
-                    UPDATE agenda_anotacoes SET texto = %s
+                    UPDATE agenda_anotacoes SET titulo = %s, tipo = %s, local = %s, texto = %s
                     WHERE id = %s AND usuario_id = %s
                     RETURNING {_COLUNAS};
                     """,
-                    (body.texto, anotacao_id, usuario.id),
+                    (titulo, body.tipo, body.local, body.texto, anotacao_id, usuario.id),
                 )
                 row = cur.fetchone()
             conn.commit()
     except psycopg2.errors.InvalidTextRepresentation:
-        raise HTTPException(status_code=404, detail="Anotação não encontrada.")
+        raise HTTPException(status_code=404, detail="Compromisso não encontrado.")
 
     if not row:
-        raise HTTPException(status_code=404, detail="Anotação não encontrada.")
+        raise HTTPException(status_code=404, detail="Compromisso não encontrado.")
     return _serialize(row)
 
 
@@ -98,7 +124,7 @@ def apagar_anotacao(anotacao_id: str, usuario: UsuarioAtual = Depends(require_us
                 encontrada = cur.rowcount > 0
             conn.commit()
     except psycopg2.errors.InvalidTextRepresentation:
-        raise HTTPException(status_code=404, detail="Anotação não encontrada.")
+        raise HTTPException(status_code=404, detail="Compromisso não encontrado.")
 
     if not encontrada:
-        raise HTTPException(status_code=404, detail="Anotação não encontrada.")
+        raise HTTPException(status_code=404, detail="Compromisso não encontrado.")

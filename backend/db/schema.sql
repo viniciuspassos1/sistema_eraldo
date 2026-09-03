@@ -77,13 +77,19 @@ create table agenda_eventos (
 create index idx_agenda_eventos_data on agenda_eventos (data);
 create index idx_agenda_eventos_responsavel on agenda_eventos (responsavel_id);
 
--- Anotações livres que o usuário digita na grade de horários da Agenda.
+-- Compromissos pessoais e privados da grade da Agenda — só quem cria vê
+-- (diferente de agenda_eventos, que é visível pro escritório inteiro).
+-- titulo é o campo principal (estilo Google Calendar); texto virou o campo
+-- de observações, opcional.
 create table agenda_anotacoes (
   id uuid primary key default gen_random_uuid(),
   usuario_id uuid not null references usuarios (id) on delete cascade,
   data date not null,
   horario time not null,
-  texto text not null,
+  titulo text not null,
+  tipo tipo_evento_agenda not null default 'OUTRO',
+  local text,
+  texto text, -- observações (opcional)
   lembrete_email_enviado boolean not null default false, -- ver backend/jobs.py
   created_at timestamptz not null default now()
 );

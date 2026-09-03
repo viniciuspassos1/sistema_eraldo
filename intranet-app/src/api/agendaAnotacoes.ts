@@ -4,7 +4,17 @@ export interface AnotacaoAgenda {
   id: string;
   data: string;
   horario: string;
-  texto: string;
+  titulo: string;
+  tipo: 'AUDIENCIA' | 'REUNIAO' | 'COMPROMISSO' | 'EVENTO' | 'OUTRO';
+  local?: string;
+  texto?: string;
+}
+
+export interface DadosAnotacao {
+  titulo: string;
+  tipo: AnotacaoAgenda['tipo'];
+  local?: string;
+  texto?: string;
 }
 
 const API_URL = import.meta.env.VITE_AUTHENTICATOR_API_URL as string | undefined;
@@ -49,19 +59,19 @@ export function fetchAnotacoes(): Promise<AnotacaoAgenda[]> {
   return request('/api/agenda/anotacoes');
 }
 
-export function criarAnotacao(data: string, horario: string, texto: string): Promise<AnotacaoAgenda> {
+export function criarAnotacao(data: string, horario: string, dados: DadosAnotacao): Promise<AnotacaoAgenda> {
   return request('/api/agenda/anotacoes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data, horario, texto }),
+    body: JSON.stringify({ data, horario, ...dados }),
   });
 }
 
-export function atualizarAnotacao(id: string, texto: string): Promise<AnotacaoAgenda> {
+export function atualizarAnotacao(id: string, dados: DadosAnotacao): Promise<AnotacaoAgenda> {
   return request(`/api/agenda/anotacoes/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ texto }),
+    body: JSON.stringify(dados),
   });
 }
 

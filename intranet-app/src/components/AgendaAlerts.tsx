@@ -57,11 +57,11 @@ export function AgendaAlerts() {
 
       const anotacoes = await fetchAnotacoes().catch(() => []);
       for (const nota of anotacoes) {
-        if (nota.data !== hojeISO || !nota.texto.trim() || alertadosRef.current.has(nota.id)) continue;
+        if (nota.data !== hojeISO || alertadosRef.current.has(nota.id)) continue;
         const minutos = minutosAte(nota.horario);
         if (dentroDaJanela(minutos)) {
           alertadosRef.current.add(nota.id);
-          showToast(`Em ${Math.ceil(minutos)} min: ${nota.texto} (${nota.horario})`, 'info', 10000);
+          showToast(`Em ${Math.ceil(minutos)} min: ${nota.titulo} (${nota.horario})`, 'info', 10000);
           playAlertSound();
         }
       }
