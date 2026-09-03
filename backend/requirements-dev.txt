@@ -1,0 +1,5 @@
+# Dependências só para rodar a suíte de testes (backend/tests/) — não
+# precisa disso em produção, só em quem for rodar os testes localmente.
+-r requirements.txt
+pytest==9.1.1
+httpx==0.28.1

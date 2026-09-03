@@ -162,9 +162,26 @@ API mínima que calcula códigos TOTP a partir de segredos guardados só no
 para a arquitetura completa, incluindo o checklist de segurança pra uma
 versão de produção real com contas reais do escritório).
 
+## Testes automatizados
+
+```bash
+cd backend
+./venv/Scripts/pip.exe install -r requirements-dev.txt   # pytest + httpx, só pra rodar os testes
+./venv/Scripts/python.exe -m pytest tests/ -v
+```
+
+Roda contra o banco real (Supabase) usando as contas de demonstração já
+seedadas — não existe banco de teste separado. Por isso os testes que
+criam dado (solicitação, ideia, atestado) apagam o que criaram ao final,
+e nenhum teste altera senha ou dado de conta que outra pessoa usa pra
+navegar na intranet. Cobre login/sessão, bloqueio por tentativas
+incorretas, `require_admin`/`require_pagina` (bloqueio e liberação),
+isolamento de acesso a arquivo de atestado entre usuários, e identidade
+via token (não confiar em e-mail vindo do corpo da requisição).
+
 ## Importante
 
 Antes de usar com contas/dados reais do escritório em produção: revisar o
 checklist de segurança do Meu Authenticator, mover os `.env` de produção
-pra um cofre de segredos de verdade, e considerar rate limiting no login
-(hoje não existe bloqueio por tentativas incorretas).
+pra um cofre de segredos de verdade, e rodar `pip-audit -r requirements.txt`
+periodicamente (ver seção de segurança do `docs/DOCUMENTACAO.docx`).

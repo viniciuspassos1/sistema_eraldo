@@ -1,3 +1,5 @@
+import re
+
 import psycopg2
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -9,6 +11,19 @@ from database import fetch_all, fetch_one, get_connection
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
 _STATUS_VALIDOS = {"APROVADO", "RECUSADO"}
+
+# Content-Type é informado pelo próprio navegador do cliente — nunca confiar
+# nele sem checar contra uma lista fechada. Sem isso, alguém poderia subir um
+# .html/.svg com script embutido e ele seria servido de volta com o mesmo
+# Content-Type declarado no upload.
+_TIPOS_PERMITIDOS = {"application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
+
+
+def _nome_seguro(nome: str) -> str:
+    # Remove aspas e caracteres de controle (\r, \n) do nome do arquivo antes
+    # de embutir no header Content-Disposition — evita quebrar/injetar o header.
+    limpo = re.sub(r'[\r\n"]', "", nome)
+    return limpo[:255] or "atestado"
 
 _SELECT_PROPRIO = """
     SELECT id, data_inicio, data_fim, motivo, arquivo_nome, status, observacoes_rh
@@ -80,6 +95,9 @@ async def criar_atestado(
     arquivo: UploadFile = File(...),
     usuario: UsuarioAtual = Depends(require_user),
 ):
+    if arquivo.content_type not in _TIPOS_PERMITIDOS:
+        raise HTTPException(status_code=400, detail="Envie um PDF ou uma foto (JPG, PNG, WEBP, HEIC).")
+
     conteudo = await arquivo.read()
     if not conteudo:
         raise HTTPException(status_code=400, detail="Arquivo vazio.")
@@ -100,8 +118,8 @@ async def criar_atestado(
                     dataInicio,
                     dataFim,
                     motivo,
-                    arquivo.filename or "atestado",
-                    arquivo.content_type or "application/octet-stream",
+                    _nome_seguro(arquivo.filename or "atestado"),
+                    arquivo.content_type,
                     conteudo,
                 ),
             )
@@ -126,10 +144,13 @@ def baixar_arquivo(atestado_id: str, usuario: UsuarioAtual = Depends(require_use
     if str(row["funcionario_id"]) != usuario.id and usuario.perfil != "ADMINISTRADOR":
         raise HTTPException(status_code=403, detail="Sem permissão para acessar este arquivo.")
 
+    # "attachment" (não "inline"): mesmo com o Content-Type validado no
+    # upload, forçar download em vez de exibir no navegador fecha qualquer
+    # brecha de conteúdo renderizado dentro da origem da aplicação.
     return Response(
         content=bytes(row["arquivo_dados"]),
         media_type=row["arquivo_tipo"],
-        headers={"Content-Disposition": f'inline; filename="{row["arquivo_nome"]}"'},
+        headers={"Content-Disposition": f'attachment; filename="{_nome_seguro(row["arquivo_nome"])}"'},
     )
 
 
