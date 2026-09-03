@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Settings, ShieldCheck, KeyRound, Lock, Cake } from 'lucide-react';
 import { Card, CardHeader } from '../components/Card';
 import { Button } from '../components/Button';
@@ -10,6 +11,7 @@ import { atualizarMinhaAlergia, FuncionariosApiError } from '../api/funcionarios
 export function Configuracoes() {
   const { user, updateUser } = useAuth();
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   const [senhaAtual, setSenhaAtual] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
@@ -158,8 +160,8 @@ export function Configuracoes() {
           Autenticação segura para proteger sua conta. Nenhum código ou segredo é armazenado no navegador —
           toda a validação acontece no backend/cofre de credenciais.
         </p>
-        <Button variant="outline" size="sm" className="mt-4">
-          <KeyRound className="w-4 h-4" /> Solicitar código
+        <Button variant="outline" size="sm" className="mt-4" onClick={() => navigate('/meu-authenticator')}>
+          <KeyRound className="w-4 h-4" /> Ver códigos no Meu Authenticator
         </Button>
       </Card>
     </div>

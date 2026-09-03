@@ -14,7 +14,6 @@ import { fetchAgendaEventos } from '../api/agenda';
 import { fetchPendencias, type Pendencia } from '../api/pendencias';
 import { greeting, formatDate } from '../utils/format';
 import { todayISO, daysUntilNextOccurrence } from '../utils/date';
-import { buildTrend } from '../utils/trend';
 import type { User, Vacation, Announcement, AgendaEvent } from '../types';
 
 const pendenciaIcon = {
@@ -167,7 +166,6 @@ export function Dashboard() {
           label="Funcionários de férias"
           value={funcionariosFerias.length}
           countDelay={0}
-          trend={buildTrend(funcionariosFerias.length, 2)}
         />
         <StatCard
           icon={Megaphone}
@@ -175,14 +173,12 @@ export function Dashboard() {
           value={avisosNaoLidos.length}
           tone="gold"
           countDelay={60}
-          trend={buildTrend(avisosNaoLidos.length, 3)}
         />
         <StatCard
           icon={Cake}
           label="Aniversariantes próximos"
           value={aniversariantesProximos.length}
           countDelay={120}
-          trend={buildTrend(aniversariantesProximos.length, 4)}
         />
       </div>
 
