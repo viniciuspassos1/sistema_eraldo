@@ -49,3 +49,27 @@ def test_usuario_comum_nao_ve_pendencias_administrativas(client, user_headers):
     assert resp.status_code == 200
     pendencias = resp.json()
     assert not any("triagem" in p["mensagem"] or "aguardando sua aprovação" in p["mensagem"] for p in pendencias)
+
+
+def test_onboarding_pendente_so_aparece_para_administrador(client, user_headers):
+    resp = client.get("/api/pendencias", headers=user_headers)
+    assert resp.status_code == 200
+    assert not any(p["tipo"] == "ONBOARDING" for p in resp.json())
+
+
+def test_anotacao_pendente_aparece_como_pendencia(client, user_headers):
+    resp_criar = client.post(
+        "/api/notas-pessoais",
+        headers=user_headers,
+        json={"titulo": "Teste automatizado", "conteudo": "Apagar depois"},
+    )
+    assert resp_criar.status_code == 201
+    nota_id = resp_criar.json()["id"]
+
+    try:
+        resp = client.get("/api/pendencias", headers=user_headers)
+        assert resp.status_code == 200
+        pendencias = resp.json()
+        assert any(p["tipo"] == "ANOTACAO" and "anotaç" in p["mensagem"] for p in pendencias)
+    finally:
+        client.delete(f"/api/notas-pessoais/{nota_id}", headers=user_headers)

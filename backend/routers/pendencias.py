@@ -26,21 +26,36 @@ def _plural(n: int, singular: str, plural: str) -> str:
 def minhas_pendencias(usuario: UsuarioAtual = Depends(require_user)):
     pendencias: list[Pendencia] = []
 
-    onboarding = fetch_one(
-        """
-        SELECT COUNT(*) FILTER (WHERE NOT COALESCE(p.concluido, false)) AS pendentes
-        FROM onboarding_checklist_itens i
-        LEFT JOIN onboarding_progresso p ON p.item_id = i.id AND p.funcionario_id = %s;
-        """,
+    if usuario.perfil == "ADMINISTRADOR":
+        onboarding = fetch_one(
+            """
+            SELECT COUNT(*) FILTER (WHERE NOT COALESCE(p.concluido, false)) AS pendentes
+            FROM onboarding_checklist_itens i
+            LEFT JOIN onboarding_progresso p ON p.item_id = i.id AND p.funcionario_id = %s;
+            """,
+            (usuario.id,),
+        )
+        if onboarding and onboarding["pendentes"] > 0:
+            n = onboarding["pendentes"]
+            pendencias.append(
+                Pendencia(
+                    tipo="ONBOARDING",
+                    mensagem=f"Você tem {n} {_plural(n, 'item pendente', 'itens pendentes')} no seu onboarding.",
+                    link="/calendario?tab=onboarding",
+                )
+            )
+
+    minhas_anotacoes = fetch_one(
+        "SELECT COUNT(*) AS n FROM notas_pessoais WHERE usuario_id = %s AND concluida = false;",
         (usuario.id,),
     )
-    if onboarding and onboarding["pendentes"] > 0:
-        n = onboarding["pendentes"]
+    if minhas_anotacoes and minhas_anotacoes["n"] > 0:
+        n = minhas_anotacoes["n"]
         pendencias.append(
             Pendencia(
-                tipo="ONBOARDING",
-                mensagem=f"Você tem {n} {_plural(n, 'item pendente', 'itens pendentes')} no seu onboarding.",
-                link="/calendario?tab=onboarding",
+                tipo="ANOTACAO",
+                mensagem=f"Você tem {n} {_plural(n, 'anotação pendente', 'anotações pendentes')}.",
+                link="/calendario?tab=anotacoes",
             )
         )
 

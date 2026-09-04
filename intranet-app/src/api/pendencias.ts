@@ -1,7 +1,7 @@
 import { getStoredToken } from '../utils/authToken';
 
 export interface Pendencia {
-  tipo: 'ONBOARDING' | 'SOLICITACAO' | 'ATESTADO' | 'IDEIA';
+  tipo: 'ONBOARDING' | 'SOLICITACAO' | 'ATESTADO' | 'IDEIA' | 'ANOTACAO';
   mensagem: string;
   link: string;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Palmtree, Megaphone, Cake, Bot, FileText, Link2, ShieldAlert, GraduationCap, Inbox as InboxIcon, Stethoscope, Lightbulb, ChevronRight } from 'lucide-react';
+import { Palmtree, Megaphone, Cake, Bot, FileText, Link2, ShieldAlert, GraduationCap, Inbox as InboxIcon, Stethoscope, Lightbulb, NotebookPen, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/Card';
 import { StatCard } from '../components/StatCard';
@@ -21,6 +21,7 @@ const pendenciaIcon = {
   SOLICITACAO: InboxIcon,
   ATESTADO: Stethoscope,
   IDEIA: Lightbulb,
+  ANOTACAO: NotebookPen,
 } as const;
 
 interface DashboardDados {
