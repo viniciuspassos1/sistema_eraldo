@@ -1,4 +1,5 @@
 import type { AgendaEvent } from '../types';
+import { getStoredToken } from '../utils/authToken';
 
 const API_URL = import.meta.env.VITE_AUTHENTICATOR_API_URL as string | undefined;
 const API_KEY = import.meta.env.VITE_AUTHENTICATOR_API_KEY as string | undefined;
@@ -10,10 +11,14 @@ export async function fetchAgendaEventos(): Promise<AgendaEvent[]> {
     throw new AgendaApiError('Backend não configurado. Veja intranet-app/.env.example.');
   }
 
+  const token = getStoredToken();
   let response: Response;
   try {
     response = await fetch(`${API_URL}/api/agenda/eventos`, {
-      headers: { 'X-API-Key': API_KEY },
+      headers: {
+        'X-API-Key': API_KEY,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     });
   } catch {
     throw new AgendaApiError(
@@ -21,9 +26,6 @@ export async function fetchAgendaEventos(): Promise<AgendaEvent[]> {
     );
   }
 
-  if (response.status === 401) {
-    throw new AgendaApiError('Chave de API inválida — confira o .env do frontend e do backend.');
-  }
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new AgendaApiError(body?.detail ?? `Erro do servidor (HTTP ${response.status}).`);
