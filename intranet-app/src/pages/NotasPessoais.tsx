@@ -160,7 +160,9 @@ export function NotasPessoais() {
           setArrastandoId(n.id);
         }}
         onDragEnd={() => setArrastandoId(null)}
-        className={`cursor-grab active:cursor-grabbing transition-opacity duration-150 ${arrastandoId === n.id ? 'opacity-40' : ''}`}
+        className={`cursor-grab active:cursor-grabbing transition-[opacity,background-color] duration-150 ${
+          arrastandoId === n.id ? 'opacity-40' : ''
+        } ${n.concluida ? 'bg-cream! border-border/60' : 'bg-white! border-border shadow-soft'}`}
       >
         <div className="flex items-start gap-3">
           <GripVertical className="w-3.5 h-3.5 text-text-secondary/40 mt-1 shrink-0" />
