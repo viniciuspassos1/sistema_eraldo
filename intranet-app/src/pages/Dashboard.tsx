@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Palmtree, Megaphone, Cake, Bot, FileText, Link2, ShieldAlert, GraduationCap, Inbox as InboxIcon, Stethoscope, Lightbulb, NotebookPen, ChevronRight } from 'lucide-react';
+import { Palmtree, Megaphone, Cake, Bot, FileText, Link2, ShieldAlert, GraduationCap, Inbox as InboxIcon, Stethoscope, Lightbulb, NotebookPen, ChevronRight, CalendarDays } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/Card';
 import { StatCard } from '../components/StatCard';
@@ -11,10 +11,21 @@ import { fetchFuncionarios, FuncionariosApiError } from '../api/funcionarios';
 import { fetchFerias } from '../api/ferias';
 import { fetchAvisos } from '../api/avisos';
 import { fetchAgendaEventos } from '../api/agenda';
+import { fetchFeriados } from '../api/feriados';
 import { fetchPendencias, type Pendencia } from '../api/pendencias';
 import { greeting, formatDate } from '../utils/format';
 import { todayISO, daysUntilNextOccurrence } from '../utils/date';
-import type { User, Vacation, Announcement, AgendaEvent } from '../types';
+import type { User, Vacation, Announcement, AgendaEvent, Holiday } from '../types';
+
+const JANELA_FERIADOS_DIAS = 60;
+
+function diasAteData(dataISO: string): number {
+  const [y, m, d] = dataISO.split('-').map(Number);
+  const alvo = new Date(y, m - 1, d);
+  const hoje = new Date();
+  const hojeSemHora = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  return Math.round((alvo.getTime() - hojeSemHora.getTime()) / 86400000);
+}
 
 const pendenciaIcon = {
   ONBOARDING: GraduationCap,
@@ -29,6 +40,7 @@ interface DashboardDados {
   ferias: Vacation[];
   avisos: Announcement[];
   agenda: AgendaEvent[];
+  feriados: Holiday[];
   pendencias: Pendencia[];
 }
 
@@ -53,11 +65,14 @@ export function Dashboard() {
       fetchFerias(),
       fetchAvisos(),
       fetchAgendaEventos(),
+      fetchFeriados(),
       // Widget complementar: se falhar (ex.: backend antigo sem essa rota
       // ainda), o resto do dashboard continua funcionando normalmente.
       fetchPendencias().catch(() => []),
     ])
-      .then(([funcionarios, ferias, avisos, agenda, pendencias]) => setDados({ funcionarios, ferias, avisos, agenda, pendencias }))
+      .then(([funcionarios, ferias, avisos, agenda, feriados, pendencias]) =>
+        setDados({ funcionarios, ferias, avisos, agenda, feriados, pendencias })
+      )
       .catch((err) => setErro(err instanceof FuncionariosApiError ? err.message : 'Erro inesperado ao carregar o dashboard.'));
   }, []);
 
@@ -88,12 +103,18 @@ export function Dashboard() {
     );
   }
 
-  const { funcionarios, ferias, avisos, agenda, pendencias } = dados;
+  const { funcionarios, ferias, avisos, agenda, feriados, pendencias } = dados;
 
   const funcionariosFerias = funcionarios.filter((f) => f.status === 'FERIAS');
   const avisosNaoLidos = avisos.filter((a) => !a.lido);
   const aniversariantesProximos = funcionarios.filter((f) => daysUntilNextOccurrence(f.aniversario) <= 30);
   const aniversarianteHoje = funcionarios.find((f) => daysUntilNextOccurrence(f.aniversario) === 0);
+  const feriadosProximos = feriados.filter((h) => {
+    const diasAteFim = diasAteData(h.dataFim ?? h.dataInicio);
+    const diasAteInicio = diasAteData(h.dataInicio);
+    return diasAteFim >= 0 && diasAteInicio <= JANELA_FERIADOS_DIAS;
+  });
+  const proximoFeriado = [...feriadosProximos].sort((a, b) => (a.dataInicio < b.dataInicio ? -1 : 1))[0];
 
   const minhaFerias = ferias.find((v) => v.funcionarioId === user?.id && v.status !== 'CONCLUIDA');
 
@@ -161,7 +182,7 @@ export function Dashboard() {
         </Card>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={Palmtree}
           label="Funcionários de férias"
@@ -180,6 +201,13 @@ export function Dashboard() {
           label="Aniversariantes próximos"
           value={aniversariantesProximos.length}
           countDelay={120}
+        />
+        <StatCard
+          icon={CalendarDays}
+          label={proximoFeriado ? `Próximo: ${proximoFeriado.nome}` : 'Feriados nos próximos 60 dias'}
+          value={feriadosProximos.length}
+          tone="gold"
+          countDelay={180}
         />
       </div>
 
