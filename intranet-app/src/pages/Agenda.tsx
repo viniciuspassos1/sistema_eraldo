@@ -27,6 +27,9 @@ const tipoLabel: Record<string, string> = {
 
 const tiposDisponiveis = Object.keys(tipoLabel) as AnotacaoAgenda['tipo'][];
 
+const HORAS_OPCOES = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTOS_OPCOES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+
 const diaLabel = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
 
 const START_HOUR = 7;
@@ -58,6 +61,62 @@ function horaParaOffset(hora: string): number | null {
   const decimal = h + m / 60;
   if (decimal < START_HOUR || decimal > END_HOUR + 1) return null;
   return (decimal - START_HOUR) * ROW_HEIGHT;
+}
+
+/** Duração assumida (em minutos) de cada item só pra decidir se dois horários
+ * próximos "colidem" visualmente — nem eventos nem anotações têm horário de
+ * término no modelo de dados, então isso não afeta nada além do layout. */
+const DURACAO_LAYOUT_MIN = 45;
+
+function horarioParaMinutos(horario: string): number {
+  const [h, m] = horario.split(':').map(Number);
+  return h * 60 + m;
+}
+
+/** Agrupa itens em "clusters" de horários que se sobrepõem e distribui cada
+ * um numa coluna dentro do cluster (mesmo algoritmo guloso usado por
+ * calendários tipo Google Calendar), pra não desenhar um em cima do outro. */
+function calcularColunas<T extends { id: string; horario: string }>(
+  itens: T[]
+): Array<T & { coluna: number; totalColunas: number }> {
+  const ordenados = [...itens].sort((a, b) => horarioParaMinutos(a.horario) - horarioParaMinutos(b.horario));
+  const resultado: Array<T & { coluna: number; totalColunas: number }> = [];
+
+  let cluster: T[] = [];
+  let fimCluster = -Infinity;
+
+  function fecharCluster() {
+    if (cluster.length === 0) return;
+    const finsColuna: number[] = [];
+    const colunaDoItem: number[] = [];
+    for (const item of cluster) {
+      const inicio = horarioParaMinutos(item.horario);
+      const indice = finsColuna.findIndex((fim) => fim <= inicio);
+      if (indice === -1) {
+        finsColuna.push(inicio + DURACAO_LAYOUT_MIN);
+        colunaDoItem.push(finsColuna.length - 1);
+      } else {
+        finsColuna[indice] = inicio + DURACAO_LAYOUT_MIN;
+        colunaDoItem.push(indice);
+      }
+    }
+    const totalColunas = finsColuna.length;
+    cluster.forEach((item, i) => resultado.push({ ...item, coluna: colunaDoItem[i], totalColunas }));
+    cluster = [];
+    fimCluster = -Infinity;
+  }
+
+  for (const item of ordenados) {
+    const inicio = horarioParaMinutos(item.horario);
+    if (cluster.length > 0 && inicio >= fimCluster) {
+      fecharCluster();
+    }
+    cluster.push(item);
+    fimCluster = Math.max(fimCluster, inicio + DURACAO_LAYOUT_MIN);
+  }
+  fecharCluster();
+
+  return resultado;
 }
 
 interface ModalState {
@@ -251,12 +310,31 @@ export function Agenda() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-navy mb-1.5">Horário</label>
-                <input
-                  type="time"
-                  value={modal.horario}
-                  onChange={(e) => setModal({ ...modal, horario: e.target.value })}
-                  className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
-                />
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={modal.horario.split(':')[0]}
+                    onChange={(e) => setModal({ ...modal, horario: `${e.target.value}:${modal.horario.split(':')[1]}` })}
+                    className="w-full bg-cream border border-border rounded-lg px-2 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
+                  >
+                    {HORAS_OPCOES.map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-navy font-semibold">:</span>
+                  <select
+                    value={modal.horario.split(':')[1]}
+                    onChange={(e) => setModal({ ...modal, horario: `${modal.horario.split(':')[0]}:${e.target.value}` })}
+                    className="w-full bg-cream border border-border rounded-lg px-2 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
+                  >
+                    {MINUTOS_OPCOES.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
             <div>
@@ -315,6 +393,12 @@ function DiaColuna({
   onSlotClick: (horario: string) => void;
   onNotaClick: (nota: AnotacaoAgenda) => void;
 }) {
+  const itens = [
+    ...eventos.map((ev) => ({ id: `ev-${ev.id}`, horario: ev.horario, kind: 'evento' as const, ev })),
+    ...notas.map((n) => ({ id: `nota-${n.id}`, horario: n.horario, kind: 'nota' as const, nota: n })),
+  ];
+  const itensComLayout = calcularColunas(itens);
+
   return (
     <div className="border-l border-border first:border-l-0">
       <div
@@ -336,40 +420,47 @@ function DiaColuna({
           />
         ))}
 
-        {eventos.map((ev) => {
-          const top = horaParaOffset(ev.horario);
+        {itensComLayout.map((item) => {
+          const top = horaParaOffset(item.horario);
           if (top === null) return null;
-          return (
-            <div
-              key={ev.id}
-              className="absolute left-1 right-1 rounded-md bg-navy/10 border border-navy/25 px-1.5 py-1 overflow-hidden pointer-events-none"
-              style={{ top, height: ROW_HEIGHT - 6 }}
-            >
-              <p className="text-[10px] font-semibold text-navy leading-tight truncate">
-                {ev.horario} · {ev.titulo}
-              </p>
-              <p className="text-[9px] text-navy/70 leading-tight truncate">{tipoLabel[ev.tipo]}</p>
-            </div>
-          );
-        })}
 
-        {notas.map((n) => {
-          const top = horaParaOffset(n.horario);
-          if (top === null) return null;
+          const larguraPct = 100 / item.totalColunas;
+          const estiloPosicao = {
+            top,
+            height: ROW_HEIGHT - 6,
+            left: `calc(${larguraPct * item.coluna}% + 2px)`,
+            width: `calc(${larguraPct}% - 4px)`,
+          };
+
+          if (item.kind === 'evento') {
+            return (
+              <div
+                key={item.id}
+                className="absolute rounded-md bg-navy/10 border border-navy/25 px-1.5 py-1 overflow-hidden pointer-events-none"
+                style={estiloPosicao}
+              >
+                <p className="text-[10px] font-semibold text-navy leading-tight truncate">
+                  {item.ev.horario} · {item.ev.titulo}
+                </p>
+                <p className="text-[9px] text-navy/70 leading-tight truncate">{tipoLabel[item.ev.tipo]}</p>
+              </div>
+            );
+          }
+
           return (
             <button
-              key={n.id}
+              key={item.id}
               type="button"
-              onClick={() => onNotaClick(n)}
-              className="absolute left-1 right-1 rounded-md bg-gold/15 border border-gold/40 px-1.5 py-1 text-left hover:bg-gold/25 transition-colors"
-              style={{ top, minHeight: ROW_HEIGHT - 6, zIndex: 1 }}
+              onClick={() => onNotaClick(item.nota)}
+              className="absolute rounded-md bg-gold/15 border border-gold/40 px-1.5 py-1 text-left overflow-hidden hover:bg-gold/25 transition-colors"
+              style={{ ...estiloPosicao, zIndex: 1 }}
             >
               <p className="text-[10px] font-semibold text-navy leading-tight truncate">
-                {n.horario} · {n.titulo}
+                {item.nota.horario} · {item.nota.titulo}
               </p>
-              {n.local && (
+              {item.nota.local && (
                 <p className="text-[9px] text-navy/70 leading-tight truncate flex items-center gap-0.5">
-                  <MapPin className="w-2.5 h-2.5 shrink-0" /> {n.local}
+                  <MapPin className="w-2.5 h-2.5 shrink-0" /> {item.nota.local}
                 </p>
               )}
             </button>
