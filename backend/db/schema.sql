@@ -61,6 +61,10 @@ create table permissoes_acesso (
 
 create type tipo_evento_agenda as enum ('AUDIENCIA', 'REUNIAO', 'COMPROMISSO', 'EVENTO', 'OUTRO');
 
+-- Compromissos oficiais do escritório (audiências, reuniões etc.). Cada
+-- funcionário só vê os que são dele (responsavel_id = o próprio) mais os sem
+-- responsável definido (valem pro escritório inteiro); administrador vê
+-- todos, pra coordenação geral — ver GET /api/agenda/eventos.
 create table agenda_eventos (
   id uuid primary key default gen_random_uuid(),
   titulo text not null,
@@ -78,7 +82,7 @@ create index idx_agenda_eventos_data on agenda_eventos (data);
 create index idx_agenda_eventos_responsavel on agenda_eventos (responsavel_id);
 
 -- Compromissos pessoais e privados da grade da Agenda — só quem cria vê
--- (diferente de agenda_eventos, que é visível pro escritório inteiro).
+-- (diferente de agenda_eventos, que é filtrado por responsável, não por criador).
 -- titulo é o campo principal (estilo Google Calendar); texto virou o campo
 -- de observações, opcional.
 create table agenda_anotacoes (

@@ -1,6 +1,7 @@
 """Compromissos pessoais da grade da Agenda (agenda_anotacoes): título é
 obrigatório, tipo/local/observações são opcionais, e cada um só é visível
-pra quem criou — diferente de agenda_eventos, que é do escritório inteiro."""
+pra quem criou — diferente de agenda_eventos, que é filtrado por responsável
+(ver test_agenda.py)."""
 
 from database import get_connection
 
