@@ -39,3 +39,26 @@ export function playAlertSound() {
     // Web Audio indisponível — alerta visual continua funcionando normalmente.
   }
 }
+
+/** Anuncia um texto por voz (ex.: título do compromisso) via Web Speech API —
+ * sem depender de serviço externo. Falas se acumulam em fila (o navegador já
+ * faz isso sozinho), então vários alertas seguidos não se sobrepõem. Se a API
+ * não existir ou falhar, o alerta sonoro/visual continua funcionando normalmente. */
+export function falarTexto(texto: string) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+
+    const utterance = new SpeechSynthesisUtterance(texto);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 1;
+    utterance.volume = 1;
+
+    const vozes = window.speechSynthesis.getVoices();
+    const vozPtBr = vozes.find((v) => v.lang === 'pt-BR') ?? vozes.find((v) => v.lang.startsWith('pt'));
+    if (vozPtBr) utterance.voice = vozPtBr;
+
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    // Web Speech indisponível — alerta sonoro e visual continuam funcionando.
+  }
+}
