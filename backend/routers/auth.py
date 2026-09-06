@@ -5,8 +5,10 @@ from security import (
     require_api_key,
     require_user,
     verificar_senha,
+    verificar_senha_tempo_constante,
     criar_token,
     hash_senha,
+    invalidar_tokens_anteriores,
     login_bloqueado,
     registrar_falha_login,
     limpar_falhas_login,
@@ -85,8 +87,12 @@ def login(body: LoginBody):
 
     row = fetch_one(f"SELECT {_COLUNAS} FROM usuarios WHERE email = %s;", (email,))
 
+    # Sempre roda bcrypt.checkpw (mesmo sem `row`), pra não vazar por timing
+    # se o e-mail existe ou não — ver verificar_senha_tempo_constante.
+    senha_valida = verificar_senha_tempo_constante(body.senha, row["senha_hash"] if row else None)
+
     credenciais_invalidas = HTTPException(status_code=401, detail="E-mail ou senha inválidos.")
-    if not row or row["status"] == "INATIVO" or not verificar_senha(body.senha, row["senha_hash"]):
+    if not row or row["status"] == "INATIVO" or not senha_valida:
         registrar_falha_login(email)
         raise credenciais_invalidas
 
@@ -124,3 +130,5 @@ def trocar_senha(body: TrocarSenhaBody, usuario: UsuarioAtual = Depends(require_
                 (hash_senha(body.novaSenha), usuario.id),
             )
         conn.commit()
+
+    invalidar_tokens_anteriores(usuario.id)

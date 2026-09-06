@@ -1,5 +1,5 @@
 import type { User } from '../types';
-import { getStoredToken } from '../utils/authToken';
+import { apiRequest } from './client';
 
 interface UsuarioResponse {
   id: string;
@@ -22,9 +22,6 @@ interface LoginResponse {
   usuario: UsuarioResponse;
 }
 
-const API_URL = import.meta.env.VITE_AUTHENTICATOR_API_URL as string | undefined;
-const API_KEY = import.meta.env.VITE_AUTHENTICATOR_API_KEY as string | undefined;
-
 export class AuthApiError extends Error {}
 
 function toUser(u: UsuarioResponse): User {
@@ -45,40 +42,12 @@ function toUser(u: UsuarioResponse): User {
   };
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!API_URL || !API_KEY) {
-    throw new AuthApiError('Backend não configurado. Veja intranet-app/.env.example.');
-  }
-
-  let response: Response;
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      ...init,
-      headers: { 'X-API-Key': API_KEY, ...(init?.headers ?? {}) },
-    });
-  } catch {
-    throw new AuthApiError(
-      'Não foi possível conectar ao backend local. Ele está rodando? (uvicorn main:app --port 8010)'
-    );
-  }
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new AuthApiError(body?.detail ?? `Erro do servidor (HTTP ${response.status}).`);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json();
-}
-
 export async function login(
   email: string,
   senha: string,
   manterConectado: boolean
 ): Promise<{ token: string; usuario: User }> {
-  const data = await request<LoginResponse>('/api/auth/login', {
+  const data = await apiRequest<LoginResponse>('/api/auth/login', AuthApiError, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, senha, manterConectado }),
@@ -86,21 +55,20 @@ export async function login(
   return { token: data.token, usuario: toUser(data.usuario) };
 }
 
+// Recebe o token explicitamente (em vez de ler do storage) porque é chamado
+// logo após o login, com o token que acabou de vir na resposta — pode ainda
+// não ter sido salvo no storage nesse momento.
 export async function me(token: string): Promise<User> {
-  const data = await request<UsuarioResponse>('/api/auth/me', {
+  const data = await apiRequest<UsuarioResponse>('/api/auth/me', AuthApiError, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return toUser(data);
 }
 
 export async function trocarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
-  const token = getStoredToken();
-  await request<void>('/api/auth/trocar-senha', {
+  await apiRequest<void>('/api/auth/trocar-senha', AuthApiError, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ senhaAtual, novaSenha }),
   });
 }

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from security import require_api_key, require_admin, usuario_tem_permissao, PAGINAS_PERMISSAO
+from security import require_api_key, require_admin, usuario_tem_permissao, PAGINAS_PERMISSAO, PAGINAS_LABELS
 from database import get_connection, fetch_all
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_admin)])
@@ -10,6 +10,18 @@ router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_admin
 class PermissaoPagina(BaseModel):
     pagina: str
     permitido: bool
+
+
+class PaginaPermissao(BaseModel):
+    chave: str
+    label: str
+
+
+# Precisa vir antes de "/api/permissoes/{usuario_id}" — senão "paginas" seria
+# interpretado como um usuario_id (rota parametrizada casa primeiro).
+@router.get("/api/permissoes/paginas", response_model=list[PaginaPermissao])
+def listar_paginas_permissao():
+    return [PaginaPermissao(chave=chave, label=PAGINAS_LABELS.get(chave, chave)) for chave in PAGINAS_PERMISSAO]
 
 
 @router.get("/api/permissoes", response_model=dict[str, dict[str, bool]])

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from security import require_api_key
+from security import require_api_key, require_user, UsuarioAtual
 from database import fetch_all
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
@@ -32,6 +32,6 @@ def _serialize(row: dict) -> Feriado:
 
 
 @router.get("/api/feriados", response_model=list[Feriado])
-def listar_feriados():
+def listar_feriados(usuario: UsuarioAtual = Depends(require_user)):
     rows = fetch_all(f"SELECT {_COLUNAS} FROM feriados ORDER BY data_inicio;")
     return [_serialize(r) for r in rows]

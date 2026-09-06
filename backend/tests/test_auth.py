@@ -1,6 +1,8 @@
 """Login, sessão (JWT) e bloqueio por tentativas incorretas."""
 
-from tests.conftest import USER_EMAIL, USER_SENHA
+from database import get_connection
+from security import hash_senha
+from tests.conftest import USER_EMAIL, USER_SENHA, _login
 
 
 def test_login_sucesso(client, api_key_header):
@@ -87,3 +89,52 @@ def test_me_com_token_adulterado_e_recusado(client, api_key_header, user_token):
         headers={**api_key_header, "Authorization": f"Bearer {user_token}adulterado"},
     )
     assert resp.status_code == 401
+
+
+def test_trocar_senha_invalida_token_emitido_antes_da_troca(client, api_key_header):
+    """Um token emitido antes da troca de senha não pode continuar funcionando
+    depois — evita que um token vazado siga válido até expirar (até 30 dias
+    no modo "manter conectado"). Usa uma conta descartável, não uma das
+    contas de demonstração compartilhadas com o resto da suíte."""
+    email = "teste-invalidacao-token@proferaldojunior.com.br"
+    senha_original = "SenhaOriginal-123"
+    senha_nova = "SenhaNova-456"
+    usuario_id = None
+    try:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO usuarios (nome, email, senha_hash, cargo, setor, data_entrada, aniversario, perfil, status)
+                    VALUES (%s, %s, %s, 'Teste automatizado', 'Teste', CURRENT_DATE, CURRENT_DATE, 'FUNCIONARIO', 'ATIVO')
+                    RETURNING id;
+                    """,
+                    ("Usuário de teste — apagar", email, hash_senha(senha_original)),
+                )
+                usuario_id = cur.fetchone()["id"]
+            conn.commit()
+
+        token_antigo = _login(client, api_key_header, email, senha_original)
+        headers_antigos = {**api_key_header, "Authorization": f"Bearer {token_antigo}"}
+
+        resp_troca = client.post(
+            "/api/auth/trocar-senha",
+            headers=headers_antigos,
+            json={"senhaAtual": senha_original, "novaSenha": senha_nova},
+        )
+        assert resp_troca.status_code == 204
+
+        resp_com_token_antigo = client.get("/api/auth/me", headers=headers_antigos)
+        assert resp_com_token_antigo.status_code == 401
+
+        token_novo = _login(client, api_key_header, email, senha_nova)
+        resp_com_token_novo = client.get(
+            "/api/auth/me", headers={**api_key_header, "Authorization": f"Bearer {token_novo}"}
+        )
+        assert resp_com_token_novo.status_code == 200
+    finally:
+        if usuario_id:
+            with get_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("DELETE FROM usuarios WHERE id = %s;", (usuario_id,))
+                conn.commit()

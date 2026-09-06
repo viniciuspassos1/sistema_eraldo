@@ -8,7 +8,13 @@ import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { fetchFuncionarios, FuncionariosApiError } from '../api/funcionarios';
-import { fetchTodasPermissoes, salvarPermissoes, PermissoesApiError } from '../api/permissoes';
+import {
+  fetchPaginasPermissao,
+  fetchTodasPermissoes,
+  salvarPermissoes,
+  PermissoesApiError,
+  type PaginaPermissao,
+} from '../api/permissoes';
 import type { User } from '../types';
 
 const perfilTone = {
@@ -17,33 +23,21 @@ const perfilTone = {
   FUNCIONARIO: 'neutral',
 } as const;
 
-const PAGINAS: { chave: string; label: string }[] = [
-  { chave: 'dashboard', label: 'Início' },
-  { chave: 'meu-authenticator', label: 'Authenticator' },
-  { chave: 'assistente-ia', label: 'Assistente IA' },
-  { chave: 'base-conhecimento', label: 'Base de Conhecimento' },
-  { chave: 'calendario', label: 'Calendário' },
-  { chave: 'manual', label: 'Manual Interno' },
-  { chave: 'documentos', label: 'Documentos' },
-  { chave: 'cooperativa-ideias', label: 'Cooperativa' },
-  { chave: 'tribunais', label: 'Tribunais' },
-  { chave: 'solicitacoes', label: 'Solicitações' },
-  { chave: 'notificacoes', label: 'Notificações' },
-];
-
 export function AdministracaoUsuarios() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [employees, setEmployees] = useState<User[] | null>(null);
   const [permissoes, setPermissoes] = useState<Record<string, Record<string, boolean>> | null>(null);
+  const [paginas, setPaginas] = useState<PaginaPermissao[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [salvandoCelula, setSalvandoCelula] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([fetchFuncionarios(), fetchTodasPermissoes()])
-      .then(([funcionarios, todasPermissoes]) => {
+    Promise.all([fetchFuncionarios(), fetchTodasPermissoes(), fetchPaginasPermissao()])
+      .then(([funcionarios, todasPermissoes, todasPaginas]) => {
         setEmployees(funcionarios);
         setPermissoes(todasPermissoes);
+        setPaginas(todasPaginas);
       })
       .catch((err) =>
         setError(
@@ -96,7 +90,7 @@ export function AdministracaoUsuarios() {
         <Card>
           <EmptyState icon={ShieldAlert} title="Não foi possível carregar os usuários" description={error} />
         </Card>
-      ) : employees === null || permissoes === null ? (
+      ) : employees === null || permissoes === null || paginas === null ? (
         <Card padded={false}>
           <div className="p-5 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -112,7 +106,7 @@ export function AdministracaoUsuarios() {
                 <tr className="text-left text-xs text-text-secondary border-b border-border">
                   <th className="px-4 py-3 font-medium sticky left-0 bg-white">Funcionário</th>
                   <th className="px-3 py-3 font-medium whitespace-nowrap">Setor</th>
-                  {PAGINAS.map((p) => (
+                  {paginas.map((p) => (
                     <th key={p.chave} className="px-3 py-3 font-medium text-center whitespace-nowrap">
                       {p.label}
                     </th>
@@ -135,7 +129,7 @@ export function AdministracaoUsuarios() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-text-secondary whitespace-nowrap">{e.setor}</td>
-                      {PAGINAS.map((p) => {
+                      {paginas.map((p) => {
                         const marcado = isAdmin ? true : (linha[p.chave] ?? true);
                         const salvandoEssa = salvandoCelula === `${e.id}:${p.chave}`;
                         return (

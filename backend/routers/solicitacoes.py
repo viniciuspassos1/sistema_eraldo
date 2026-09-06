@@ -45,6 +45,12 @@ def _serialize(row: dict) -> Solicitacao:
 
 
 def _proximo_numero(cur) -> str:
+    # Trava consultivo de transação (chave arbitrária fixa, liberada sozinha
+    # no commit/rollback do INSERT que chama esta função): sem isso, duas
+    # requisições concorrentes podem ler o mesmo MAX(numero) e gerar o mesmo
+    # próximo número (numero é unique — a segunda daria erro de integridade
+    # em vez de simplesmente ganhar o próximo número da fila).
+    cur.execute("SELECT pg_advisory_xact_lock(hashtext('solicitacoes_numero')::bigint);")
     cur.execute("SELECT numero FROM solicitacoes ORDER BY numero DESC LIMIT 1;")
     row = cur.fetchone()
     if not row:
