@@ -1,8 +1,16 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from security import require_api_key, require_admin, usuario_tem_permissao, PAGINAS_PERMISSAO, PAGINAS_LABELS
+from security import (
+    require_api_key,
+    require_admin,
+    usuario_tem_permissao,
+    UsuarioAtual,
+    PAGINAS_PERMISSAO,
+    PAGINAS_LABELS,
+)
 from database import get_connection, fetch_all
+from logs import registrar_log
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_admin)])
 
@@ -53,7 +61,7 @@ def obter_permissoes(usuario_id: str):
 
 
 @router.put("/api/permissoes/{usuario_id}", response_model=list[PermissaoPagina])
-def salvar_permissoes(usuario_id: str, body: list[PermissaoPagina]):
+def salvar_permissoes(usuario_id: str, body: list[PermissaoPagina], admin: UsuarioAtual = Depends(require_admin)):
     validas = {p.pagina: p.permitido for p in body if p.pagina in PAGINAS_PERMISSAO}
 
     with get_connection() as conn:
@@ -68,6 +76,8 @@ def salvar_permissoes(usuario_id: str, body: list[PermissaoPagina]):
                     (usuario_id, pagina, permitido),
                 )
         conn.commit()
+
+    registrar_log(admin.id, "permissoes.atualizar", entidade="usuarios", entidade_id=usuario_id, detalhes=validas)
 
     return [
         PermissaoPagina(pagina=pagina, permitido=usuario_tem_permissao(usuario_id, pagina))

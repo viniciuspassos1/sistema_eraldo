@@ -216,7 +216,9 @@ create table documentos (
   tags text[] not null default '{}', -- array nativo do Postgres; evita tabela de junção pra algo simples
   status status_documento not null default 'RASCUNHO',
   tamanho_bytes bigint, -- calculado a partir do arquivo real, não mais texto livre ("2.4 MB")
-  arquivo_url text -- caminho no Supabase Storage, se o arquivo for hospedado lá
+  arquivo_url text, -- reservado pra um storage externo (Supabase Storage) no futuro; não usado hoje
+  arquivo_tipo text, -- content-type do upload real (ver arquivo_dados)
+  arquivo_dados bytea -- bytes do arquivo, mesmo padrão de `atestados` — sem storage externo configurado ainda
 );
 
 create index idx_documentos_categoria on documentos (categoria);
@@ -379,7 +381,28 @@ create table authenticator_contas (
 );
 
 -- =============================================================================
--- 13. ROW LEVEL SECURITY
+-- 13. LOGS DE AUDITORIA
+-- =============================================================================
+-- Registra ações administrativas/sensíveis (login, troca de permissão,
+-- criação/edição/exclusão de registros pela Administração). Não é um log de
+-- toda requisição — só o que interessa auditar depois. `detalhes` guarda um
+-- resumo em JSON (ex.: {"antes": {...}, "depois": {...}}) quando fizer
+-- sentido; pode ficar nulo.
+create table logs_auditoria (
+  id uuid primary key default gen_random_uuid(),
+  usuario_id uuid references usuarios (id) on delete set null,
+  acao text not null, -- ex.: "login", "funcionario.criar", "aviso.excluir"
+  entidade text, -- ex.: "usuarios", "avisos" — null pra ações sem entidade (login)
+  entidade_id text,
+  detalhes jsonb,
+  criado_em timestamptz not null default now()
+);
+
+create index idx_logs_auditoria_criado_em on logs_auditoria (criado_em desc);
+create index idx_logs_auditoria_usuario on logs_auditoria (usuario_id, criado_em desc);
+
+-- =============================================================================
+-- 14. ROW LEVEL SECURITY
 -- =============================================================================
 -- O backend conecta como o usuário "postgres" (via DATABASE_URL), que sempre
 -- ignora RLS — regra do próprio Postgres para superusuário, então isso não
@@ -413,6 +436,7 @@ alter table onboarding_checklist_itens enable row level security;
 alter table onboarding_progresso enable row level security;
 alter table notas_pessoais enable row level security;
 alter table authenticator_contas enable row level security;
+alter table logs_auditoria enable row level security;
 
 -- =============================================================================
 -- Fim do schema principal.

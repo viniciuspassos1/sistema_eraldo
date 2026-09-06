@@ -56,3 +56,50 @@ export async function atualizarMinhaAlergia(alergiaAlimentar: string): Promise<U
   });
   return toUser(data);
 }
+
+export interface NovoFuncionarioInput {
+  nome: string;
+  email: string;
+  senhaInicial: string;
+  cargo: string;
+  setor: string;
+  perfil: User['perfil'];
+  dataEntrada: string;
+  aniversario: string;
+  telefone?: string;
+}
+
+export async function criarFuncionario(input: NovoFuncionarioInput): Promise<User> {
+  const data = await apiRequest<FuncionarioResponse>('/api/funcionarios', FuncionariosApiError, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return toUser(data);
+}
+
+export interface EditarFuncionarioInput {
+  nome: string;
+  cargo: string;
+  setor: string;
+  perfil: User['perfil'];
+  telefone?: string;
+}
+
+export async function editarFuncionario(id: string, input: EditarFuncionarioInput): Promise<User> {
+  const data = await apiRequest<FuncionarioResponse>(`/api/funcionarios/${id}`, FuncionariosApiError, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return toUser(data);
+}
+
+export async function atualizarStatusFuncionario(id: string, status: User['status']): Promise<User> {
+  const data = await apiRequest<FuncionarioResponse>(`/api/funcionarios/${id}/status`, FuncionariosApiError, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  return toUser(data);
+}

@@ -31,7 +31,9 @@ def _serialize(row: dict) -> Notificacao:
 @router.get("/api/notificacoes", response_model=list[Notificacao])
 def listar_notificacoes(usuario: UsuarioAtual = Depends(require_user)):
     rows = fetch_all(
-        f"SELECT {_COLUNAS} FROM notificacoes WHERE destinatario_id = %s OR destinatario_id IS NULL ORDER BY data DESC;",
+        f"SELECT {_COLUNAS} FROM notificacoes "
+        "WHERE destinatario_id = %s OR destinatario_id IS NULL "
+        "ORDER BY data DESC;",
         (usuario.id,),
     )
     return [_serialize(r) for r in rows]
@@ -43,10 +45,8 @@ def marcar_lida(notificacao_id: str, usuario: UsuarioAtual = Depends(require_use
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    """
-                    UPDATE notificacoes SET lida = true
-                    WHERE id = %s AND (destinatario_id = %s OR destinatario_id IS NULL);
-                    """,
+                    "UPDATE notificacoes SET lida = true "
+                    "WHERE id = %s AND (destinatario_id = %s OR destinatario_id IS NULL);",
                     (notificacao_id, usuario.id),
                 )
                 if cur.rowcount == 0:
@@ -67,7 +67,8 @@ def marcar_todas_lidas(usuario: UsuarioAtual = Depends(require_user)):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE notificacoes SET lida = true WHERE lida = false AND destinatario_id = %s;",
+                "UPDATE notificacoes SET lida = true "
+                "WHERE lida = false AND (destinatario_id = %s OR destinatario_id IS NULL);",
                 (usuario.id,),
             )
         conn.commit()
