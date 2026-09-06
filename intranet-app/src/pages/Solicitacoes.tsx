@@ -8,7 +8,7 @@ import { Button } from '../components/Button';
 import { Modal } from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../context/AuthContext';
-import { fetchSolicitacoes, createSolicitacao, SolicitacoesApiError } from '../api/solicitacoes';
+import { fetchSolicitacoes, createSolicitacao, atualizarSolicitacao, SolicitacoesApiError } from '../api/solicitacoes';
 import type { Request } from '../types';
 import { formatDate } from '../utils/format';
 
@@ -19,6 +19,8 @@ const statusTone = {
   RESOLVIDO: 'success',
   CANCELADO: 'danger',
 } as const;
+
+const STATUS_OPCOES: Request['status'][] = ['ABERTO', 'EM_ANALISE', 'EM_ANDAMENTO', 'RESOLVIDO', 'CANCELADO'];
 
 const categorias = [
   'Suporte técnico',
@@ -47,7 +49,30 @@ export function Solicitacoes() {
       .catch((err) => setError(err instanceof SolicitacoesApiError ? err.message : 'Erro inesperado ao carregar as solicitações.'));
   }, []);
 
+  const isAdmin = user?.perfil === 'ADMINISTRADOR';
   const filtradas = (requests ?? []).filter((r) => status === 'todos' || r.status === status);
+
+  async function mudarStatus(id: string, novoStatus: Request['status']) {
+    const anterior = requests;
+    setRequests((prev) => (prev ?? []).map((r) => (r.id === id ? { ...r, status: novoStatus } : r)));
+    try {
+      await atualizarSolicitacao(id, { status: novoStatus });
+    } catch (err) {
+      setRequests(anterior);
+      showToast(err instanceof SolicitacoesApiError ? err.message : 'Erro ao atualizar status.', 'error');
+    }
+  }
+
+  async function assumir(id: string) {
+    if (!user) return;
+    try {
+      const atualizada = await atualizarSolicitacao(id, { responsavelId: user.id });
+      setRequests((prev) => (prev ?? []).map((r) => (r.id === id ? atualizada : r)));
+      showToast('Solicitação atribuída a você.');
+    } catch (err) {
+      showToast(err instanceof SolicitacoesApiError ? err.message : 'Erro ao assumir solicitação.', 'error');
+    }
+  }
 
   async function handleCriarSolicitacao(e: FormEvent) {
     e.preventDefault();
@@ -137,10 +162,34 @@ export function Solicitacoes() {
                     <td className="px-5 py-3.5 text-navy font-medium whitespace-nowrap">{r.numero}</td>
                     <td className="px-5 py-3.5 text-navy whitespace-nowrap">{r.solicitante}</td>
                     <td className="px-5 py-3.5 text-text-secondary whitespace-nowrap">{r.categoria}</td>
-                    <td className="px-5 py-3.5 text-text-secondary whitespace-nowrap">{r.responsavel ?? '—'}</td>
+                    <td className="px-5 py-3.5 text-text-secondary whitespace-nowrap">
+                      {r.responsavel ?? (
+                        isAdmin ? (
+                          <button onClick={() => assumir(r.id)} className="text-gold font-medium hover:underline">
+                            Assumir
+                          </button>
+                        ) : (
+                          '—'
+                        )
+                      )}
+                    </td>
                     <td className="px-5 py-3.5 text-text-secondary whitespace-nowrap">{formatDate(r.data)}</td>
                     <td className="px-5 py-3.5">
-                      <Badge tone={statusTone[r.status]}>{r.status.replace('_', ' ')}</Badge>
+                      {isAdmin ? (
+                        <select
+                          value={r.status}
+                          onChange={(ev) => mudarStatus(r.id, ev.target.value as Request['status'])}
+                          className="text-xs bg-white border border-border rounded-md px-2 py-1 text-navy focus:outline-none focus:ring-2 focus:ring-gold/40"
+                        >
+                          {STATUS_OPCOES.map((s) => (
+                            <option key={s} value={s}>
+                              {s.replace('_', ' ')}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <Badge tone={statusTone[r.status]}>{r.status.replace('_', ' ')}</Badge>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -1,12 +1,21 @@
-import { useEffect, useState } from 'react';
-import { FileText, Download, Eye, Tag, User, Calendar, ShieldAlert } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { FileText, Download, Eye, Tag, User, Calendar, ShieldAlert, Upload, Trash2 } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { Drawer } from '../components/Drawer';
+import { Modal } from '../components/Modal';
+import { Button } from '../components/Button';
 import { useToast } from '../components/Toast';
-import { fetchDocumentos, DocumentosApiError } from '../api/documentos';
+import { useAuth } from '../context/AuthContext';
+import {
+  fetchDocumentos,
+  uploadDocumento,
+  excluirDocumento,
+  baixarDocumento,
+  DocumentosApiError,
+} from '../api/documentos';
 import type { DocumentItem } from '../types';
 import { formatDate } from '../utils/format';
 
@@ -20,7 +29,11 @@ const documentCategories = [
   'Tecnologia',
 ];
 
+const FORM_VAZIO = { titulo: '', categoria: documentCategories[0], tags: '', status: 'RASCUNHO' as DocumentItem['status'] };
+
 export function Documentos() {
+  const { user } = useAuth();
+  const isAdmin = user?.perfil === 'ADMINISTRADOR';
   const [documents, setDocuments] = useState<DocumentItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [categoria, setCategoria] = useState('todas');
@@ -28,10 +41,20 @@ export function Documentos() {
   const [preview, setPreview] = useState<DocumentItem | null>(null);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    fetchDocumentos()
+  const [modalAberto, setModalAberto] = useState(false);
+  const [form, setForm] = useState(FORM_VAZIO);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [enviando, setEnviando] = useState<'idle' | 'loading'>('idle');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function carregar() {
+    return fetchDocumentos()
       .then(setDocuments)
       .catch((err) => setError(err instanceof DocumentosApiError ? err.message : 'Erro inesperado ao carregar os documentos.'));
+  }
+
+  useEffect(() => {
+    carregar();
   }, []);
 
   const filtrados = (documents ?? []).filter((d) => {
@@ -39,6 +62,56 @@ export function Documentos() {
     if (busca && !`${d.titulo} ${d.tags.join(' ')}`.toLowerCase().includes(busca.toLowerCase())) return false;
     return true;
   });
+
+  async function enviar(ev: FormEvent) {
+    ev.preventDefault();
+    if (!arquivo) return;
+    setEnviando('loading');
+    try {
+      await uploadDocumento({
+        titulo: form.titulo,
+        categoria: form.categoria,
+        tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        status: form.status,
+        arquivo,
+      });
+      showToast('Documento enviado.');
+      setModalAberto(false);
+      setForm(FORM_VAZIO);
+      setArquivo(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      await carregar();
+    } catch (err) {
+      showToast(err instanceof DocumentosApiError ? err.message : 'Erro ao enviar documento.', 'error');
+    } finally {
+      setEnviando('idle');
+    }
+  }
+
+  async function excluir(id: string) {
+    if (!window.confirm('Excluir este documento?')) return;
+    try {
+      await excluirDocumento(id);
+      showToast('Documento excluído.');
+      await carregar();
+    } catch (err) {
+      showToast(err instanceof DocumentosApiError ? err.message : 'Erro ao excluir documento.', 'error');
+    }
+  }
+
+  async function baixar(d: DocumentItem) {
+    try {
+      const blob = await baixarDocumento(d.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = d.titulo;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showToast(err instanceof DocumentosApiError ? err.message : 'Este documento não tem arquivo anexado.', 'error');
+    }
+  }
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -49,6 +122,11 @@ export function Documentos() {
           </h1>
           <p className="text-text-secondary text-sm mt-1">Biblioteca de documentos do escritório.</p>
         </div>
+        {isAdmin && (
+          <Button size="sm" onClick={() => setModalAberto(true)}>
+            <Upload className="w-4 h-4" /> Enviar documento
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -133,12 +211,21 @@ export function Documentos() {
                       <Eye className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => showToast('Sem arquivo real hospedado ainda — nenhum upload foi feito.', 'info')}
+                      onClick={() => baixar(d)}
                       className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-cream text-navy transition-colors duration-150"
                       aria-label="Baixar"
                     >
                       <Download className="w-3.5 h-3.5" />
                     </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => excluir(d.id)}
+                        className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-rose-50 text-navy hover:text-rose-600 transition-colors duration-150"
+                        aria-label="Excluir"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -184,6 +271,80 @@ export function Documentos() {
           </div>
         )}
       </Drawer>
+
+      <Modal
+        open={modalAberto}
+        onClose={() => setModalAberto(false)}
+        title="Enviar documento"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setModalAberto(false)}>
+              Cancelar
+            </Button>
+            <Button status={enviando} onClick={enviar} disabled={!form.titulo.trim() || !arquivo}>
+              Enviar
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={enviar} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-navy mb-1.5">Título</label>
+            <input
+              value={form.titulo}
+              onChange={(ev) => setForm((f) => ({ ...f, titulo: ev.target.value }))}
+              required
+              className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-navy mb-1.5">Categoria</label>
+              <select
+                value={form.categoria}
+                onChange={(ev) => setForm((f) => ({ ...f, categoria: ev.target.value }))}
+                className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40"
+              >
+                {documentCategories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-navy mb-1.5">Status</label>
+              <select
+                value={form.status}
+                onChange={(ev) => setForm((f) => ({ ...f, status: ev.target.value as DocumentItem['status'] }))}
+                className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40"
+              >
+                <option value="RASCUNHO">Rascunho</option>
+                <option value="PUBLICADO">Publicado</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-navy mb-1.5">Tags (separadas por vírgula)</label>
+            <input
+              value={form.tags}
+              onChange={(ev) => setForm((f) => ({ ...f, tags: ev.target.value }))}
+              placeholder="contrato, financeiro"
+              className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-navy mb-1.5">Arquivo</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              required
+              onChange={(ev) => setArquivo(ev.target.files?.[0] ?? null)}
+              className="w-full text-sm text-navy file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-navy file:text-white file:text-xs file:font-medium"
+            />
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

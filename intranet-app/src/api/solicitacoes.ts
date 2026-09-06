@@ -14,3 +14,14 @@ export function createSolicitacao(input: { categoria: string; descricao: string 
     body: JSON.stringify(input),
   });
 }
+
+export function atualizarSolicitacao(
+  id: string,
+  input: { status?: Request['status']; responsavelId?: string }
+): Promise<Request> {
+  return apiRequest(`/api/solicitacoes/${id}`, SolicitacoesApiError, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}

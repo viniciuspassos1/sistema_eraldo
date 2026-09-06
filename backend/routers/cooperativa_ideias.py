@@ -2,7 +2,7 @@ import psycopg2
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from security import require_api_key, require_user, require_pagina, UsuarioAtual
+from security import require_api_key, require_user, require_admin, require_pagina, UsuarioAtual
 from database import fetch_all, get_connection
 from llm import gerar_texto
 
@@ -110,7 +110,7 @@ def redigir_ideia(body: RedigirRequest, _usuario: UsuarioAtual = Depends(require
 
 
 @router.patch("/api/cooperativa-ideias/{ideia_id}", response_model=Ideia)
-def atualizar_status(ideia_id: str, body: AtualizarStatus):
+def atualizar_status(ideia_id: str, body: AtualizarStatus, _admin: UsuarioAtual = Depends(require_admin)):
     if body.status not in _STATUS_VALIDOS:
         raise HTTPException(status_code=400, detail="Status inválido.")
 

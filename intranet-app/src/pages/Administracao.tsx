@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Inbox,
   ShieldAlert,
+  ScrollText,
 } from 'lucide-react';
 import { Card, CardHeader } from '../components/Card';
 import { StatCard } from '../components/StatCard';
@@ -51,6 +52,7 @@ const modules = [
   { label: 'Cooperativa de Ideias', icon: Lightbulb, path: '/cooperativa-ideias' },
   { label: 'Novos funcionários', icon: UserPlus, path: '/calendario?tab=onboarding' },
   { label: 'Links dos tribunais', icon: Link2, path: '/tribunais' },
+  { label: 'Logs de auditoria', icon: ScrollText, path: '/administracao/logs' },
 ];
 
 export function Administracao() {

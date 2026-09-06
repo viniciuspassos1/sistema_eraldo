@@ -17,6 +17,7 @@ from security import (
     UsuarioAtual,
 )
 from database import fetch_one, get_connection
+from logs import registrar_log
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -98,6 +99,7 @@ def login(body: LoginBody):
 
     limpar_falhas_login(email)
     token = criar_token(str(row["id"]), row["perfil"], body.manterConectado)
+    registrar_log(str(row["id"]), "login")
     return LoginResposta(token=token, usuario=_usuario_publico(row))
 
 
@@ -132,3 +134,4 @@ def trocar_senha(body: TrocarSenhaBody, usuario: UsuarioAtual = Depends(require_
         conn.commit()
 
     invalidar_tokens_anteriores(usuario.id)
+    registrar_log(usuario.id, "trocar_senha")

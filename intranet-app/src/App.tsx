@@ -16,6 +16,7 @@ const Administracao = lazy(() => import('./pages/Administracao').then((m) => ({ 
 const AdministracaoUsuarios = lazy(() =>
   import('./pages/AdministracaoUsuarios').then((m) => ({ default: m.AdministracaoUsuarios }))
 );
+const Logs = lazy(() => import('./pages/Logs').then((m) => ({ default: m.Logs })));
 const Documentos = lazy(() => import('./pages/Documentos').then((m) => ({ default: m.Documentos })));
 const CooperativaIdeias = lazy(() =>
   import('./pages/CooperativaIdeias').then((m) => ({ default: m.CooperativaIdeias }))
@@ -145,6 +146,14 @@ function App() {
               element={
                 <ProtectedRoute adminOnly>
                   <AdministracaoUsuarios />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/administracao/logs"
+              element={
+                <ProtectedRoute adminOnly>
+                  <Logs />
                 </ProtectedRoute>
               }
             />
