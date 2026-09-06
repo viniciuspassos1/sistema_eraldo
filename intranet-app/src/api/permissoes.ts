@@ -1,55 +1,33 @@
-import { getStoredToken } from '../utils/authToken';
+import { apiRequest } from './client';
 
 export interface PermissaoPagina {
   pagina: string;
   permitido: boolean;
 }
 
-const API_URL = import.meta.env.VITE_AUTHENTICATOR_API_URL as string | undefined;
-const API_KEY = import.meta.env.VITE_AUTHENTICATOR_API_KEY as string | undefined;
+export interface PaginaPermissao {
+  chave: string;
+  label: string;
+}
 
 export class PermissoesApiError extends Error {}
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!API_URL || !API_KEY) {
-    throw new PermissoesApiError('Backend não configurado. Veja intranet-app/.env.example.');
-  }
-
-  const token = getStoredToken();
-  let response: Response;
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      ...init,
-      headers: {
-        'X-API-Key': API_KEY,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(init?.headers ?? {}),
-      },
-    });
-  } catch {
-    throw new PermissoesApiError(
-      'Não foi possível conectar ao backend local. Ele está rodando? (uvicorn main:app --port 8010)'
-    );
-  }
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new PermissoesApiError(body?.detail ?? `Erro do servidor (HTTP ${response.status}).`);
-  }
-
-  return response.json();
+// Fonte única de verdade é o backend (security.PAGINAS_PERMISSAO) — evita
+// manter uma segunda lista de páginas aqui que pode ficar desatualizada.
+export function fetchPaginasPermissao(): Promise<PaginaPermissao[]> {
+  return apiRequest('/api/permissoes/paginas', PermissoesApiError);
 }
 
 export function fetchTodasPermissoes(): Promise<Record<string, Record<string, boolean>>> {
-  return request('/api/permissoes');
+  return apiRequest('/api/permissoes', PermissoesApiError);
 }
 
 export function fetchPermissoes(usuarioId: string): Promise<PermissaoPagina[]> {
-  return request(`/api/permissoes/${usuarioId}`);
+  return apiRequest(`/api/permissoes/${usuarioId}`, PermissoesApiError);
 }
 
 export function salvarPermissoes(usuarioId: string, permissoes: PermissaoPagina[]): Promise<PermissaoPagina[]> {
-  return request(`/api/permissoes/${usuarioId}`, {
+  return apiRequest(`/api/permissoes/${usuarioId}`, PermissoesApiError, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(permissoes),

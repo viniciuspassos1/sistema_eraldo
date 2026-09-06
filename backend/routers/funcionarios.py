@@ -47,13 +47,13 @@ def _serialize(row: dict) -> Funcionario:
 
 
 @router.get("/api/funcionarios", response_model=list[Funcionario])
-def listar_funcionarios():
+def listar_funcionarios(usuario: UsuarioAtual = Depends(require_user)):
     rows = fetch_all(f"SELECT {_COLUNAS} FROM usuarios ORDER BY nome;")
     return [_serialize(r) for r in rows]
 
 
 @router.get("/api/funcionarios/{funcionario_id}", response_model=Funcionario)
-def obter_funcionario(funcionario_id: str):
+def obter_funcionario(funcionario_id: str, usuario: UsuarioAtual = Depends(require_user)):
     try:
         row = fetch_one(f"SELECT {_COLUNAS} FROM usuarios WHERE id = %s;", (funcionario_id,))
     except psycopg2.errors.InvalidTextRepresentation:

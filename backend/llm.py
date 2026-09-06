@@ -6,6 +6,7 @@ continua sendo sempre o texto literal do documento, pra nunca inventar
 informação sobre processos internos (ver assistant/rag.py)."""
 
 import logging
+import re
 
 from fastapi import HTTPException
 from google import genai
@@ -16,6 +17,17 @@ from config import GEMINI_API_KEY, GEMINI_MODEL
 logger = logging.getLogger("llm")
 
 _MAX_CARACTERES_ENTRADA = 4000
+
+# Mascaramento básico de CPF antes de mandar o texto pra API externa do
+# Google — o texto do usuário pode conter dado de cliente colado sem querer
+# (ver auditoria de segurança). Não é detecção completa de PII, só a defesa
+# mais barata contra o caso mais comum. Aceita com ou sem pontuação.
+_CPF_REGEX = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
+
+
+def _mascarar_cpf(texto: str) -> str:
+    return _CPF_REGEX.sub("[CPF removido]", texto)
+
 
 _client: genai.Client | None = None
 
@@ -38,9 +50,10 @@ def gerar_texto(prompt: str, instrucao_sistema: str) -> str:
             detail="IA generativa não configurada no servidor. Peça para um administrador definir GEMINI_API_KEY no backend/.env.",
         )
 
-    prompt = prompt.strip()[:_MAX_CARACTERES_ENTRADA]
+    prompt = prompt.strip()
     if not prompt:
         raise HTTPException(status_code=400, detail="Escreva alguma coisa antes de pedir ajuda à IA.")
+    prompt = _mascarar_cpf(prompt)[:_MAX_CARACTERES_ENTRADA]
 
     try:
         resposta = _obter_client().models.generate_content(

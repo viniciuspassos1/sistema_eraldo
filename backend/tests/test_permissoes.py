@@ -53,6 +53,21 @@ def test_require_pagina_bloqueia_e_libera_conforme_permissao(client, admin_heade
     assert resp_liberado.status_code == 200
 
 
+def test_listar_paginas_permissao_bate_com_paginas_permissao(client, admin_headers):
+    from security import PAGINAS_PERMISSAO
+
+    resp = client.get("/api/permissoes/paginas", headers=admin_headers)
+    assert resp.status_code == 200
+    paginas = resp.json()
+    assert [p["chave"] for p in paginas] == PAGINAS_PERMISSAO
+    assert all(p["label"] for p in paginas)
+
+
+def test_listar_paginas_permissao_exige_admin(client, user_headers):
+    resp = client.get("/api/permissoes/paginas", headers=user_headers)
+    assert resp.status_code == 403
+
+
 def test_administrador_nunca_e_bloqueado_por_pagina(client, admin_headers):
     """Mesmo sem nenhuma permissão explícita cadastrada, ADMINISTRADOR sempre passa."""
     resp = client.get("/api/documentos", headers=admin_headers)

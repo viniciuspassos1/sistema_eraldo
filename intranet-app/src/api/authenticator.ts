@@ -1,3 +1,5 @@
+import { apiRequest } from './client';
+
 export interface AuthenticatorService {
   id: string;
   name: string;
@@ -11,10 +13,6 @@ interface CodesResponse {
   serverTime: number;
 }
 
-import { getStoredToken } from '../utils/authToken';
-
-const API_URL = import.meta.env.VITE_AUTHENTICATOR_API_URL as string | undefined;
-const API_KEY = import.meta.env.VITE_AUTHENTICATOR_API_KEY as string | undefined;
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
 export class AuthenticatorApiError extends Error {}
@@ -47,29 +45,6 @@ export async function fetchAuthenticatorCodes(): Promise<AuthenticatorService[]>
     return fetchDemoCodes();
   }
 
-  if (!API_URL || !API_KEY) {
-    throw new AuthenticatorApiError(
-      'Backend do Authenticator não configurado. Veja intranet-app/.env.example.'
-    );
-  }
-
-  const token = getStoredToken();
-  let response: Response;
-  try {
-    response = await fetch(`${API_URL}/api/authenticator/codes`, {
-      headers: { 'X-API-Key': API_KEY, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    });
-  } catch {
-    throw new AuthenticatorApiError(
-      'Não foi possível conectar ao backend local. Ele está rodando? (uvicorn main:app --port 8010)'
-    );
-  }
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new AuthenticatorApiError(body?.detail ?? `Erro do servidor (HTTP ${response.status}).`);
-  }
-
-  const data: CodesResponse = await response.json();
+  const data = await apiRequest<CodesResponse>('/api/authenticator/codes', AuthenticatorApiError);
   return data.services;
 }

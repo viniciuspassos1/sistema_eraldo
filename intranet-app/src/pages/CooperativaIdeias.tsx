@@ -280,6 +280,10 @@ export function CooperativaIdeias() {
               placeholder="Explique a ideia: o que seria abordado, como e por quê."
               className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy placeholder:text-text-secondary/60 focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150 resize-none"
             />
+            <p className="flex items-center gap-1 text-[11px] text-amber-700 mt-1">
+              <ShieldAlert className="w-3 h-3 shrink-0" strokeWidth={1.75} />
+              "Ajudar a escrever" usa IA externa (Google Gemini) — evite incluir dado de cliente aqui.
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-navy mb-1.5">Referência ou exemplo (opcional)</label>

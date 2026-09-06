@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { motion } from 'motion/react';
-import { Bot, Send, FileSearch, Briefcase, MessageSquareText, Copy, Check, type LucideIcon } from 'lucide-react';
+import { Bot, Send, FileSearch, Briefcase, MessageSquareText, Copy, Check, ShieldAlert, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { askAssistant, askComunicacao, AssistantApiError } from '../api/assistant';
 import { useToast } from '../components/Toast';
@@ -14,6 +14,11 @@ interface AssistantConfig {
   examples: string[];
   thinkingLabel: string;
   answerFor: (question: string) => Promise<{ texto: string; fonte?: string }>;
+  // true pras abas que mandam o texto digitado pra uma IA generativa externa
+  // (Google Gemini) — mostra o aviso de não colar dado de cliente. A aba
+  // "Processos Gerais" não usa LLM (é busca literal na documentação, ver
+  // answerFromKnowledgeBase), então fica de fora.
+  usaIAExterna: boolean;
 }
 
 // Aba "Comunicação": geração de texto de verdade via IA (Gemini, backend),
@@ -61,6 +66,7 @@ const ASSISTANTS: AssistantConfig[] = [
     ],
     thinkingLabel: 'Consultando a documentação...',
     answerFor: answerFromKnowledgeBase,
+    usaIAExterna: false,
   },
   {
     id: 'comunicacao',
@@ -76,6 +82,7 @@ const ASSISTANTS: AssistantConfig[] = [
     ],
     thinkingLabel: 'Pensando...',
     answerFor: answerFromComunicacao,
+    usaIAExterna: true,
   },
 ];
 
@@ -266,6 +273,14 @@ export function AssistenteIA() {
           )}
           <div ref={bottomRef} />
         </div>
+
+        {active.usaIAExterna && (
+          <div className="border-t border-border bg-amber-50 px-4 py-2 flex items-center gap-2 text-xs text-amber-700">
+            <ShieldAlert className="w-3.5 h-3.5 shrink-0" strokeWidth={1.75} />
+            Evite colar dados de clientes (CPF, número de processo) — o texto digitado aqui é enviado a um
+            serviço de IA externo (Google Gemini).
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="border-t border-border p-3 flex gap-2">
           <input
