@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from security import (
     require_api_key,
@@ -26,7 +26,7 @@ _COLUNAS_PUBLICAS = "id, nome, email, cargo, setor, foto_url, perfil, data_entra
 
 
 class LoginBody(BaseModel):
-    email: str
+    email: EmailStr
     senha: str
     manterConectado: bool = False
 

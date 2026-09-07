@@ -1,0 +1,38 @@
+# Deploy de produção (VPS): backend (FastAPI) + frontend servido por Caddy,
+# que também faz proxy reverso de /api/* pro backend e emite HTTPS sozinho
+# via Let's Encrypt (ver intranet-app/Caddyfile). Variáveis lidas de um
+# ".env" na raiz — ver .env.example. Segredos de verdade do backend (banco,
+# JWT_SECRET, SMTP, Gemini) ficam em backend/.env, nunca aqui.
+#
+# Uso: docker compose up -d --build
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+    expose:
+      - "8010"
+
+  frontend:
+    build:
+      context: ./intranet-app
+      args:
+        VITE_AUTHENTICATOR_API_URL: ${VITE_AUTHENTICATOR_API_URL:-}
+        VITE_AUTHENTICATOR_API_KEY: ${VITE_AUTHENTICATOR_API_KEY}
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

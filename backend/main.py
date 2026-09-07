@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from assistant.router import router as assistant_router
 from routers import all_routers
-from config import ALLOWED_ORIGINS, ENABLE_BACKGROUND_JOBS
+from config import ALLOWED_ORIGINS, AMBIENTE, ENABLE_BACKGROUND_JOBS
 from database import init_pool, close_pool
 from jobs import iniciar_jobs, parar_jobs
 from security import require_api_key, require_pagina, requisicao_permitida, UsuarioAtual
@@ -30,7 +30,14 @@ async def lifespan(app: FastAPI):
     close_pool()
 
 
-app = FastAPI(title="Intranet Eraldo Júnior - Authenticator API", lifespan=lifespan)
+_producao = AMBIENTE == "producao"
+app = FastAPI(
+    title="Intranet Eraldo Júnior - Authenticator API",
+    lifespan=lifespan,
+    docs_url=None if _producao else "/docs",
+    redoc_url=None if _producao else "/redoc",
+    openapi_url=None if _producao else "/openapi.json",
+)
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,6 +1,6 @@
 import psycopg2
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from security import require_api_key, require_user, require_admin, hash_senha, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
@@ -35,7 +35,7 @@ class AtualizarAlergia(BaseModel):
 
 class NovoFuncionario(BaseModel):
     nome: str
-    email: str
+    email: EmailStr
     senhaInicial: str
     cargo: str
     setor: str

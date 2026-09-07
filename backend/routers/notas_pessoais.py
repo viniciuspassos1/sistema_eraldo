@@ -6,10 +6,10 @@ import psycopg2
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from security import require_api_key, require_user, UsuarioAtual
+from security import require_api_key, require_user, require_pagina, UsuarioAtual
 from database import fetch_all, get_connection
 
-router = APIRouter(dependencies=[Depends(require_api_key)])
+router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("calendario"))])
 
 _COLUNAS = "id, titulo, conteudo, concluida, updated_at"
 

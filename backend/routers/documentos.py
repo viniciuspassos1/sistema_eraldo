@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from security import require_api_key, require_pagina, require_admin, UsuarioAtual
+from security import require_api_key, require_pagina, require_admin, require_user, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
 from logs import registrar_log
 
@@ -28,13 +28,14 @@ def _nome_seguro(nome: str) -> str:
     limpo = re.sub(r'[\r\n"]', "", nome)
     return limpo[:255] or "documento"
 
-_QUERY = """
+_SELECT_BASE = """
     SELECT d.id, d.titulo, d.categoria, u.nome AS autor, d.data, d.atualizado_em,
            d.tags, d.status, d.tamanho_bytes
     FROM documentos d
     LEFT JOIN usuarios u ON u.id = d.autor_id
-    ORDER BY d.atualizado_em DESC;
 """
+_QUERY = _SELECT_BASE + " ORDER BY d.atualizado_em DESC;"
+_QUERY_PUBLICADOS = _SELECT_BASE + " WHERE d.status = 'PUBLICADO' ORDER BY d.atualizado_em DESC;"
 
 
 class DocumentoItem(BaseModel):
@@ -73,8 +74,11 @@ def _serialize(row: dict) -> DocumentoItem:
 
 
 @router.get("/api/documentos", response_model=list[DocumentoItem])
-def listar_documentos():
-    rows = fetch_all(_QUERY)
+def listar_documentos(usuario: UsuarioAtual = Depends(require_user)):
+    # Rascunho é conteúdo em elaboração — só quem pode publicar (admin) o vê
+    # antes da hora; pra todo mundo com acesso à página, só o já publicado.
+    query = _QUERY if usuario.perfil == "ADMINISTRADOR" else _QUERY_PUBLICADOS
+    rows = fetch_all(query)
     return [_serialize(r) for r in rows]
 
 
@@ -138,10 +142,10 @@ async def criar_documento(
 
 
 @router.get("/api/documentos/{documento_id}/arquivo")
-def baixar_documento(documento_id: str):
+def baixar_documento(documento_id: str, usuario: UsuarioAtual = Depends(require_user)):
     try:
         row = fetch_one(
-            "SELECT titulo, arquivo_tipo, arquivo_dados FROM documentos WHERE id = %s;",
+            "SELECT titulo, status, arquivo_tipo, arquivo_dados FROM documentos WHERE id = %s;",
             (documento_id,),
         )
     except psycopg2.errors.InvalidTextRepresentation:
@@ -149,6 +153,8 @@ def baixar_documento(documento_id: str):
 
     if not row or not row["arquivo_dados"]:
         raise HTTPException(status_code=404, detail="Este documento não tem arquivo anexado.")
+    if row["status"] != "PUBLICADO" and usuario.perfil != "ADMINISTRADOR":
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
     return Response(
         content=bytes(row["arquivo_dados"]),

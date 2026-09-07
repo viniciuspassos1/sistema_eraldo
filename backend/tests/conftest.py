@@ -7,24 +7,36 @@ todo teste que cria dado precisa apagar o que criou (ver fixtures que
 fazem yield + cleanup abaixo) e nenhum teste deve alterar dados de conta
 que outras pessoas usam para navegar na intranet.
 
+As senhas dessas contas ficam em backend/.env.test (nunca commitado — ver
+.env.test.example para o template e instruções de como gerar/definir a
+sua). Antes, ficavam hardcoded aqui e em test_atestados.py: uma auditoria
+de segurança encontrou isso como credencial real versionada em texto puro
+no git (achado A2) — as senhas foram trocadas no banco e movidas pra cá.
+
 Rodar com: cd backend && ./venv/Scripts/python.exe -m pytest
 """
 
+import os
+from pathlib import Path
+
 import pytest
+from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
 from main import app
 from config import API_KEY
 
+load_dotenv(Path(__file__).resolve().parent.parent / ".env.test")
+
 ADMIN_EMAIL = "eraldo.junior@proferaldojunior.com.br"
-ADMIN_SENHA = "IntranetEJ@2026"
+ADMIN_SENHA = os.environ["TEST_ADMIN_SENHA"]
 
 # Conta de funcionário comum (perfil FUNCIONARIO) usada nos testes que
 # precisam de "alguém sem privilégio admin" — não usar a Mariana aqui:
 # ela é usada manualmente durante o desenvolvimento e pode estar com
 # tentativas de login acumuladas.
 USER_EMAIL = "joao.lima@proferaldojunior.com.br"
-USER_SENHA = "BeiRNvkueBof"
+USER_SENHA = os.environ["TEST_USER_SENHA"]
 
 
 @pytest.fixture(scope="session")
