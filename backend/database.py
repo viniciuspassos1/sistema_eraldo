@@ -29,9 +29,23 @@ def close_pool() -> None:
 
 @contextmanager
 def get_connection():
+    """
+    autocommit=True por padrão: sem isso, toda consulta (mesmo um SELECT
+    isolado) abre uma transação implícita que nunca é fechada explicitamente
+    pelos callers de leitura — psycopg2.pool então roda um ROLLBACK sozinho
+    ao devolver a conexão pro pool (ver AbstractConnectionPool._putconn).
+    Resultado: 3 idas à rede por consulta (BEGIN implícito + a query +
+    ROLLBACK) em vez de 1 — com o banco num datacenter remoto (Supabase),
+    isso media ~550ms por chamada em vez de ~180ms. Quem precisar de uma
+    transação de verdade (múltiplos `execute()` atômicos entre si — hoje só
+    `solicitacoes.criar_solicitacao`, por causa do lock de concorrência no
+    número sequencial) define `conn.autocommit = False` explicitamente no
+    início do próprio bloco.
+    """
     if _pool is None:
         raise RuntimeError("Pool de conexão não inicializado — init_pool() precisa rodar no startup do app.")
     conn = _pool.getconn()
+    conn.autocommit = True
     try:
         yield conn
     except Exception:

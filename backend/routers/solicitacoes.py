@@ -72,6 +72,12 @@ def listar_solicitacoes():
 @router.post("/api/solicitacoes", response_model=Solicitacao, status_code=201)
 def criar_solicitacao(body: NovaSolicitacao, usuario: UsuarioAtual = Depends(require_user)):
     with get_connection() as conn:
+        # O lock de concorrência em _proximo_numero só vale a pena dentro de
+        # uma transação de verdade (autocommit=False) — ele é liberado no
+        # commit, e get_connection() já deixa autocommit=True por padrão
+        # (ver comentário lá), o que faria o SELECT do numero e o INSERT
+        # virarem duas transações separadas, destrancando o lock cedo demais.
+        conn.autocommit = False
         with conn.cursor() as cur:
             numero = _proximo_numero(cur)
             cur.execute(
@@ -84,6 +90,7 @@ def criar_solicitacao(body: NovaSolicitacao, usuario: UsuarioAtual = Depends(req
             )
             nova_id = cur.fetchone()["id"]
         conn.commit()
+        conn.autocommit = True
 
         with conn.cursor() as cur:
             cur.execute(_SELECT + " WHERE s.id = %s;", (nova_id,))

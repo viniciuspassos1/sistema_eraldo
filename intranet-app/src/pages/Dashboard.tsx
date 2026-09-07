@@ -128,7 +128,7 @@ export function Dashboard() {
     <div className="stagger-fade space-y-6 max-w-6xl">
       <div>
         <h1 className="text-2xl font-semibold text-navy">
-          {greeting()}, {nomePrimeiro}. 👋
+          {greeting()}, {nomePrimeiro}.
         </h1>
         <p className="text-text-secondary text-sm mt-1">Aqui está o que é seu para hoje.</p>
       </div>
