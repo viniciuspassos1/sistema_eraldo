@@ -117,10 +117,12 @@ Todo router exige `X-API-Key`. Os que agem em nome de "quem está logado"
 
 Mesmo backend, mesma porta, mesma `API_KEY` — só mais um endpoint:
 `POST /api/assistant/ask`. Faz busca híbrida (semântica + léxica) sobre os
-arquivos `.md`, `.docx` e `.pdf` em `backend/knowledge_base/` — ChromaDB +
-Sentence Transformers pro lado semântico, BM25 (`rank-bm25`) pro léxico,
-combinados por soma de scores normalizados (ver `assistant/rag.py`) — e
-devolve o trecho da documentação que melhor responde à pergunta, **sem
+arquivos `.md`, `.docx` e `.pdf` em `backend/knowledge_base/` — embeddings
+(Sentence Transformers) guardados num índice numpy próprio (sem vetor store
+externo — a base é pequena o bastante pra busca por força bruta ser
+instantânea, ver `assistant/rag.py`) pro lado semântico, BM25 (`rank-bm25`)
+pro léxico, combinados por soma de scores normalizados — e devolve o trecho
+da documentação que melhor responde à pergunta, **sem
 inventar nada e sem LLM reescrevendo** — a resposta é o texto original do
 documento mais a fonte. O BM25 existe porque o embedding sozinho errava em
 documentos curtos e abstratos onde a palavra da pergunta está no título mas
@@ -136,7 +138,7 @@ cd backend
 ```
 
 Isso baixa o modelo de embeddings na primeira vez (uso único, fica em cache)
-e grava o índice em `backend/chroma_data/` (não sobe pro git). Rode de novo
+e grava o índice em `backend/rag_index/` (não sobe pro git). Rode de novo
 sempre que adicionar, editar ou remover arquivos em `knowledge_base/`.
 
 Pra adicionar documentação nova, basta soltar o arquivo em
@@ -156,9 +158,8 @@ Pra adicionar documentação nova, basta soltar o arquivo em
 
 - **`.docx`** ou **`.pdf`**: pode subir o arquivo como está (ex.: um manual
   já pronto do escritório). Não tem cabeçalho, então o título vira o nome
-  do arquivo e a categoria vira o nome da pasta onde ele foi colocado — dá
-  pra editar isso depois direto no Chroma se precisar, mas geralmente já
-  fica bom o suficiente.
+  do arquivo e a categoria vira o nome da pasta onde ele foi colocado —
+  geralmente já fica bom o suficiente.
 
 Depois é só rodar o `ingest` de novo.
 

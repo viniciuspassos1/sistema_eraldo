@@ -60,7 +60,7 @@ sistema web:
     ├── routers/             → um módulo por área (auth, funcionarios, ferias, agenda, avisos, solicitacoes...)
     ├── assistant/           → Assistente IA (RAG)
     │   ├── router.py        → endpoint POST /api/assistant/ask
-    │   ├── rag.py            → busca semântica: embedding, ChromaDB, threshold, fallback
+    │   ├── rag.py            → busca híbrida: embedding (índice próprio numpy) + BM25, threshold, fallback
     │   └── ingest.py          → indexação: lê knowledge_base/*.{md,docx,pdf}, gera embeddings
     ├── knowledge_base/      → documentos fonte (.md/.docx/.pdf) que o Assistente IA consulta
     └── db/
@@ -80,7 +80,7 @@ sempre gerado sob demanda (ver seção 8).
 | `database.py` | `get_connection()` (empresta do pool, com rollback automático em erro), `fetch_all`/`fetch_one` |
 | `routers/` | Cada arquivo é um módulo de dados real (ex.: `funcionarios.py`, `agenda.py`, `onboarding.py`), todos exigindo `X-API-Key`; os que agem em nome de "quem está logado" (Solicitações, Cooperativa de Ideias, Onboarding, Agenda → anotações, Avisos → leitura) também exigem o token de sessão |
 | `assistant/router.py` | Recebe a pergunta, delega pra `rag.py`, devolve resposta + fontes |
-| `assistant/rag.py` | Transforma a pergunta em embedding, busca no ChromaDB, aplica o threshold de distância |
+| `assistant/rag.py` | Transforma a pergunta em embedding, busca no índice local (numpy) + BM25, aplica o threshold de distância |
 | `assistant/ingest.py` | Lê `knowledge_base/*.{md,docx,pdf}`, quebra em trechos, gera embeddings, grava no índice |
 | `knowledge_base/` | Documentação fonte — hoje, Manual Interno + Base de Conhecimento transcritos |
 | `db/schema.sql` | Schema completo já aplicado no banco real (Supabase) — não é mais rascunho |
@@ -164,11 +164,14 @@ achar o próximo número — não há limite fixo de contas.
    pasta. Depois quebra o corpo em trechos por parágrafo, gera o embedding
    de `"{titulo} — {categoria}\n{trecho}"` (o título entra no cálculo do
    vetor pra dar mais sinal de busca, mas não aparece na resposta) e grava
-   no ChromaDB (`backend/chroma_data/`, local, fora do git).
+   num índice próprio local (`backend/rag_index/`, numpy + JSON, fora do
+   git) — sem vetor store externo: a base é pequena o bastante pra busca
+   por força bruta ser instantânea.
 2. **Pergunta** (`POST /api/assistant/ask`) — a pergunta do usuário é
    transformada em embedding com o mesmo modelo.
-3. **Busca** — o ChromaDB devolve os `top_k` trechos mais próximos por
-   distância de cosseno.
+3. **Busca híbrida** — semântica (produto escalar contra o índice, já que
+   os embeddings são normalizados) combinada com léxica (BM25), somando os
+   dois scores normalizados — ver `assistant/rag.py`.
 4. **Decisão** — se o trecho mais próximo estiver acima do
    `DISTANCE_THRESHOLD`, devolve a mensagem fixa de "não encontrei"; caso
    contrário, junta até 2 trechos relevantes (sem duplicar a mesma fonte)
@@ -191,7 +194,7 @@ achar o próximo número — não há limite fixo de contas.
 - Um projeto Supabase (PostgreSQL gerenciado) — ou qualquer Postgres
   acessível via connection string
 - Dependências Python: `fastapi`, `uvicorn`, `psycopg2-binary`, `bcrypt`,
-  `PyJWT`, `pyotp`, `python-dotenv`, `chromadb`, `sentence-transformers`
+  `PyJWT`, `pyotp`, `python-dotenv`, `sentence-transformers`, `rank-bm25`
   (`backend/requirements.txt`)
 - Navegador moderno
 

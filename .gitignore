@@ -11,7 +11,7 @@ dist-ssr/
 venv/
 __pycache__/
 *.pyc
-backend/chroma_data/
+backend/rag_index/
 
 # Build publicado da intranet (gerado a partir de intranet-app/ com
 # `npm run build` — não é código-fonte, não faz sentido versionar).

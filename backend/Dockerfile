@@ -1,6 +1,6 @@
 # Imagem de produção do backend (FastAPI). Builda com a mesma base de
-# conhecimento indexada no ChromaDB (assistant/ingest.py) para o Assistente
-# IA já subir pronto, sem depender de rodar o ingest manualmente no servidor.
+# conhecimento já indexada (assistant/ingest.py) para o Assistente IA já
+# subir pronto, sem depender de rodar o ingest manualmente no servidor.
 FROM python:3.14-slim
 
 WORKDIR /app
@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/wh
 
 COPY . .
 
-# Baixa o modelo de embeddings e já gera o chroma_data/ na imagem, em vez de
+# Baixa o modelo de embeddings e já gera o rag_index/ na imagem, em vez de
 # fazer isso na primeira requisição em produção (evita um cold start lento
 # e a necessidade de internet no servidor depois do deploy). Repetir esse
 # passo é o mesmo processo usado em dev (python -m assistant.ingest) —

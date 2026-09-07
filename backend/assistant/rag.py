@@ -1,14 +1,24 @@
+import json
 import re
 import unicodedata
 from pathlib import Path
 
-import chromadb
+import numpy as np
 from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CHROMA_DIR = BASE_DIR / "chroma_data"
-COLLECTION_NAME = "knowledge_base"
+
+# Índice próprio (numpy + JSON) em vez de ChromaDB: a base tem só ~20 trechos
+# hoje, então uma busca por força bruta (produto escalar contra todo mundo)
+# é instantânea — não precisa da indexação aproximada (HNSW) que um vetor
+# store de verdade oferece pra bases de milhões de itens. Trocar eliminou
+# ~250MB de dependências que o ChromaDB exige mas que este uso (cliente
+# embutido local, sem servidor) nunca chega a usar de fato: kubernetes,
+# grpc, onnxruntime, opentelemetry (ver auditoria de desempenho).
+INDEX_DIR = BASE_DIR / "rag_index"
+EMBEDDINGS_PATH = INDEX_DIR / "embeddings.npy"
+DADOS_PATH = INDEX_DIR / "dados.json"
 
 # Multilíngue, roda em CPU — a documentação do escritório é toda em
 # português. O modelo "MiniLM" menor (384-dim) testado antes tinha
@@ -44,7 +54,7 @@ NOT_FOUND_MESSAGE = (
 SETORES_CONHECIDOS = {"Jurídico", "Financeiro", "Recursos Humanos", "Previdenciário", "Administrativo"}
 
 _model: SentenceTransformer | None = None
-_collection = None
+_indice: tuple[np.ndarray, list[str], list[dict]] | None = None
 
 
 def _get_model() -> SentenceTransformer:
@@ -54,14 +64,16 @@ def _get_model() -> SentenceTransformer:
     return _model
 
 
-def _get_collection():
-    global _collection
-    if _collection is None:
-        client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-        _collection = client.get_or_create_collection(
-            COLLECTION_NAME, metadata={"hnsw:space": "cosine"}
-        )
-    return _collection
+def _get_indice() -> tuple[np.ndarray, list[str], list[dict]]:
+    global _indice
+    if _indice is None:
+        if not EMBEDDINGS_PATH.exists():
+            _indice = (np.zeros((0, 0), dtype="float32"), [], [])
+        else:
+            embeddings = np.load(EMBEDDINGS_PATH)
+            dados = json.loads(DADOS_PATH.read_text(encoding="utf-8"))
+            _indice = (embeddings, [d["documento"] for d in dados], [d["metadata"] for d in dados])
+    return _indice
 
 
 def _not_found() -> dict:
@@ -130,24 +142,25 @@ def answer_question(pergunta: str, setor_usuario: str, is_admin: bool, top_k: in
     é pequena — o BM25 precisa ver todo mundo pra ranquear direito, e nesse
     tamanho não há custo perceptível em rodar os dois rankings sobre tudo.
     """
-    collection = _get_collection()
-    total = collection.count()
+    embeddings, documentos, metadatas = _get_indice()
+    total = len(documentos)
     if total == 0:
         return _not_found()
 
     model = _get_model()
-    query_embedding = model.encode([pergunta], normalize_embeddings=True).tolist()
+    query_embedding = model.encode([pergunta], normalize_embeddings=True)[0]
 
-    result = collection.query(query_embeddings=query_embedding, n_results=total)
-
-    documents = result["documents"][0]
-    metadatas = result["metadatas"][0]
-    distances = result["distances"][0]
+    # Embeddings já normalizados -> produto escalar = similaridade de
+    # cosseno; distância = 1 - similaridade (mesma métrica "cosine" usada
+    # antes no Chroma, então o DISTANCE_THRESHOLD abaixo continua valendo
+    # sem precisar recalibrar).
+    similaridades = embeddings @ query_embedding
+    distancias = 1 - similaridades
 
     candidatos = [
-        {"doc": doc, "meta": meta, "dist": dist}
-        for doc, meta, dist in zip(documents, metadatas, distances)
-        if _visivel(meta.get("categoria"), setor_usuario, is_admin)
+        {"doc": documentos[i], "meta": metadatas[i], "dist": float(distancias[i])}
+        for i in range(total)
+        if _visivel(metadatas[i].get("categoria"), setor_usuario, is_admin)
     ]
     if not candidatos:
         return _not_found()

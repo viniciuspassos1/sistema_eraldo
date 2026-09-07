@@ -1,24 +1,26 @@
 """
-Indexa backend/knowledge_base/**/*.{md,docx,pdf} no ChromaDB.
+Indexa backend/knowledge_base/**/*.{md,docx,pdf} no índice local do
+Assistente IA (backend/rag_index/ — embeddings.npy + dados.json).
 
 Uso:
     python -m assistant.ingest
 
-Roda de novo a qualquer momento que a documentação mudar — reconstrói a
-coleção inteira do zero, então não deixa lixo de versões antigas de um
+Roda de novo a qualquer momento que a documentação mudar — reconstrói o
+índice inteiro do zero, então não deixa lixo de versões antigas de um
 mesmo arquivo. Basta soltar um arquivo novo em knowledge_base/ (.md, .docx
 ou .pdf) e rodar de novo — não precisa mexer em código.
 """
 
+import json
 import re
 from pathlib import Path
 
-import chromadb
+import numpy as np
 from docx import Document
 from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 
-from .rag import BASE_DIR, CHROMA_DIR, COLLECTION_NAME, EMBEDDING_MODEL
+from .rag import BASE_DIR, DADOS_PATH, EMBEDDING_MODEL, EMBEDDINGS_PATH, INDEX_DIR
 
 KNOWLEDGE_DIR = BASE_DIR / "knowledge_base"
 SUPPORTED_SUFFIXES = (".md", ".docx", ".pdf")
@@ -119,12 +121,6 @@ def run() -> None:
     print(f"Carregando modelo de embeddings ({EMBEDDING_MODEL})... (primeira vez baixa o modelo, pode demorar)")
     model = SentenceTransformer(EMBEDDING_MODEL)
 
-    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-    existing = {c.name for c in client.list_collections()}
-    if COLLECTION_NAME in existing:
-        client.delete_collection(COLLECTION_NAME)
-    collection = client.get_or_create_collection(COLLECTION_NAME, metadata={"hnsw:space": "cosine"})
-
     ids: list[str] = []
     texts: list[str] = []
     embed_texts: list[str] = []
@@ -144,10 +140,13 @@ def run() -> None:
             metadatas.append({**metadata, "arquivo": path.name})
 
     print(f"Gerando embeddings para {len(texts)} trecho(s) de {len(files)} documento(s)...")
-    embeddings = model.encode(embed_texts, normalize_embeddings=True).tolist()
+    embeddings = model.encode(embed_texts, normalize_embeddings=True).astype("float32")
 
-    collection.upsert(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
-    print(f"Indexado: {len(texts)} trecho(s) em {CHROMA_DIR}")
+    INDEX_DIR.mkdir(exist_ok=True)
+    np.save(EMBEDDINGS_PATH, embeddings)
+    dados = [{"id": ids[i], "documento": texts[i], "metadata": metadatas[i]} for i in range(len(ids))]
+    DADOS_PATH.write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Indexado: {len(texts)} trecho(s) em {INDEX_DIR}")
 
 
 if __name__ == "__main__":
