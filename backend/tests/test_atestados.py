@@ -2,11 +2,12 @@
 (dado de saúde é sensível — ninguém além do dono e de um admin pode acessar)."""
 
 import io
+import os
 
 from database import get_connection
 
 OUTRO_USUARIO_EMAIL = "carlos.santos@proferaldojunior.com.br"
-OUTRO_USUARIO_SENHA = "8QQqF1FxVwLC"
+OUTRO_USUARIO_SENHA = os.environ["TEST_OUTRO_USUARIO_SENHA"]
 
 
 def test_upload_tipo_de_arquivo_nao_permitido_e_rejeitado(client, api_key_header, user_headers):

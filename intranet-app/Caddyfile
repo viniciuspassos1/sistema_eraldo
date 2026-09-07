@@ -1,0 +1,29 @@
+# SITE_DOMAIN vem do ambiente (docker-compose.yml). Em produção, um domínio
+# de verdade (ex.: intranet.proferaldojunior.com.br) faz o Caddy emitir e
+# renovar sozinho um certificado Let's Encrypt — não precisa configurar SSL
+# na mão. Em teste local, "localhost" ou ":80" servem sem HTTPS.
+{$SITE_DOMAIN:localhost} {
+	encode gzip
+
+	# CSP calibrada pro que o app realmente usa: Google Fonts (style/font-src)
+	# e nada além disso — sem script externo nenhum. 'unsafe-inline' em
+	# style-src é necessário pros estilos inline que o React aplica via
+	# prop `style`; script-src fica estrito ('self' só), que é o que
+	# importa de verdade contra XSS.
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8010
+	}
+
+	handle {
+		root * /usr/share/caddy
+		try_files {path} /index.html
+		file_server
+	}
+}

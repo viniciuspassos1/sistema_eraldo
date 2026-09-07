@@ -2,7 +2,7 @@ import psycopg2
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from security import require_api_key, require_pagina, require_admin, UsuarioAtual
+from security import require_api_key, require_pagina, require_admin, require_user, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
 from logs import registrar_log
 
@@ -10,13 +10,14 @@ router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagin
 
 _STATUS_VALIDOS = {"PUBLICADO", "RASCUNHO"}
 
-_QUERY = """
+_SELECT_BASE = """
     SELECT k.id, k.titulo, k.categoria, k.conteudo, u.nome AS autor,
            k.created_at, k.updated_at, k.status, k.tags
     FROM base_conhecimento k
     LEFT JOIN usuarios u ON u.id = k.autor_id
-    ORDER BY k.updated_at DESC;
 """
+_QUERY = _SELECT_BASE + " ORDER BY k.updated_at DESC;"
+_QUERY_PUBLICADOS = _SELECT_BASE + " WHERE k.status = 'PUBLICADO' ORDER BY k.updated_at DESC;"
 
 
 class ArtigoConhecimento(BaseModel):
@@ -46,8 +47,9 @@ def _serialize(row: dict) -> ArtigoConhecimento:
 
 
 @router.get("/api/base-conhecimento", response_model=list[ArtigoConhecimento])
-def listar_artigos():
-    rows = fetch_all(_QUERY)
+def listar_artigos(usuario: UsuarioAtual = Depends(require_user)):
+    query = _QUERY if usuario.perfil == "ADMINISTRADOR" else _QUERY_PUBLICADOS
+    rows = fetch_all(query)
     return [_serialize(r) for r in rows]
 
 

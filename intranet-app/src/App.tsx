@@ -72,7 +72,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/calendario" element={<CalendarioEscritorio />} />
+            <Route
+              path="/calendario"
+              element={
+                <ProtectedRoute pagina="calendario">
+                  <CalendarioEscritorio />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/funcionarios/:id" element={<FuncionarioPerfil />} />
             <Route
               path="/manual"

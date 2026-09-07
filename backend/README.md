@@ -116,11 +116,16 @@ Todo router exige `X-API-Key`. Os que agem em nome de "quem está logado"
 ## Assistente IA (busca na documentação interna)
 
 Mesmo backend, mesma porta, mesma `API_KEY` — só mais um endpoint:
-`POST /api/assistant/ask`. Faz busca semântica (RAG) sobre os arquivos
-`.md`, `.docx` e `.pdf` em `backend/knowledge_base/`, com ChromaDB +
-Sentence Transformers, e devolve o trecho da documentação que melhor
-responde à pergunta, **sem inventar nada e sem LLM reescrevendo** — a
-resposta é o texto original do documento mais a fonte.
+`POST /api/assistant/ask`. Faz busca híbrida (semântica + léxica) sobre os
+arquivos `.md`, `.docx` e `.pdf` em `backend/knowledge_base/` — ChromaDB +
+Sentence Transformers pro lado semântico, BM25 (`rank-bm25`) pro léxico,
+combinados por soma de scores normalizados (ver `assistant/rag.py`) — e
+devolve o trecho da documentação que melhor responde à pergunta, **sem
+inventar nada e sem LLM reescrevendo** — a resposta é o texto original do
+documento mais a fonte. O BM25 existe porque o embedding sozinho errava em
+documentos curtos e abstratos onde a palavra da pergunta está no título mas
+não no corpo (ex.: "missão"/"visão" perdiam pra outro documento que só
+repetia a palavra "escritório").
 
 Depois de instalar `requirements.txt` (venv já criado acima), indexe a base:
 

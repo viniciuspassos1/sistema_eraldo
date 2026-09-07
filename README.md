@@ -266,9 +266,7 @@ mais credencial fixa hardcoded no frontend.
   decisão deliberada** — a resposta é sempre o(s) trecho(s) literal(is) do
   documento, pra nunca inventar informação sobre processo interno;
   perguntas próximas do threshold podem trazer mais de um trecho
-  concatenado, nem sempre 100% preciso. Duas perguntas ("missão" e "visão"
-  da empresa) ainda retornam o trecho errado por limitação do modelo de
-  embeddings — ver `backend/README.md`. A aba "Comunicação" e o "ajudar a
+  concatenado, nem sempre 100% preciso. A aba "Comunicação" e o "ajudar a
   redigir" da Cooperativa de Ideias, esses sim, usam um LLM de verdade
   (Gemini) — ver `backend/README.md`.
 - **Alerta sonoro da Agenda ainda depende da aba aberta**, mas agora tem

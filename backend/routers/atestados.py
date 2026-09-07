@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from security import require_api_key, require_user, require_admin, UsuarioAtual
+from security import require_api_key, require_user, require_admin, require_pagina, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
 
-router = APIRouter(dependencies=[Depends(require_api_key)])
+router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("calendario"))])
 
 _STATUS_VALIDOS = {"APROVADO", "RECUSADO"}
 
