@@ -12,7 +12,7 @@ def test_solicitacao_usa_identidade_do_token(client, user_headers):
     )
     assert resp.status_code == 201
     corpo = resp.json()
-    assert corpo["solicitante"] == "João Pedro Lima"
+    assert corpo["solicitante"] == "Conta de Teste (funcionario)"
 
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -33,7 +33,7 @@ def test_cooperativa_ideia_usa_identidade_do_token(client, user_headers):
     )
     assert resp.status_code == 201
     corpo = resp.json()
-    assert corpo["autor"] == "João Pedro Lima"
+    assert corpo["autor"] == "Conta de Teste (funcionario)"
 
     with get_connection() as conn:
         with conn.cursor() as cur:

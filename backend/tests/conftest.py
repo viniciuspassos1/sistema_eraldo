@@ -32,9 +32,8 @@ ADMIN_EMAIL = "eraldo.junior@proferaldojunior.com.br"
 ADMIN_SENHA = os.environ["TEST_ADMIN_SENHA"]
 
 # Conta de funcionário comum (perfil FUNCIONARIO) usada nos testes que
-# precisam de "alguém sem privilégio admin" — não usar a Mariana aqui:
-# ela é usada manualmente durante o desenvolvimento e pode estar com
-# tentativas de login acumuladas.
+# precisam de "alguém sem privilégio admin" — é uma conta de infraestrutura
+# de teste, não um colaborador real (ver "Usuario de Teste" como cargo/setor).
 USER_EMAIL = "joao.lima@proferaldojunior.com.br"
 USER_SENHA = os.environ["TEST_USER_SENHA"]
 

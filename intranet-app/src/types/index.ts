@@ -19,6 +19,19 @@ export interface User {
   alergiaAlimentar?: string;
 }
 
+export interface Colaborador {
+  id: string;
+  nome: string;
+  /** Preenchido quando o nome completo for enviado — até lá, usar `nome`. */
+  nomeCompleto?: string;
+  /** Só dia/mês importam — mesma convenção de `User.aniversario`. */
+  aniversario: string;
+  /** null/ausente = ainda não informado (nunca inventar valor). */
+  restricaoAlimentar?: string;
+  /** Etiqueta organizacional do cadastro — não concede acesso ao sistema (isso é `User.perfil`). */
+  papel: 'ADMINISTRADOR' | 'COLABORADOR';
+}
+
 export interface Hearing {
   id: string;
   processo: string;

@@ -44,6 +44,28 @@ create table usuarios (
 
 create index idx_usuarios_status on usuarios (status);
 
+-- Cadastro de colaboradores para a aba "Aniversariantes" (calendário do
+-- escritório) — deliberadamente separado de `usuarios` (conta de login):
+-- no início do cadastro real da equipe, sabe-se o nome e o aniversário de
+-- cada pessoa, mas ainda não seus dados de acesso ao sistema (email, cargo,
+-- setor). `nome` é o nome informado até agora (curto/apelido); `nome_completo`
+-- fica null até ser enviado depois — sem exigir recriar o registro.
+-- "papel" aqui é só uma etiqueta organizacional do cadastro de colaboradores
+-- (quem é liderança vs. equipe) — não concede nenhum acesso ao sistema; isso
+-- continua sendo controlado só por `usuarios.perfil` + `permissoes_acesso`.
+create type papel_colaborador as enum ('ADMINISTRADOR', 'COLABORADOR');
+
+create table colaboradores (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null,
+  nome_completo text,
+  aniversario date not null, -- só dia/mês importam pro app (mesma convenção de usuarios.aniversario); ano é placeholder quando a data de nascimento completa não foi informada
+  restricao_alimentar text, -- alergia/intolerância declarada; null = não informado ainda (nunca inventar valor)
+  papel papel_colaborador not null default 'COLABORADOR',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- Modelo "opt-out": ausência de linha para (usuario_id, pagina) = permitido.
 -- ADMINISTRADOR sempre passa, independente do que estiver aqui (checado no
 -- backend, não faz sentido gravar linha pra quem já ignora a checagem).
@@ -56,7 +78,7 @@ create table permissoes_acesso (
 
 -- =============================================================================
 -- 2. CALENDÁRIO DO ESCRITÓRIO
---    (Agenda, Férias, Feriados, Aniversários derivam de usuarios.aniversario)
+--    (Agenda e Férias derivam de usuarios; Aniversários deriva de colaboradores)
 -- =============================================================================
 
 create type tipo_evento_agenda as enum ('AUDIENCIA', 'REUNIAO', 'COMPROMISSO', 'EVENTO', 'OUTRO');
