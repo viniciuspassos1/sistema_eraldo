@@ -3,15 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users,
   Palmtree,
-  Calendar,
-  Cake,
-  CalendarDays,
   Megaphone,
-  BookOpen,
   FileText,
   Lightbulb,
   UserPlus,
-  Link2,
   ShieldCheck,
   Inbox,
   ShieldAlert,
@@ -40,18 +35,8 @@ interface AdministracaoDados {
 }
 
 const modules = [
-  { label: 'Funcionários', icon: Users, path: '/calendario?tab=funcionarios' },
   { label: 'Usuários e permissões', icon: ShieldCheck, path: '/administracao/usuarios' },
-  { label: 'Férias', icon: Palmtree, path: '/calendario?tab=ferias' },
-  { label: 'Agenda', icon: Calendar, path: '/calendario?tab=agenda' },
-  { label: 'Aniversários', icon: Cake, path: '/calendario?tab=aniversarios' },
-  { label: 'Feriados', icon: CalendarDays, path: '/calendario?tab=feriados' },
-  { label: 'Avisos', icon: Megaphone, path: '/calendario?tab=avisos' },
-  { label: 'Base de conhecimento', icon: BookOpen, path: '/base-conhecimento' },
-  { label: 'Documentos', icon: FileText, path: '/documentos' },
-  { label: 'Cooperativa de Ideias', icon: Lightbulb, path: '/cooperativa-ideias' },
   { label: 'Novos funcionários', icon: UserPlus, path: '/calendario?tab=onboarding' },
-  { label: 'Links dos tribunais', icon: Link2, path: '/tribunais' },
   { label: 'Logs de auditoria', icon: ScrollText, path: '/administracao/logs' },
 ];
 
