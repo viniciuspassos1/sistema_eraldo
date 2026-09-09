@@ -5,7 +5,7 @@ import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { fetchLogs, LogsApiError, type LogAuditoria } from '../api/logs';
-import { formatDate } from '../utils/format';
+import { formatDateTime } from '../utils/format';
 
 export function Logs() {
   const navigate = useNavigate();
@@ -103,7 +103,7 @@ export function Logs() {
                 {logs.map((l) => (
                   <tr key={l.id} className="border-b border-border last:border-0 hover:bg-cream/60">
                     <td className="px-5 py-3 text-text-secondary whitespace-nowrap">
-                      {formatDate(l.criadoEm.slice(0, 10))} {l.criadoEm.slice(11, 16)}
+                      {formatDateTime(l.criadoEm)}
                     </td>
                     <td className="px-5 py-3 text-navy whitespace-nowrap">{l.usuarioNome ?? '—'}</td>
                     <td className="px-5 py-3 text-navy font-medium whitespace-nowrap">{l.acao}</td>
