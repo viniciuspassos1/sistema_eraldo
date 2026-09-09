@@ -335,7 +335,7 @@ export function AdministracaoUsuarios() {
                   className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-gold/40"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-navy mb-1.5">Data de entrada</label>
                   <input
@@ -359,7 +359,7 @@ export function AdministracaoUsuarios() {
               </div>
             </>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-navy mb-1.5">Cargo</label>
               <input
@@ -379,7 +379,7 @@ export function AdministracaoUsuarios() {
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-navy mb-1.5">Perfil</label>
               <select

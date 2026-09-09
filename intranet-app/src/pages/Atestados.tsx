@@ -227,7 +227,7 @@ export function Atestados() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Novo atestado">
         <form onSubmit={handleEnviar} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-navy mb-1.5">Data de início</label>
               <input

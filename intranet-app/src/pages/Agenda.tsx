@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Calendar as CalendarIcon, MapPin, Trash2 } from 'lucide-react';
 import { fetchAgendaEventos, AgendaApiError } from '../api/agenda';
 import {
@@ -140,6 +140,8 @@ export function Agenda() {
   const [modal, setModal] = useState<ModalState | null>(null);
   const [salvando, setSalvando] = useState(false);
   const { showToast } = useToast();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const hojeColRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchAgendaEventos()
@@ -148,6 +150,19 @@ export function Agenda() {
     fetchAnotacoes()
       .then(setNotas)
       .catch(() => {});
+  }, []);
+
+  // Em telas estreitas, a semana inteira não cabe sem rolar horizontalmente
+  // (7 colunas, min-w-[900px]) — sem isso, quem abre no celular cai sempre
+  // em domingo (início da semana) e precisa descobrir sozinho que dá pra
+  // arrastar até hoje. Mexe direto em scrollLeft (não scrollIntoView) pra
+  // afetar só esse contêiner horizontal — scrollIntoView também rolaria o
+  // <main> da página verticalmente, escondendo o título e as abas do
+  // Calendário do Escritório lá em cima.
+  useEffect(() => {
+    if (scrollRef.current && hojeColRef.current) {
+      scrollRef.current.scrollLeft = hojeColRef.current.offsetLeft;
+    }
   }, []);
 
   function abrirModalNovo(data: string, horario: string) {
@@ -239,21 +254,23 @@ export function Agenda() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-x-auto">
+        <div ref={scrollRef} className="flex-1 overflow-x-auto">
           <div className="grid grid-cols-7 min-w-[900px]">
             {weekDates.map((date) => {
               const iso = toISO(date);
+              const hoje = iso === todayIso;
               return (
-                <DiaColuna
-                  key={iso}
-                  date={date}
-                  isToday={iso === todayIso}
-                  gridHeight={gridHeight}
-                  eventos={eventos.filter((ev) => ev.data === iso)}
-                  notas={notas.filter((n) => n.data === iso)}
-                  onSlotClick={(horario) => abrirModalNovo(iso, horario)}
-                  onNotaClick={abrirModalEdicao}
-                />
+                <div key={iso} ref={hoje ? hojeColRef : undefined}>
+                  <DiaColuna
+                    date={date}
+                    isToday={hoje}
+                    gridHeight={gridHeight}
+                    eventos={eventos.filter((ev) => ev.data === iso)}
+                    notas={notas.filter((n) => n.data === iso)}
+                    onSlotClick={(horario) => abrirModalNovo(iso, horario)}
+                    onNotaClick={abrirModalEdicao}
+                  />
+                </div>
               );
             })}
           </div>
@@ -298,7 +315,7 @@ export function Agenda() {
                 className="w-full bg-cream border border-border rounded-lg px-3.5 py-2.5 text-sm text-navy placeholder:text-text-secondary/60 focus:outline-none focus:ring-2 focus:ring-gold/40 transition-shadow duration-150"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-navy mb-1.5">Data</label>
                 <input

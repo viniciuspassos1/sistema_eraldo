@@ -30,13 +30,13 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className="relative bg-white rounded-xl shadow-soft-lg w-full max-w-md max-h-[85vh] overflow-y-auto"
+            className="relative bg-white rounded-xl shadow-soft-lg w-full max-w-md max-h-[85vh] flex flex-col"
             initial={{ opacity: 0, scale: reduceMotion ? 1 : 0.98, y: reduceMotion ? 0 : 6 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: reduceMotion ? 1 : 0.98, y: reduceMotion ? 0 : 4 }}
             transition={{ duration: reduceMotion ? 0.1 : 0.25, ease: [0.4, 0, 0.2, 1] }}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <h2 className="font-serif text-lg text-navy">{title}</h2>
               <button
                 onClick={onClose}
@@ -46,8 +46,11 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="px-6 py-5">{children}</div>
-            {footer && <div className="px-6 py-4 border-t border-border flex justify-end gap-2">{footer}</div>}
+            {/* Só o conteúdo rola — cabeçalho e rodapé (com o botão Salvar)
+                ficam sempre visíveis, mesmo num formulário comprido numa
+                tela baixa (celular deitado, notebook pequeno). */}
+            <div className="px-6 py-5 overflow-y-auto min-h-0">{children}</div>
+            {footer && <div className="px-6 py-4 border-t border-border flex justify-end gap-2 shrink-0">{footer}</div>}
           </motion.div>
         </div>
       )}
