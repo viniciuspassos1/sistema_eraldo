@@ -26,31 +26,44 @@ def _plural(n: int, singular: str, plural: str) -> str:
 def minhas_pendencias(usuario: UsuarioAtual = Depends(require_user)):
     pendencias: list[Pendencia] = []
 
-    if usuario.perfil == "ADMINISTRADOR":
-        onboarding = fetch_one(
-            """
-            SELECT COUNT(*) FILTER (WHERE NOT COALESCE(p.concluido, false)) AS pendentes
-            FROM onboarding_checklist_itens i
-            LEFT JOIN onboarding_progresso p ON p.item_id = i.id AND p.funcionario_id = %s;
-            """,
-            (usuario.id,),
-        )
-        if onboarding and onboarding["pendentes"] > 0:
-            n = onboarding["pendentes"]
-            pendencias.append(
-                Pendencia(
-                    tipo="ONBOARDING",
-                    mensagem=f"Você tem {n} {_plural(n, 'item pendente', 'itens pendentes')} no seu onboarding.",
-                    link="/calendario?tab=onboarding",
-                )
-            )
-
-    minhas_anotacoes = fetch_one(
-        "SELECT COUNT(*) AS n FROM notas_pessoais WHERE usuario_id = %s AND concluida = false;",
-        (usuario.id,),
+    # Antes eram até 7 idas sequenciais ao banco (uma por tipo de pendência);
+    # como cada uma é só um COUNT(*), uma única ida com subqueries escalares
+    # dá o mesmo resultado com 1 round-trip de rede em vez de 7. As contagens
+    # só-de-admin são calculadas sempre (custo local é irrelevante), mas só
+    # entram na resposta se o usuário for ADMINISTRADOR — mesma regra de
+    # antes, só que decidida em Python em vez de nem rodar a query.
+    contagens = fetch_one(
+        """
+        SELECT
+            (SELECT COUNT(*) FILTER (WHERE NOT COALESCE(p.concluido, false))
+             FROM onboarding_checklist_itens i
+             LEFT JOIN onboarding_progresso p ON p.item_id = i.id AND p.funcionario_id = %s) AS onboarding,
+            (SELECT COUNT(*) FROM notas_pessoais WHERE usuario_id = %s AND concluida = false) AS anotacoes,
+            (SELECT COUNT(*) FROM solicitacoes
+             WHERE solicitante_id = %s AND status IN ('ABERTO', 'EM_ANALISE', 'EM_ANDAMENTO')) AS minhas_solicitacoes,
+            (SELECT COUNT(*) FROM atestados WHERE funcionario_id = %s AND status = 'PENDENTE') AS meus_atestados,
+            (SELECT COUNT(*) FROM atestados WHERE status = 'PENDENTE') AS atestados_aprovar,
+            (SELECT COUNT(*) FROM cooperativa_ideias WHERE status IN ('NOVA', 'EM_ANALISE')) AS ideias_triagem,
+            (SELECT COUNT(*) FROM solicitacoes
+             WHERE responsavel_id IS NULL AND status IN ('ABERTO', 'EM_ANALISE')) AS sem_responsavel;
+        """,
+        (usuario.id, usuario.id, usuario.id, usuario.id),
     )
-    if minhas_anotacoes and minhas_anotacoes["n"] > 0:
-        n = minhas_anotacoes["n"]
+
+    is_admin = usuario.perfil == "ADMINISTRADOR"
+
+    if is_admin and contagens["onboarding"] > 0:
+        n = contagens["onboarding"]
+        pendencias.append(
+            Pendencia(
+                tipo="ONBOARDING",
+                mensagem=f"Você tem {n} {_plural(n, 'item pendente', 'itens pendentes')} no seu onboarding.",
+                link="/calendario?tab=onboarding",
+            )
+        )
+
+    if contagens["anotacoes"] > 0:
+        n = contagens["anotacoes"]
         pendencias.append(
             Pendencia(
                 tipo="ANOTACAO",
@@ -59,15 +72,8 @@ def minhas_pendencias(usuario: UsuarioAtual = Depends(require_user)):
             )
         )
 
-    minhas_solicitacoes = fetch_one(
-        """
-        SELECT COUNT(*) AS n FROM solicitacoes
-        WHERE solicitante_id = %s AND status IN ('ABERTO', 'EM_ANALISE', 'EM_ANDAMENTO');
-        """,
-        (usuario.id,),
-    )
-    if minhas_solicitacoes and minhas_solicitacoes["n"] > 0:
-        n = minhas_solicitacoes["n"]
+    if contagens["minhas_solicitacoes"] > 0:
+        n = contagens["minhas_solicitacoes"]
         pendencias.append(
             Pendencia(
                 tipo="SOLICITACAO",
@@ -76,12 +82,8 @@ def minhas_pendencias(usuario: UsuarioAtual = Depends(require_user)):
             )
         )
 
-    meus_atestados = fetch_one(
-        "SELECT COUNT(*) AS n FROM atestados WHERE funcionario_id = %s AND status = 'PENDENTE';",
-        (usuario.id,),
-    )
-    if meus_atestados and meus_atestados["n"] > 0:
-        n = meus_atestados["n"]
+    if contagens["meus_atestados"] > 0:
+        n = contagens["meus_atestados"]
         pendencias.append(
             Pendencia(
                 tipo="ATESTADO",
@@ -90,10 +92,9 @@ def minhas_pendencias(usuario: UsuarioAtual = Depends(require_user)):
             )
         )
 
-    if usuario.perfil == "ADMINISTRADOR":
-        atestados_aprovar = fetch_one("SELECT COUNT(*) AS n FROM atestados WHERE status = 'PENDENTE';")
-        if atestados_aprovar and atestados_aprovar["n"] > 0:
-            n = atestados_aprovar["n"]
+    if is_admin:
+        if contagens["atestados_aprovar"] > 0:
+            n = contagens["atestados_aprovar"]
             pendencias.append(
                 Pendencia(
                     tipo="ATESTADO",
@@ -102,11 +103,8 @@ def minhas_pendencias(usuario: UsuarioAtual = Depends(require_user)):
                 )
             )
 
-        ideias_triagem = fetch_one(
-            "SELECT COUNT(*) AS n FROM cooperativa_ideias WHERE status IN ('NOVA', 'EM_ANALISE');"
-        )
-        if ideias_triagem and ideias_triagem["n"] > 0:
-            n = ideias_triagem["n"]
+        if contagens["ideias_triagem"] > 0:
+            n = contagens["ideias_triagem"]
             pendencias.append(
                 Pendencia(
                     tipo="IDEIA",
@@ -115,11 +113,8 @@ def minhas_pendencias(usuario: UsuarioAtual = Depends(require_user)):
                 )
             )
 
-        sem_responsavel = fetch_one(
-            "SELECT COUNT(*) AS n FROM solicitacoes WHERE responsavel_id IS NULL AND status IN ('ABERTO', 'EM_ANALISE');"
-        )
-        if sem_responsavel and sem_responsavel["n"] > 0:
-            n = sem_responsavel["n"]
+        if contagens["sem_responsavel"] > 0:
+            n = contagens["sem_responsavel"]
             pendencias.append(
                 Pendencia(
                     tipo="SOLICITACAO",

@@ -17,7 +17,16 @@ AMBIENTE = os.getenv("AMBIENTE", "desenvolvimento").strip().lower()
 _DEFAULT_ORIGINS = "http://localhost:8091,http://127.0.0.1:8091,http://localhost:5173,http://127.0.0.1:5173"
 ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", _DEFAULT_ORIGINS).split(",") if origin.strip()]
 
-DB_POOL_MIN = int(os.getenv("DB_POOL_MIN", "1"))
+# DB_POOL_MIN igual a DB_POOL_MAX: o pool pré-conecta todas as conexões no
+# startup (init_pool), em vez de criá-las sob demanda a cada rajada de
+# requisições. ThreadedConnectionPool cria conexão nova dentro do mesmo lock
+# global usado por getconn()/putconn() (psycopg2/pool.py) — como o handshake
+# remoto com o Supabase leva ~1-1,3s, um pool "frio" (min baixo) serializa
+# esse handshake pra cada nova conexão necessária, e ENQUANTO ISSO trava até
+# quem só está devolvendo uma conexão já pronta. Medido: 15 requisições
+# concorrentes caíam de 9-13s cada (pool frio, min=1) para 0,8-2s cada (pool
+# quente, min=max=10) — mesmo teste, único parâmetro alterado.
+DB_POOL_MIN = int(os.getenv("DB_POOL_MIN", "10"))
 DB_POOL_MAX = int(os.getenv("DB_POOL_MAX", "10"))
 
 JWT_SECRET = os.getenv("JWT_SECRET", "")
