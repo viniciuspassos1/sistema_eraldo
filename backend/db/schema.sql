@@ -312,7 +312,7 @@ create index idx_solicitacoes_solicitante on solicitacoes (solicitante_id);
 -- 9. NOTIFICAÇÕES
 -- =============================================================================
 
-create type tipo_notificacao as enum ('AUDIENCIA', 'FERIAS', 'AVISO', 'ANIVERSARIO', 'DOCUMENTO', 'SOLICITACAO', 'ONBOARDING');
+create type tipo_notificacao as enum ('AUDIENCIA', 'FERIAS', 'AVISO', 'ANIVERSARIO', 'DOCUMENTO', 'SOLICITACAO', 'ONBOARDING', 'AGENDA');
 
 create table notificacoes (
   id uuid primary key default gen_random_uuid(),
@@ -320,10 +320,23 @@ create table notificacoes (
   mensagem text not null,
   tipo tipo_notificacao not null,
   data timestamptz not null default now(),
-  lida boolean not null default false
+  -- Três estados (não só lida/não-lida): NAO_LIDA → VISTA (abriu o sino) →
+  -- CONFIRMADA (ação explícita, ex.: "Confirmar" num alerta de agenda).
+  status text not null default 'NAO_LIDA' check (status in ('NAO_LIDA', 'VISTA', 'CONFIRMADA')),
+  -- Origem opcional: liga a notificação a um evento/anotação da agenda que a
+  -- gerou. Só preenchido pra alertas "chegou a hora de..." — o resto das
+  -- notificações (avisos, SLA, onboarding etc.) não tem origem rastreável e
+  -- fica null aqui, como sempre foi.
+  origem_tipo text,
+  origem_id uuid
 );
 
-create index idx_notificacoes_destinatario on notificacoes (destinatario_id, lida);
+create index idx_notificacoes_destinatario on notificacoes (destinatario_id, status);
+-- Índice parcial: garante no banco que nunca existem duas notificações do
+-- mesmo alerta de agenda pro mesmo destinatário — a defesa real contra
+-- duplicidade (checar antes de inserir tem corrida; isso não tem).
+create unique index idx_notificacoes_origem_unica on notificacoes (destinatario_id, origem_tipo, origem_id)
+  where origem_tipo is not null;
 
 -- =============================================================================
 -- 10. COOPERATIVA DE IDEIAS
@@ -417,6 +430,11 @@ create table logs_auditoria (
   entidade text, -- ex.: "usuarios", "avisos" — null pra ações sem entidade (login)
   entidade_id text,
   detalhes jsonb,
+  -- SUCESSO por padrão: todo log escrito antes desta coluna existir era, por
+  -- definição, de uma ação que completou (não se registrava tentativa
+  -- falha) — CONTINUE registrando falha explicitamente a partir de agora
+  -- (ver documentos.py) em vez de inventar status pra histórico antigo.
+  status text not null default 'SUCESSO' check (status in ('SUCESSO', 'ERRO')),
   criado_em timestamptz not null default now()
 );
 
@@ -424,7 +442,32 @@ create index idx_logs_auditoria_criado_em on logs_auditoria (criado_em desc);
 create index idx_logs_auditoria_usuario on logs_auditoria (usuario_id, criado_em desc);
 
 -- =============================================================================
--- 14. ROW LEVEL SECURITY
+-- 14. BACKUP DO BANCO DE DADOS
+-- =============================================================================
+-- Metadados de cada execução de backup (backend/backup.py roda pg_dump de
+-- verdade contra o banco; o arquivo .dump em si fica em disco, em
+-- config.BACKUP_DIR — aqui só o registro de quando/como/resultado, pra
+-- alimentar a tela de Administração e pra decidir retenção). Viver na mesma
+-- base que ela mesma protege é aceitável aqui: é uma tabela pequena e, se o
+-- banco estiver inacessível a ponto de não conseguir ler isso, o app inteiro
+-- já está fora do ar de qualquer forma.
+create type status_backup as enum ('EM_ANDAMENTO', 'SUCESSO', 'FALHA');
+
+create table backups (
+  id uuid primary key default gen_random_uuid(),
+  tipo text not null default 'AUTOMATICO', -- 'AUTOMATICO' | 'MANUAL'
+  status status_backup not null default 'EM_ANDAMENTO',
+  iniciado_em timestamptz not null default now(),
+  finalizado_em timestamptz,
+  arquivo_nome text,
+  tamanho_bytes bigint,
+  erro text
+);
+
+create index idx_backups_iniciado_em on backups (iniciado_em desc);
+
+-- =============================================================================
+-- 15. ROW LEVEL SECURITY
 -- =============================================================================
 -- O backend conecta como o usuário "postgres" (via DATABASE_URL), que sempre
 -- ignora RLS — regra do próprio Postgres para superusuário, então isso não
@@ -438,6 +481,7 @@ create index idx_logs_auditoria_usuario on logs_auditoria (usuario_id, criado_em
 -- chave em lugar nenhum, o risco hoje é baixo — mas ativar custa uma linha
 -- por tabela e fecha essa porta de vez, mesmo se isso mudar no futuro.
 alter table usuarios enable row level security;
+alter table colaboradores enable row level security;
 alter table permissoes_acesso enable row level security;
 alter table agenda_eventos enable row level security;
 alter table agenda_anotacoes enable row level security;
@@ -459,6 +503,7 @@ alter table onboarding_progresso enable row level security;
 alter table notas_pessoais enable row level security;
 alter table authenticator_contas enable row level security;
 alter table logs_auditoria enable row level security;
+alter table backups enable row level security;
 
 -- =============================================================================
 -- Fim do schema principal.

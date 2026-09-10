@@ -22,6 +22,19 @@ _TIPOS_PERMITIDOS = {
     "image/png",
     "image/webp",
 }
+# Rótulo legível do formato pra auditoria ("Documento inserido" na tela de
+# Logs) — o content-type puro (ex.: "application/vnd.openxml...") não diz
+# nada de útil pra quem está revisando o histórico.
+_TIPO_LABEL = {
+    "application/pdf": "PDF",
+    "application/msword": "Word",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word",
+    "application/vnd.ms-excel": "Excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "Excel",
+    "image/jpeg": "Imagem (JPEG)",
+    "image/png": "Imagem (PNG)",
+    "image/webp": "Imagem (WEBP)",
+}
 
 
 def _nome_seguro(nome: str) -> str:
@@ -82,6 +95,14 @@ def listar_documentos(usuario: UsuarioAtual = Depends(require_user)):
     return [_serialize(r) for r in rows]
 
 
+def _detalhes_documento(titulo: str, content_type: str | None, tamanho_bytes: int | None) -> dict:
+    return {
+        "documentoNome": titulo,
+        "documentoTipo": _TIPO_LABEL.get(content_type or "", content_type or "desconhecido"),
+        "tamanhoBytes": tamanho_bytes,
+    }
+
+
 @router.post("/api/documentos", response_model=DocumentoItem, status_code=201)
 async def criar_documento(
     titulo: str = Form(...),
@@ -91,15 +112,30 @@ async def criar_documento(
     arquivo: UploadFile = File(...),
     admin: UsuarioAtual = Depends(require_admin),
 ):
+    # Toda rejeição abaixo também vira log (status=ERRO) — auditoria de
+    # documentos cobre tentativas que falharam, não só o que deu certo (ver
+    # "Auditoria de Logs" no pedido: rastrear quem tentou inserir o quê e o
+    # resultado, sucesso ou erro).
+    def _log_erro(motivo: str) -> None:
+        registrar_log(
+            admin.id, "documento.criar", entidade="documentos",
+            detalhes={**_detalhes_documento(titulo.strip() if titulo else "", arquivo.content_type, None), "erro": motivo},
+            status="ERRO",
+        )
+
     if status not in _STATUS_VALIDOS:
+        _log_erro("Status inválido.")
         raise HTTPException(status_code=400, detail="Status inválido.")
     if arquivo.content_type not in _TIPOS_PERMITIDOS:
+        _log_erro("Tipo de arquivo não permitido.")
         raise HTTPException(status_code=400, detail="Tipo de arquivo não permitido.")
 
     conteudo = await arquivo.read()
     if not conteudo:
+        _log_erro("Arquivo vazio.")
         raise HTTPException(status_code=400, detail="Arquivo vazio.")
     if len(conteudo) > 15 * 1024 * 1024:
+        _log_erro("Arquivo maior que 15 MB.")
         raise HTTPException(status_code=400, detail="Arquivo maior que 15 MB.")
 
     lista_tags = [t.strip() for t in tags.split(",") if t.strip()]
@@ -127,7 +163,10 @@ async def criar_documento(
             novo_id = cur.fetchone()["id"]
         conn.commit()
 
-    registrar_log(admin.id, "documento.criar", entidade="documentos", entidade_id=str(novo_id))
+    registrar_log(
+        admin.id, "documento.criar", entidade="documentos", entidade_id=str(novo_id),
+        detalhes=_detalhes_documento(titulo.strip(), arquivo.content_type, len(conteudo)),
+    )
 
     row = fetch_one(
         """
@@ -166,13 +205,23 @@ def baixar_documento(documento_id: str, usuario: UsuarioAtual = Depends(require_
 @router.delete("/api/documentos/{documento_id}", status_code=204)
 def excluir_documento(documento_id: str, admin: UsuarioAtual = Depends(require_admin)):
     try:
+        # Busca nome/tipo ANTES de apagar — depois do DELETE não tem mais
+        # como saber qual documento era, e a auditoria precisa registrar
+        # isso mesmo assim.
+        existente = fetch_one("SELECT titulo, arquivo_tipo, tamanho_bytes FROM documentos WHERE id = %s;", (documento_id,))
+
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM documentos WHERE id = %s;", (documento_id,))
                 if cur.rowcount == 0:
+                    registrar_log(
+                        admin.id, "documento.excluir", entidade="documentos", entidade_id=documento_id,
+                        detalhes={"erro": "Documento não encontrado."}, status="ERRO",
+                    )
                     raise HTTPException(status_code=404, detail="Documento não encontrado.")
             conn.commit()
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
-    registrar_log(admin.id, "documento.excluir", entidade="documentos", entidade_id=documento_id)
+    detalhes = _detalhes_documento(existente["titulo"], existente["arquivo_tipo"], existente["tamanho_bytes"]) if existente else None
+    registrar_log(admin.id, "documento.excluir", entidade="documentos", entidade_id=documento_id, detalhes=detalhes)

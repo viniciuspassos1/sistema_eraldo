@@ -20,16 +20,17 @@ def registrar_log(
     entidade: str | None = None,
     entidade_id: str | None = None,
     detalhes: dict | None = None,
+    status: str = "SUCESSO",
 ) -> None:
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO logs_auditoria (usuario_id, acao, entidade, entidade_id, detalhes)
-                    VALUES (%s, %s, %s, %s, %s);
+                    INSERT INTO logs_auditoria (usuario_id, acao, entidade, entidade_id, detalhes, status)
+                    VALUES (%s, %s, %s, %s, %s, %s);
                     """,
-                    (usuario_id, acao, entidade, entidade_id, json.dumps(detalhes) if detalhes else None),
+                    (usuario_id, acao, entidade, entidade_id, json.dumps(detalhes) if detalhes else None, status),
                 )
             conn.commit()
     except Exception:

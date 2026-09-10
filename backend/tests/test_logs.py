@@ -11,8 +11,26 @@ def test_logs_exige_admin(client, user_headers):
 def test_admin_ve_logs_de_login(client, admin_headers):
     resp = client.get("/api/logs?acao=login&limit=20", headers=admin_headers)
     assert resp.status_code == 200
-    acoes = {log["acao"] for log in resp.json()}
+    logs = resp.json()
+    acoes = {log["acao"] for log in logs}
     assert "login" in acoes
+    # Todo log de login é sucesso (login que falha não chega a gerar log —
+    # ver security.py) — confere que o campo novo "status" está mesmo vindo.
+    assert all(log["status"] == "SUCESSO" for log in logs if log["acao"] == "login")
+
+
+def test_filtro_status_invalido_e_rejeitado(client, admin_headers):
+    resp = client.get("/api/logs?status=QUALQUER_COISA", headers=admin_headers)
+    assert resp.status_code == 400
+
+
+def test_filtro_por_periodo(client, admin_headers):
+    # A janela cobre "sempre" (ano bem no passado até bem no futuro) — só
+    # confirma que os parâmetros são aceitos e devolvem algo, sem depender
+    # de nenhum log específico já existir.
+    resp = client.get("/api/logs?dataInicio=2020-01-01&dataFim=2099-12-31&limit=5", headers=admin_headers)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
 
 
 def test_permissoes_atualizar_gera_log(client, admin_headers):

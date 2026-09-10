@@ -1,6 +1,7 @@
 import { lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { NotificacoesProvider } from './context/NotificacoesContext';
 import { ToastProvider } from './components/Toast';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './layouts/AppLayout';
@@ -17,6 +18,7 @@ const AdministracaoUsuarios = lazy(() =>
   import('./pages/AdministracaoUsuarios').then((m) => ({ default: m.AdministracaoUsuarios }))
 );
 const Logs = lazy(() => import('./pages/Logs').then((m) => ({ default: m.Logs })));
+const Backups = lazy(() => import('./pages/Backups').then((m) => ({ default: m.Backups })));
 const Documentos = lazy(() => import('./pages/Documentos').then((m) => ({ default: m.Documentos })));
 const CooperativaIdeias = lazy(() =>
   import('./pages/CooperativaIdeias').then((m) => ({ default: m.CooperativaIdeias }))
@@ -44,6 +46,7 @@ function App() {
   return (
     <HashRouter>
       <AuthProvider>
+        <NotificacoesProvider>
         <ToastProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -164,11 +167,20 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/administracao/backups"
+              element={
+                <ProtectedRoute adminOnly>
+                  <Backups />
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </ToastProvider>
+        </NotificacoesProvider>
       </AuthProvider>
     </HashRouter>
   );
