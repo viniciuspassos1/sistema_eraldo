@@ -11,9 +11,16 @@ services:
       context: ./backend
     env_file:
       - ./backend/.env
+    environment:
+      BACKUP_DIR: /app/backups
     restart: unless-stopped
     expose:
       - "8010"
+    volumes:
+      # Sem isso, os backups (e o histórico em disco) somem a cada
+      # `docker compose up -d --build` — o filesystem do container é
+      # descartado no rebuild, o volume nomeado não.
+      - backup_data:/app/backups
 
   frontend:
     build:
@@ -36,3 +43,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  backup_data:

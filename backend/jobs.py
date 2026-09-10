@@ -1,6 +1,6 @@
 """Jobs de fundo do backend — só rodam se ENABLE_BACKGROUND_JOBS=true
-(ver config.py). Cobrem três lacunas que dependiam de alguém estar de olho
-na tela:
+(ver config.py). Cobrem lacunas que dependiam de alguém estar de olho na
+tela ou de rodar um comando manualmente:
 
 1. Lembrete de reunião por e-mail — complementar ao alerta sonoro do
    frontend (AgendaAlerts.tsx), que só dispara com a aba aberta.
@@ -9,8 +9,10 @@ na tela:
 3. SLA de solicitações — avisa o responsável (ou os administradores, se
    não tiver responsável) quando uma solicitação fica aberta por tempo
    demais sem conclusão.
+4. Backup diário do banco (backend/backup.py) — roda pg_dump uma vez por
+   dia, de madrugada (horário de Brasília).
 
-Sem scheduler externo (APScheduler, cron): dois loops assíncronos simples,
+Sem scheduler externo (APScheduler, cron): loops assíncronos simples,
 iniciados no lifespan do FastAPI. Consultas ao banco são bloqueantes
 (psycopg2), por isso rodam em thread separada (asyncio.to_thread) para não
 travar o event loop que também atende requisições HTTP.
@@ -18,10 +20,12 @@ travar o event loop que também atende requisições HTTP.
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from database import fetch_all, get_connection
 from emailer import enviar_email, smtp_configurado
+from backup import executar_backup, ja_rodou_hoje
+from config import BACKUP_HORA_ALVO_BRT
 
 logger = logging.getLogger("jobs")
 
@@ -30,6 +34,10 @@ JANELA_LEMBRETE_MIN = 10
 INTERVALO_DIARIO_SEG = 6 * 60 * 60
 ONBOARDING_ALERTA_DIAS = 7
 SOLICITACAO_SLA_DIAS = 5
+INTERVALO_BACKUP_CHECK_SEG = 15 * 60
+# Brasil não tem mais horário de verão desde 2019 — offset fixo evita
+# depender do pacote tzdata (nem sempre presente em imagens Docker slim).
+_FUSO_BRT = timezone(timedelta(hours=-3))
 
 
 def _minutos_ate(horario, agora: datetime) -> float:
@@ -222,13 +230,30 @@ async def _loop_diario() -> None:
         await asyncio.sleep(INTERVALO_DIARIO_SEG)
 
 
+async def _loop_backup_diario() -> None:
+    # Acorda a cada 15min só pra checar a hora — não dispara toda vez, só
+    # quando já passou da hora-alvo (madrugada, BRT) e ainda não rodou hoje.
+    # Esse "checa e compara com o que já rodou" (em vez de dormir até o
+    # horário exato) é de propósito: se o processo cair e voltar às 9h, o
+    # backup do dia ainda roda na próxima checagem, em vez de só amanhã.
+    while True:
+        try:
+            agora_brt = datetime.now(_FUSO_BRT)
+            if agora_brt.hour >= BACKUP_HORA_ALVO_BRT and not await asyncio.to_thread(ja_rodou_hoje, agora_brt):
+                await asyncio.to_thread(executar_backup, "AUTOMATICO")
+        except Exception:
+            logger.exception("Erro ao checar/rodar o backup diário do banco")
+        await asyncio.sleep(INTERVALO_BACKUP_CHECK_SEG)
+
+
 _tarefas: list[asyncio.Task] = []
 
 
 def iniciar_jobs() -> None:
     _tarefas.append(asyncio.create_task(_loop_lembretes_reuniao()))
     _tarefas.append(asyncio.create_task(_loop_diario()))
-    logger.info("Jobs de fundo iniciados (lembrete de reunião, onboarding, SLA de solicitações).")
+    _tarefas.append(asyncio.create_task(_loop_backup_diario()))
+    logger.info("Jobs de fundo iniciados (lembrete de reunião, onboarding, SLA de solicitações, backup diário).")
 
 
 def parar_jobs() -> None:

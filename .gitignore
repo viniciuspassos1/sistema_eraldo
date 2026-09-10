@@ -13,6 +13,11 @@ __pycache__/
 *.pyc
 backend/rag_index/
 
+# Backups gerados pelo backup automático do banco (backend/backup.py) — em
+# dev fica em backend/backups/ por padrão; nunca faz sentido versionar um
+# dump do banco.
+backend/backups/
+
 # Build publicado da intranet (gerado a partir de intranet-app/ com
 # `npm run build` — não é código-fonte, não faz sentido versionar).
 /site/intranet/

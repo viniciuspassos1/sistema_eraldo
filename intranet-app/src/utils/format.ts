@@ -12,6 +12,13 @@ export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+export function formatBytes(numBytes: number | undefined | null): string {
+  if (!numBytes) return '—';
+  const kb = numBytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(0)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
+
 export function initials(nome: string): string {
   const partes = nome.trim().split(/\s+/);
   const first = partes[0]?.[0] ?? '';

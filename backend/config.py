@@ -55,3 +55,16 @@ SMTP_FROM = os.getenv("SMTP_FROM", "").strip()
 # LLM, de propósito (só o texto literal do documento — ver assistant/rag.py).
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest").strip()
+
+# Backup automático diário do banco (ver backend/backup.py) — roda junto com
+# os outros jobs de fundo, sob a mesma flag ENABLE_BACKGROUND_JOBS (desligada
+# em dev/teste, senão a suíte de testes tentaria rodar pg_dump de verdade).
+# BACKUP_DIR: caminho para onde os .dump vão — em produção (docker-compose)
+# isso precisa ser um volume nomeado (ver docker-compose.yml), senão os
+# backups somem a cada `docker compose up --build`.
+BACKUP_DIR = os.getenv("BACKUP_DIR", "backups").strip()
+BACKUP_HORA_ALVO_BRT = int(os.getenv("BACKUP_HORA_ALVO_BRT", "3"))  # madrugada, horário de Brasília
+BACKUP_RETENCAO_DIAS = int(os.getenv("BACKUP_RETENCAO_DIAS", "30"))
+# Caminho do binário pg_dump — só precisa mudar se não estiver no PATH
+# (imagem Docker de produção já instala postgresql-client, ver Dockerfile).
+PG_DUMP_PATH = os.getenv("PG_DUMP_PATH", "pg_dump").strip()

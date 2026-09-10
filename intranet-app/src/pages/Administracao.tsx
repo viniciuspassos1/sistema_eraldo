@@ -11,6 +11,7 @@ import {
   Inbox,
   ShieldAlert,
   ScrollText,
+  DatabaseBackup,
 } from 'lucide-react';
 import { Card, CardHeader } from '../components/Card';
 import { StatCard } from '../components/StatCard';
@@ -38,6 +39,7 @@ const modules = [
   { label: 'Usuários e permissões', icon: ShieldCheck, path: '/administracao/usuarios' },
   { label: 'Novos funcionários', icon: UserPlus, path: '/calendario?tab=onboarding' },
   { label: 'Logs de auditoria', icon: ScrollText, path: '/administracao/logs' },
+  { label: 'Backup do banco de dados', icon: DatabaseBackup, path: '/administracao/backups' },
 ];
 
 export function Administracao() {

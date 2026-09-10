@@ -20,6 +20,7 @@ from . import (
     pendencias,
     notas_pessoais,
     logs,
+    backups,
 )
 
 all_routers = [
@@ -44,4 +45,5 @@ all_routers = [
     pendencias.router,
     notas_pessoais.router,
     logs.router,
+    backups.router,
 ]
