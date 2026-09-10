@@ -1,15 +1,25 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ScrollText, ShieldAlert, FileText, X } from 'lucide-react';
+import { ArrowLeft, ScrollText, ShieldAlert, FileText, Download, X } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
+import { useToast } from '../components/Toast';
 import { fetchLogs, LogsApiError, type LogAuditoria } from '../api/logs';
 import { fetchFuncionarios } from '../api/funcionarios';
+import { baixarDocumento, DocumentosApiError } from '../api/documentos';
 import { formatDateTime, formatBytes } from '../utils/format';
 import type { User } from '../types';
+
+/** Só existe arquivo pra baixar quando a inserção deu certo (tentativa com
+ * erro nunca chegou a guardar bytes) — se o documento foi excluído depois,
+ * o download ainda é tentado normalmente, só que aí o backend responde 404
+ * (tratado no catch do baixar() abaixo). */
+function temArquivoParaBaixar(l: LogAuditoria): boolean {
+  return l.acao === 'documento.criar' && l.status === 'SUCESSO' && !!l.entidadeId;
+}
 
 const ACAO_CATEGORIAS = [
   { valor: 'login', label: 'Login' },
@@ -43,11 +53,34 @@ const FORM_VAZIO = { usuarioId: '', acao: '', status: '', documento: '', dataIni
 
 export function Logs() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [logs, setLogs] = useState<LogAuditoria[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [funcionarios, setFuncionarios] = useState<User[]>([]);
   const [filtros, setFiltros] = useState(FORM_VAZIO);
   const [detalheAberto, setDetalheAberto] = useState<LogAuditoria | null>(null);
+  const [baixandoId, setBaixandoId] = useState<string | null>(null);
+
+  async function baixar(l: LogAuditoria) {
+    if (!l.entidadeId) return;
+    setBaixandoId(l.id);
+    try {
+      const blob = await baixarDocumento(l.entidadeId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (l.detalhes?.documentoNome as string | undefined) ?? 'documento';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      showToast(
+        err instanceof DocumentosApiError ? err.message : 'Erro inesperado ao baixar o documento.',
+        'error'
+      );
+    } finally {
+      setBaixandoId(null);
+    }
+  }
 
   function carregar(f: typeof filtros = filtros) {
     setLogs(null);
@@ -234,6 +267,20 @@ export function Logs() {
                         {documentoNome ? (
                           <span className="inline-flex items-center gap-1.5">
                             <FileText className="w-3.5 h-3.5 text-text-secondary shrink-0" /> {documentoNome}
+                            {temArquivoParaBaixar(l) && (
+                              <button
+                                onClick={(ev) => {
+                                  ev.stopPropagation();
+                                  baixar(l);
+                                }}
+                                disabled={baixandoId === l.id}
+                                className="ml-1 text-text-secondary hover:text-navy disabled:opacity-40 shrink-0"
+                                aria-label={`Baixar ${documentoNome}`}
+                                title="Baixar arquivo"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </span>
                         ) : (
                           '—'
@@ -307,6 +354,16 @@ export function Logs() {
                   <dd className="text-navy font-medium text-right break-all">{formatarValorDetalhe(chave, valor)}</dd>
                 </div>
               ))}
+            {temArquivoParaBaixar(detalheAberto) && (
+              <button
+                onClick={() => baixar(detalheAberto)}
+                disabled={baixandoId === detalheAberto.id}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-navy text-white text-sm font-medium hover:bg-navy-light transition-colors disabled:opacity-50"
+              >
+                <Download className="w-4 h-4" />
+                {baixandoId === detalheAberto.id ? 'Baixando…' : 'Baixar arquivo'}
+              </button>
+            )}
           </dl>
         )}
       </Modal>
