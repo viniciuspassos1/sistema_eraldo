@@ -1,13 +1,10 @@
-import { useEffect, useState } from 'react';
-import { Bell, Scale, Palmtree, Megaphone, Cake, FileText, Inbox as InboxIcon, CheckCheck, ShieldAlert, GraduationCap } from 'lucide-react';
+import { Bell, Scale, Palmtree, Megaphone, Cake, FileText, Inbox as InboxIcon, CheckCheck, GraduationCap, CalendarClock, Check } from 'lucide-react';
 import { Card } from '../components/Card';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { Button } from '../components/Button';
-import { useToast } from '../components/Toast';
-import { fetchNotificacoes, marcarNotificacaoLida, marcarTodasLidas, NotificacoesApiError } from '../api/notificacoes';
-import type { Notification } from '../types';
-import { formatDate } from '../utils/format';
+import { useNotificacoes } from '../context/NotificacoesContext';
+import { formatDateTime } from '../utils/format';
 
 const tipoIcon = {
   AUDIENCIA: Scale,
@@ -17,43 +14,17 @@ const tipoIcon = {
   DOCUMENTO: FileText,
   SOLICITACAO: InboxIcon,
   ONBOARDING: GraduationCap,
+  AGENDA: CalendarClock,
+} as const;
+
+const statusLabel = {
+  NAO_LIDA: 'Não lida',
+  VISTA: 'Vista',
+  CONFIRMADA: 'Confirmada',
 } as const;
 
 export function Notificacoes() {
-  const [items, setItems] = useState<Notification[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const { showToast } = useToast();
-
-  useEffect(() => {
-    fetchNotificacoes()
-      .then(setItems)
-      .catch((err) => setError(err instanceof NotificacoesApiError ? err.message : 'Erro inesperado ao carregar as notificações.'));
-  }, []);
-
-  async function handleMarcarTodasLidas() {
-    const anterior = items;
-    setItems((prev) => (prev ?? []).map((n) => ({ ...n, lida: true })));
-    try {
-      await marcarTodasLidas();
-      showToast('Todas as notificações foram marcadas como lidas.');
-    } catch (err) {
-      setItems(anterior ?? null);
-      showToast(err instanceof NotificacoesApiError ? err.message : 'Erro ao marcar notificações.', 'error');
-    }
-  }
-
-  async function handleMarcarLida(id: string) {
-    const alvo = (items ?? []).find((n) => n.id === id);
-    if (!alvo || alvo.lida) return;
-    setItems((prev) => (prev ?? []).map((n) => (n.id === id ? { ...n, lida: true } : n)));
-    try {
-      await marcarNotificacaoLida(id);
-    } catch {
-      setItems((prev) => (prev ?? []).map((n) => (n.id === id ? { ...n, lida: false } : n)));
-    }
-  }
-
-  const naoLidas = (items ?? []).filter((n) => !n.lida).length;
+  const { notificacoes: items, naoLidasCount: naoLidas, marcarVista, marcarConfirmada, marcarTodasVistas } = useNotificacoes();
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -67,17 +38,13 @@ export function Notificacoes() {
           </p>
         </div>
         {naoLidas > 0 && (
-          <Button variant="outline" size="sm" onClick={handleMarcarTodasLidas}>
-            <CheckCheck className="w-4 h-4" /> Marcar todas como lidas
+          <Button variant="outline" size="sm" onClick={marcarTodasVistas}>
+            <CheckCheck className="w-4 h-4" /> Marcar todas como vistas
           </Button>
         )}
       </div>
 
-      {error ? (
-        <Card>
-          <EmptyState icon={ShieldAlert} title="Não foi possível carregar as notificações" description={error} />
-        </Card>
-      ) : items === null ? (
+      {items === null ? (
         <Card padded={false}>
           <div className="p-5 space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -94,20 +61,38 @@ export function Notificacoes() {
           <ul className="divide-y divide-border">
             {items.map((n) => {
               const Icon = tipoIcon[n.tipo];
+              const ehAlertaAgenda = n.tipo === 'AGENDA';
               return (
                 <li
                   key={n.id}
-                  onClick={() => handleMarcarLida(n.id)}
-                  className={`flex items-start gap-3 px-5 py-4 cursor-pointer ${!n.lida ? 'bg-gold/5' : ''}`}
+                  onClick={() => n.status === 'NAO_LIDA' && marcarVista(n.id)}
+                  className={`flex items-start gap-3 px-5 py-4 cursor-pointer ${n.status === 'NAO_LIDA' ? 'bg-gold/5' : ''}`}
                 >
                   <div className="w-9 h-9 rounded-lg bg-navy/8 flex items-center justify-center shrink-0">
                     <Icon className="w-4 h-4 text-navy" strokeWidth={1.75} />
                   </div>
                   <div className="flex-1">
-                    <p className={`text-sm ${n.lida ? 'text-text-secondary' : 'text-navy font-medium'}`}>{n.mensagem}</p>
-                    <p className="text-xs text-text-secondary mt-0.5">{formatDate(n.data)}</p>
+                    <p className={`text-sm ${n.status === 'NAO_LIDA' ? 'text-navy font-medium' : 'text-text-secondary'}`}>
+                      {n.mensagem}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-text-secondary">{formatDateTime(n.data)}</p>
+                      <span className="text-xs text-text-secondary/60">·</span>
+                      <p className="text-xs text-text-secondary">{statusLabel[n.status]}</p>
+                    </div>
+                    {ehAlertaAgenda && n.status !== 'CONFIRMADA' && (
+                      <button
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          marcarConfirmada(n.id);
+                        }}
+                        className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-800"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Confirmar
+                      </button>
+                    )}
                   </div>
-                  {!n.lida && <span className="w-2 h-2 rounded-full bg-gold mt-1.5 shrink-0" />}
+                  {n.status === 'NAO_LIDA' && <span className="w-2 h-2 rounded-full bg-gold mt-1.5 shrink-0" />}
                 </li>
               );
             })}

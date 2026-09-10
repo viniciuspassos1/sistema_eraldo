@@ -8,6 +8,7 @@ import { todayISO } from '../utils/date';
 import { playAlertSound, falarTexto } from '../utils/sound';
 import { ativarFaviconAlerta, restaurarFavicon } from '../utils/favicon';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useNotificacoes } from '../context/NotificacoesContext';
 
 const CHECK_INTERVAL_MS = 20_000;
 // Três avisos por compromisso, do mais antecedente ao mais em cima da hora —
@@ -15,6 +16,13 @@ const CHECK_INTERVAL_MS = 20_000;
 // ordem pra achar sempre o limiar mais urgente já cruzado numa única checagem.
 const LIMIARES_MIN = [10, 5, 3] as const;
 const DURACAO_POPUP_MS = 15_000;
+// Janela em que o alerta "hora chegou" (o que vira notificação persistida
+// no sino, com som + painel + confirmação) ainda dispara — passado isso,
+// abrir o app não vale mais a pena tocar alarme por um compromisso de horas
+// atrás. É por sessão (o Set abaixo), mas o backend também nunca duplica
+// (índice único), então mesmo se essa janela pegar o mesmo item em duas
+// checagens seguidas não cria uma segunda notificação.
+const JANELA_HORA_CHEGOU_MIN = 3;
 
 interface ItemAgenda {
   id: string;
@@ -49,8 +57,13 @@ function minutosAte(horario: string): number {
  * dos que faltavam (evita um "aviso atrasado" acumulado e ainda válido) e
  * marca os demais como vistos, pra não aparecerem depois já sem sentido. */
 export function AgendaAlerts() {
+  const { registrarAlertaAgenda } = useNotificacoes();
   const [lembretes, setLembretes] = useState<Lembrete[]>([]);
   const disparadosRef = useRef<Map<string, Set<number>>>(new Map());
+  // "Hora chegou" é por sessão só pra evitar chamar a API de novo a cada
+  // checagem (20s) pro mesmo item — a proteção de verdade contra duplicata
+  // (inclusive entre sessões/abas/reload) é o índice único no backend.
+  const horaChegouRegistradosRef = useRef<Set<string>>(new Set());
   const faviconAtivoRef = useRef(false);
   // Eventos de agenda raramente mudam no meio de uma sessão aberta (ao
   // contrário de anotações pessoais, recarregadas a cada checagem) — buscar
@@ -90,6 +103,19 @@ export function AgendaAlerts() {
       return minutos <= LIMIARES_MIN[0];
     }
 
+    function processarHoraChegou(item: ItemAgenda, minutos: number, origemTipo: 'AGENDA_EVENTO' | 'AGENDA_ANOTACAO') {
+      if (minutos > 0 || minutos <= -JANELA_HORA_CHEGOU_MIN) return;
+      if (horaChegouRegistradosRef.current.has(item.id)) return;
+      horaChegouRegistradosRef.current.add(item.id);
+
+      const detalhes = [item.horario, item.local].filter(Boolean).join(' · ');
+      registrarAlertaAgenda({
+        origemTipo,
+        origemId: item.id,
+        mensagem: `${item.titulo}${detalhes ? ' — ' + detalhes : ''}`,
+      });
+    }
+
     async function verificar() {
       const hojeISO = todayISO();
       let algumProximo = false;
@@ -101,18 +127,22 @@ export function AgendaAlerts() {
       for (const ev of eventos) {
         if (ev.data !== hojeISO) continue;
         const minutos = minutosAte(ev.horario);
-        if (processarItem({ id: ev.id, titulo: ev.titulo, horario: ev.horario, local: ev.local, observacoes: ev.observacoes }, minutos)) {
+        const item = { id: ev.id, titulo: ev.titulo, horario: ev.horario, local: ev.local, observacoes: ev.observacoes };
+        if (processarItem(item, minutos)) {
           algumProximo = true;
         }
+        processarHoraChegou(item, minutos, 'AGENDA_EVENTO');
       }
 
       const anotacoes = await fetchAnotacoes().catch(() => []);
       for (const nota of anotacoes) {
         if (nota.data !== hojeISO) continue;
         const minutos = minutosAte(nota.horario);
-        if (processarItem({ id: nota.id, titulo: nota.titulo, horario: nota.horario, local: nota.local, observacoes: nota.texto }, minutos)) {
+        const item = { id: nota.id, titulo: nota.titulo, horario: nota.horario, local: nota.local, observacoes: nota.texto };
+        if (processarItem(item, minutos)) {
           algumProximo = true;
         }
+        processarHoraChegou(item, minutos, 'AGENDA_ANOTACAO');
       }
 
       if (algumProximo !== faviconAtivoRef.current) {

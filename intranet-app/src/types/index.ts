@@ -144,12 +144,19 @@ export interface Request {
   status: 'ABERTO' | 'EM_ANALISE' | 'EM_ANDAMENTO' | 'RESOLVIDO' | 'CANCELADO';
 }
 
+export type NotificationStatus = 'NAO_LIDA' | 'VISTA' | 'CONFIRMADA';
+
 export interface Notification {
   id: string;
   mensagem: string;
+  /** Timestamp completo (ISO, com fuso) — data e horário da notificação. */
   data: string;
-  lida: boolean;
-  tipo: 'AUDIENCIA' | 'FERIAS' | 'AVISO' | 'ANIVERSARIO' | 'DOCUMENTO' | 'SOLICITACAO' | 'ONBOARDING';
+  status: NotificationStatus;
+  tipo: 'AUDIENCIA' | 'FERIAS' | 'AVISO' | 'ANIVERSARIO' | 'DOCUMENTO' | 'SOLICITACAO' | 'ONBOARDING' | 'AGENDA';
+  /** Só preenchido em alertas de agenda (tipo AGENDA) — liga a notificação
+   * ao evento/anotação que a gerou. */
+  origemTipo?: 'AGENDA_EVENTO' | 'AGENDA_ANOTACAO';
+  origemId?: string;
 }
 
 export interface IdeiaConteudo {
