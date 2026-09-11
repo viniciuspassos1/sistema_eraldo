@@ -58,11 +58,13 @@ def test_permissoes_atualizar_com_mudanca_gera_log_com_de_para(client, admin_hea
         )
         assert resp_put.status_code == 200
 
-        resp_logs = client.get(f"/api/logs?acao=permissoes.atualizar&usuarioId={user_id}&limit=5", headers=admin_headers)
+        resp_logs = client.get("/api/logs?acao=permissoes.atualizar&limit=10", headers=admin_headers)
         assert resp_logs.status_code == 200
-        logs = resp_logs.json()
-        assert len(logs) >= 1
-        assert logs[0]["detalhes"]["documentos"] == {"de": True, "para": False}
+        # usuarioId no log é quem executou a ação (o admin); quem foi afetado
+        # é entidadeId — por isso o filtro é client-side aqui, não por query param.
+        logs_do_usuario = [log for log in resp_logs.json() if log["entidadeId"] == user_id]
+        assert len(logs_do_usuario) >= 1
+        assert logs_do_usuario[0]["detalhes"]["documentos"] == {"de": True, "para": False}
     finally:
         resp_restaura = client.put(
             f"/api/permissoes/{user_id}",
