@@ -35,8 +35,9 @@ memória de alguém.
 Centralizar e, onde faz sentido, automatizar as seguintes frentes num único
 sistema web:
 
-- **Assistente IA** — busca semântica (RAG) real sobre a documentação
-  interna do escritório, respondendo com a fonte citada.
+- **Central de Ajuda** — chatbot de perguntas prontas, organizadas por
+  categoria; cada uma responde com o conteúdo real de um artigo da Base de
+  Conhecimento, sem busca aberta nem texto gerado.
 - **Meu Authenticator** — cálculo de códigos TOTP (2FA) das contas de
   serviço do escritório, sem depender do celular de uma pessoa específica.
 - **Calendário do Escritório** — agenda, férias, aniversários, feriados,
@@ -57,14 +58,9 @@ sistema web:
     ├── config.py            → variáveis de ambiente centralizadas (API_KEY, DATABASE_URL, JWT_SECRET, CORS...)
     ├── security.py          → X-API-Key, hash de senha (bcrypt), emissão/validação de sessão (JWT)
     ├── database.py          → pool de conexões com o Postgres (ThreadedConnectionPool) e helpers de query
-    ├── routers/             → um módulo por área (auth, funcionarios, ferias, agenda, avisos, solicitacoes...)
-    ├── assistant/           → Assistente IA (RAG)
-    │   ├── router.py        → endpoint POST /api/assistant/ask
-    │   ├── rag.py            → busca híbrida: embedding (índice próprio numpy) + BM25, threshold, fallback
-    │   └── ingest.py          → indexação: lê knowledge_base/*.{md,docx,pdf}, gera embeddings
-    ├── knowledge_base/      → documentos fonte (.md/.docx/.pdf) que o Assistente IA consulta
+    ├── routers/             → um módulo por área (auth, funcionarios, ferias, agenda, avisos, solicitacoes, chatbot...)
     └── db/
-        ├── schema.sql        → schema PostgreSQL completo, já aplicado no Supabase (18 tabelas + RLS)
+        ├── schema.sql        → schema PostgreSQL completo, já aplicado no Supabase (24 tabelas + RLS)
         ├── seed_*.py          → scripts que populam cada tabela com dados de demonstração
         └── set_senha.py       → utilitário de linha de comando pra definir/resetar a senha de um usuário
 ```
@@ -74,15 +70,12 @@ sempre gerado sob demanda (ver seção 8).
 
 | Arquivo / pasta | Responsabilidade |
 |---|---|
-| `main.py` | App FastAPI; monta todos os routers (via `routers.all_routers`) e o do Assistente IA no mesmo processo; abre/fecha o pool de conexão no ciclo de vida da aplicação |
+| `main.py` | App FastAPI; monta todos os routers (via `routers.all_routers`) no mesmo processo; abre/fecha o pool de conexão no ciclo de vida da aplicação |
 | `config.py` | Único lugar que lê variáveis de ambiente — evita cada módulo repetir `os.getenv` |
 | `security.py` | Valida a `X-API-Key`; funções de hash/verificação de senha (bcrypt); `require_user`/`require_admin` (dependências FastAPI que decodificam o token de sessão) |
 | `database.py` | `get_connection()` (empresta do pool, com rollback automático em erro), `fetch_all`/`fetch_one` |
-| `routers/` | Cada arquivo é um módulo de dados real (ex.: `funcionarios.py`, `agenda.py`, `onboarding.py`), todos exigindo `X-API-Key`; os que agem em nome de "quem está logado" (Solicitações, Cooperativa de Ideias, Onboarding, Agenda → anotações, Avisos → leitura) também exigem o token de sessão |
-| `assistant/router.py` | Recebe a pergunta, delega pra `rag.py`, devolve resposta + fontes |
-| `assistant/rag.py` | Transforma a pergunta em embedding, busca no índice local (numpy) + BM25, aplica o threshold de distância |
-| `assistant/ingest.py` | Lê `knowledge_base/*.{md,docx,pdf}`, quebra em trechos, gera embeddings, grava no índice |
-| `knowledge_base/` | Documentação fonte — hoje, Manual Interno + Base de Conhecimento transcritos |
+| `routers/` | Cada arquivo é um módulo de dados real (ex.: `funcionarios.py`, `agenda.py`, `onboarding.py`, `chatbot.py`), todos exigindo `X-API-Key`; os que agem em nome de "quem está logado" (Solicitações, Cooperativa de Ideias, Onboarding, Agenda → anotações, Avisos → leitura) também exigem o token de sessão |
+| `routers/chatbot.py` | Central de Ajuda: CRUD das perguntas prontas (admin) + endpoint que devolve a pergunta com o conteúdo do artigo vinculado como resposta |
 | `db/schema.sql` | Schema completo já aplicado no banco real (Supabase) — não é mais rascunho |
 
 ## 4. Módulos envolvidos
@@ -91,9 +84,9 @@ sempre gerado sob demanda (ver seção 8).
 |---|---|---|
 | Dashboard | `/` | Visão do dia personalizada por usuário logado |
 | Meu Authenticator | `/meu-authenticator` | Códigos TOTP das contas de serviço, calculados no backend |
-| Assistente IA | `/assistente-ia` | Busca na documentação interna (Processos Gerais) + apoio à redação (Comunicação) |
+| Central de Ajuda | `/assistente-ia` | Chatbot de perguntas prontas por categoria; resposta = conteúdo do artigo da Base de Conhecimento vinculado |
 | Calendário do Escritório | `/calendario` | Agenda (grade semanal com anotações e alerta 10 min antes), férias, aniversários, feriados, avisos, funcionários e onboarding |
-| Base de Conhecimento / Manual Interno | `/base-conhecimento`, `/manual` | Fonte que alimenta o Assistente IA |
+| Base de Conhecimento / Manual Interno | `/base-conhecimento`, `/manual` | Fonte que alimenta a Central de Ajuda |
 | Cooperativa de Ideias | `/cooperativa-ideias` | Colaboradores sugerem ideias de conteúdo para redes sociais; equipe de marketing acompanha por status |
 | Documentos, Tribunais, Solicitações, Notificações, Administração | — | Suporte operacional do dia a dia |
 
@@ -145,47 +138,26 @@ achar o próximo número — não há limite fixo de contas.
    troca a senha informando a atual; não existe ainda um fluxo de "esqueci
    minha senha" (só o administrador pode resetar via `db/set_senha.py`).
 
-## 7. Fluxo: Assistente IA (`backend/assistant/`)
+## 7. Fluxo: Central de Ajuda (`backend/routers/chatbot.py`)
 
-### 7.1 Configuração (`rag.py` / `ingest.py`)
+Não tem busca nem IA — é uma tabela de perguntas prontas (`chatbot_perguntas`),
+cada uma ligada a um `documento_id` de `base_conhecimento`. Fluxo:
 
-| Constante | Valor atual | Descrição |
-|---|---|---|
-| `EMBEDDING_MODEL` | `paraphrase-multilingual-mpnet-base-v2` | Modelo multilíngue, roda em CPU, usado pra gerar os vetores |
-| `DISTANCE_THRESHOLD` | `0.65` | Distância de cosseno máxima aceita antes de cair no fallback |
-| `MAX_CHUNK_CHARS` / `CHUNK_OVERLAP` | `800` / `100` | Tamanho e sobreposição dos trechos ao quebrar documentos longos |
+1. Admin cadastra a pergunta (texto, categoria, ordem, ativa/inativa) e
+   escolhe qual artigo da Base de Conhecimento responde ela.
+2. Funcionário abre `/assistente-ia`, vê as perguntas agrupadas por
+   categoria, clica numa.
+3. `GET /api/chatbot/perguntas/{id}` devolve a pergunta + `titulo`,
+   `categoria` e `conteudo` do artigo vinculado — esse conteúdo é a
+   resposta, mostrada tal como está escrito na Base de Conhecimento, sem
+   nenhuma transformação.
+4. Se o artigo vinculado tiver sido apagado depois (`documento_id` fica
+   `null` — `ON DELETE SET NULL`), a resposta vem com
+   `documentoEncontrado: false` em vez de dar erro.
 
-### 7.2 Passo a passo
-
-1. **Indexação** (`python -m assistant.ingest`) — lê cada `.md`, `.docx` ou
-   `.pdf` de `knowledge_base/`. Em `.md`, título e categoria vêm do
-   front-matter (`titulo`, `categoria`); em `.docx`/`.pdf`, que não têm
-   front-matter, título e categoria são inferidos do nome do arquivo e da
-   pasta. Depois quebra o corpo em trechos por parágrafo, gera o embedding
-   de `"{titulo} — {categoria}\n{trecho}"` (o título entra no cálculo do
-   vetor pra dar mais sinal de busca, mas não aparece na resposta) e grava
-   num índice próprio local (`backend/rag_index/`, numpy + JSON, fora do
-   git) — sem vetor store externo: a base é pequena o bastante pra busca
-   por força bruta ser instantânea.
-2. **Pergunta** (`POST /api/assistant/ask`) — a pergunta do usuário é
-   transformada em embedding com o mesmo modelo.
-3. **Busca híbrida** — semântica (produto escalar contra o índice, já que
-   os embeddings são normalizados) combinada com léxica (BM25), somando os
-   dois scores normalizados — ver `assistant/rag.py`.
-4. **Decisão** — se o trecho mais próximo estiver acima do
-   `DISTANCE_THRESHOLD`, devolve a mensagem fixa de "não encontrei"; caso
-   contrário, junta até 2 trechos relevantes (sem duplicar a mesma fonte)
-   e devolve como resposta, com a fonte (`titulo` + `categoria`) de cada um.
-
-### 7.3 Regras de negócio implementadas
-
-| # | Regra |
-|---|---|
-| 1 | Nenhum LLM reescreve a resposta — o texto devolvido é sempre o trecho literal do documento fonte |
-| 2 | Pergunta fora de escopo (distância acima do threshold) → mensagem fixa de "não encontrei", nunca uma tentativa de resposta |
-| 3 | Embeddings normalizados (`normalize_embeddings=True`) antes de indexar e antes de buscar, pra garantir que a distância de cosseno seja calculada corretamente |
-| 4 | Título + categoria entram no texto usado pra gerar o embedding do documento (não só o corpo) — corrige casos onde o corpo sozinho não carrega sinal suficiente (ex.: "sistemas usados" sendo confundido com o documento de horário de expediente) |
-| 5 | Aba "Comunicação" do Assistente IA não passa por esse fluxo — é geração assistida de texto, mockada, não consulta de documentos |
+Toda criação/edição/exclusão de pergunta passa por `registrar_log`/
+`registrar_edicao` (`backend/logs.py`), igual ao resto do sistema — aparece
+em Logs de auditoria com o "de → para" de cada campo alterado.
 
 ## 8. Pré-requisitos técnicos
 
@@ -194,8 +166,7 @@ achar o próximo número — não há limite fixo de contas.
 - Um projeto Supabase (PostgreSQL gerenciado) — ou qualquer Postgres
   acessível via connection string
 - Dependências Python: `fastapi`, `uvicorn`, `psycopg2-binary`, `bcrypt`,
-  `PyJWT`, `pyotp`, `python-dotenv`, `sentence-transformers`, `rank-bm25`
-  (`backend/requirements.txt`)
+  `PyJWT`, `pyotp`, `python-dotenv`, `google-genai` (`backend/requirements.txt`)
 - Navegador moderno
 
 ## 9. Como executar
@@ -216,7 +187,6 @@ python3 -m venv venv
 ./venv/Scripts/python.exe -m pip install -r requirements.txt   # Windows
 cp .env.example .env   # configure DATABASE_URL, API_KEY e JWT_SECRET (ver comentários no arquivo)
 
-./venv/Scripts/python.exe -m assistant.ingest        # indexa a documentação do Assistente IA
 ./venv/Scripts/python.exe -m uvicorn main:app --port 8010
 ```
 
@@ -235,15 +205,12 @@ mais credencial fixa hardcoded no frontend.
 
 | Config | Onde | Efeito |
 |---|---|---|
-| `EMBEDDING_MODEL` | `backend/assistant/rag.py` | Qualidade e velocidade da busca semântica; trocar exige rodar `ingest` de novo |
-| `DISTANCE_THRESHOLD` | `backend/assistant/rag.py` | Menor = mais rigoroso (mais "não encontrei"); maior = mais permissivo |
-| `MAX_CHUNK_CHARS` / `CHUNK_OVERLAP` | `backend/assistant/ingest.py` | Como documentos longos são divididos antes de indexar |
 | `AUTH_SERVICE_N_NAME` / `AUTH_SERVICE_N_SECRET` | `backend/.env` | Contas de serviço disponíveis no Meu Authenticator |
 | `DATABASE_URL` | `backend/.env` | Connection string do Postgres (Supabase — usar a versão "Session pooler" se a rede não tiver rota IPv6) |
 | `JWT_SECRET` / `JWT_EXPIRES_HOURS_SESSAO` / `JWT_EXPIRES_HOURS_PERSISTENTE` | `backend/.env` | Chave de assinatura e validade do token de sessão (login) |
 | `DB_POOL_MIN` / `DB_POOL_MAX` | `backend/.env` | Tamanho do pool de conexões com o banco |
 | `ALLOWED_ORIGINS` | `backend/.env` | Origens permitidas por CORS a chamar a API |
-| `GEMINI_API_KEY` / `GEMINI_MODEL` | `backend/.env` | IA generativa (Gemini) usada na aba Comunicação do Assistente e no "ajudar a redigir" da Cooperativa de Ideias — sem chave, os dois ficam desativados com erro claro |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | `backend/.env` | IA generativa (Gemini) usada só no "ajudar a redigir" da Cooperativa de Ideias — sem chave, fica desativado com erro claro |
 
 ## 11. Limitações conhecidas e pontos de atenção
 
@@ -266,45 +233,38 @@ mais credencial fixa hardcoded no frontend.
   segredo de verdade num app publicado. Ver `docs/DOCUMENTACAO.docx`.
 - **Sem fluxo de "esqueci minha senha"** — só um administrador pode
   resetar a senha de alguém, via `db/set_senha.py`.
-- **Aba "Processos Gerais" do Assistente IA continua sem LLM, por
-  decisão deliberada** — a resposta é sempre o(s) trecho(s) literal(is) do
-  documento, pra nunca inventar informação sobre processo interno;
-  perguntas próximas do threshold podem trazer mais de um trecho
-  concatenado, nem sempre 100% preciso. A aba "Comunicação" e o "ajudar a
-  redigir" da Cooperativa de Ideias, esses sim, usam um LLM de verdade
-  (Gemini) — ver `backend/README.md`.
+- **Central de Ajuda não usa LLM nem busca, por decisão deliberada** — a
+  resposta de cada pergunta pronta é sempre o texto literal do artigo da
+  Base de Conhecimento vinculado a ela pelo admin, pra nunca inventar
+  informação sobre processo interno. O "ajudar a redigir" da Cooperativa
+  de Ideias é o único lugar do sistema que usa um LLM de verdade (Gemini)
+  — ver `backend/README.md`.
 - **Alerta sonoro da Agenda ainda depende da aba aberta**, mas agora tem
   um lembrete por e-mail complementar (`backend/jobs.py`) — que por sua
   vez depende de SMTP real configurado, que este projeto ainda não tem
   (`ENABLE_BACKGROUND_JOBS`/`SMTP_*` em `backend/.env.example`).
-- **Sem hospedagem nem deploy automatizado configurados ainda** — o
-  projeto roda localmente (frontend + backend) contra o banco real do
-  Supabase, mas ainda não está publicado em nenhum servidor/domínio.
+- **Ainda não publicado em produção** — `Dockerfile`/`docker-compose.yml`/
+  `DEPLOY.md` já existem e cobrem o passo a passo de deploy numa VPS
+  (Docker + Caddy com HTTPS automático), mas o deploy em si ainda não foi
+  feito. Banco de produção separado do banco de desenvolvimento (dois
+  projetos Supabase distintos).
 
 Itens que **já foram resolvidos** nesta mesma fase do projeto (documentados
 aqui só para não achar, por engano, que ainda são limitações): Dashboard,
 Administração e Meu Perfil usam dados reais (sem mocks); há permissão de
 acesso por página, editável por administrador (`permissoes_acesso`);
-rate limiting de login (5 tentativas / 15 min); RBAC por setor no
-Assistente IA; suíte de testes automatizados (`backend/tests/`); widget
+rate limiting de login (5 tentativas / 15 min); auditoria completa com
+valor anterior/novo em toda edição (`backend/logs.py`); suíte de testes
+automatizados (`backend/tests/`); widget
 "Minhas pendências" no Dashboard (onboarding, solicitações, atestados,
 cooperativa de ideias num só lugar).
 
 ## 12. Glossário rápido
 
-- **RAG (Retrieval-Augmented Generation)** — aqui, só a parte de
-  "Retrieval": busca por similaridade semântica, sem geração de texto por
-  LLM.
 - **TOTP (Time-based One-Time Password)** — algoritmo padrão (RFC 6238)
   que calcula um código de 6 dígitos a partir de um segredo compartilhado
   e do relógio atual; é o mesmo algoritmo usado por qualquer app
   autenticador.
-- **Embedding** — representação numérica (vetor) de um texto, usada para
-  comparar significado por similaridade, não por palavra exata.
-- **Chunk** — pedaço de um documento indexado individualmente para busca.
-- **Threshold de distância** — limite de "quão parecido" um trecho
-  precisa ser da pergunta para virar resposta; acima disso, o sistema
-  prefere dizer "não encontrei" a arriscar.
 - **Mock** — dado ou comportamento simulado no frontend, sem backend real
   por trás.
 - **JWT (JSON Web Token)** — token de sessão assinado pelo backend; prova

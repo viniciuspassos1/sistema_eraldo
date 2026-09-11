@@ -57,8 +57,8 @@ sem precisar configurar SSL na mão.
    ```bash
    docker compose up -d --build
    ```
-   O primeiro build demora alguns minutos (baixa e indexa o modelo de
-   embeddings do Assistente IA). Builds seguintes são mais rápidos.
+   O primeiro build demora alguns minutos (instala as dependências
+   Python). Builds seguintes são mais rápidos (cache de camadas do Docker).
 
 6. **Conferir:**
    ```bash

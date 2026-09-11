@@ -127,7 +127,7 @@ export function Administracao() {
             Ajuda a identificar quais informações precisam ser melhor documentadas.
           </p>
           <p className="text-sm text-text-secondary">
-            Sem estatística de uso ainda — o Assistente IA não registra as perguntas feitas por enquanto.
+            Sem estatística de uso ainda — a Central de Ajuda não registra as perguntas feitas por enquanto.
           </p>
         </Card>
       </div>

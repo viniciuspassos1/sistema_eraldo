@@ -115,7 +115,7 @@ export function BaseConhecimento() {
             <BookOpen className="w-5 h-5 text-gold" /> Base de Conhecimento
           </h1>
           <p className="text-text-secondary text-sm mt-1">
-            Biblioteca interna consultada pelo Assistente IA para responder perguntas.
+            Biblioteca interna consultada pela Central de Ajuda para responder perguntas.
           </p>
         </div>
         {isAdmin && (

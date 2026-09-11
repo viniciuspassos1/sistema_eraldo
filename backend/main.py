@@ -9,7 +9,6 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from assistant.router import router as assistant_router
 from routers import all_routers
 from config import ALLOWED_ORIGINS, AMBIENTE, ENABLE_BACKGROUND_JOBS
 from database import init_pool, close_pool
@@ -91,7 +90,6 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     return JSONResponse(status_code=500, content={"detail": "Erro inesperado no servidor."})
 
 
-app.include_router(assistant_router)
 for _router in all_routers:
     app.include_router(_router)
 

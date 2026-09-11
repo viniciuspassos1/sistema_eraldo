@@ -13,7 +13,6 @@ dist-ssr/
 venv/
 __pycache__/
 *.pyc
-backend/rag_index/
 
 # Backups gerados pelo backup automático do banco (backend/backup.py) — em
 # dev fica em backend/backups/ por padrão; nunca faz sentido versionar um

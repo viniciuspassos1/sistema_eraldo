@@ -179,6 +179,26 @@ export interface NotaPessoal {
   atualizadoEm: string;
 }
 
+export interface PerguntaChatbot {
+  id: string;
+  pergunta: string;
+  categoria: string;
+  documentoId?: string;
+  ordem: number;
+  ativo: boolean;
+}
+
+export interface RespostaChatbot {
+  documentoEncontrado: boolean;
+  titulo?: string;
+  categoria?: string;
+  conteudo?: string;
+}
+
+export interface PerguntaComResposta extends PerguntaChatbot {
+  resposta: RespostaChatbot;
+}
+
 export interface ChatMessage {
   id: string;
   autor: 'usuario' | 'ia';

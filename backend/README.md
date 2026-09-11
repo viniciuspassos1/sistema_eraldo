@@ -3,7 +3,7 @@
 API em Python (FastAPI) com banco PostgreSQL real (Supabase): autenticação
 de usuários, todos os módulos de dados da intranet (funcionários, agenda,
 férias, avisos, solicitações etc.), Meu Authenticator (códigos TOTP) e o
-Assistente IA (busca semântica sobre a documentação interna).
+Central de Ajuda (chatbot de perguntas prontas ligadas à Base de Conhecimento).
 
 ## Rodando localmente
 
@@ -78,8 +78,7 @@ VITE_AUTHENTICATOR_API_KEY=<mesma chave do backend/.env>
 | `security.py` | `X-API-Key`; hash/verificação de senha (bcrypt); emissão e validação do token de sessão (JWT); `require_user` / `require_admin` |
 | `database.py` | Pool de conexões (`ThreadedConnectionPool`) e helpers `fetch_all` / `fetch_one` / `get_connection()` |
 | `routers/` | Um arquivo por módulo de dados (ver tabela abaixo) |
-| `assistant/` | Assistente IA — RAG sobre `knowledge_base/` |
-| `db/schema.sql` | Schema completo (18 tabelas), já aplicado no Supabase |
+| `db/schema.sql` | Schema completo (24 tabelas), já aplicado no Supabase |
 | `db/seed_*.py` | Um script por tabela, popula dados de demonstração |
 | `db/set_senha.py` | CLI para definir/resetar a senha de um usuário |
 
@@ -113,55 +112,23 @@ Todo router exige `X-API-Key`. Os que agem em nome de "quem está logado"
   informando a atual. Não existe fluxo de "esqueci minha senha" — reset
   fica a cargo de um administrador via `db/set_senha.py`.
 
-## Assistente IA (busca na documentação interna)
+## Central de Ajuda (chatbot de perguntas prontas)
 
-Mesmo backend, mesma porta, mesma `API_KEY` — só mais um endpoint:
-`POST /api/assistant/ask`. Faz busca híbrida (semântica + léxica) sobre os
-arquivos `.md`, `.docx` e `.pdf` em `backend/knowledge_base/` — embeddings
-(Sentence Transformers) guardados num índice numpy próprio (sem vetor store
-externo — a base é pequena o bastante pra busca por força bruta ser
-instantânea, ver `assistant/rag.py`) pro lado semântico, BM25 (`rank-bm25`)
-pro léxico, combinados por soma de scores normalizados — e devolve o trecho
-da documentação que melhor responde à pergunta, **sem
-inventar nada e sem LLM reescrevendo** — a resposta é o texto original do
-documento mais a fonte. O BM25 existe porque o embedding sozinho errava em
-documentos curtos e abstratos onde a palavra da pergunta está no título mas
-não no corpo (ex.: "missão"/"visão" perdiam pra outro documento que só
-repetia a palavra "escritório").
+Substituiu o antigo "Assistente IA" (que tinha busca semântica livre numa
+aba e geração de texto via Gemini na outra — ambos removidos). Hoje é bem
+mais simples e não depende de IA nenhuma: `routers/chatbot.py` expõe
+`chatbot_perguntas` (pergunta + categoria + `documento_id`, ligado a um
+artigo de `base_conhecimento`). Clicar numa pergunta pronta no frontend
+busca `GET /api/chatbot/perguntas/{id}`, que devolve o conteúdo do artigo
+vinculado como resposta — sempre o texto original do documento, nunca texto
+gerado. Cadastro/edição/exclusão das perguntas é feito pelo próprio painel
+(admin), sem precisar editar código nem rodar nenhum script de indexação.
 
-Depois de instalar `requirements.txt` (venv já criado acima), indexe a base:
-
-```bash
-cd backend
-./venv/Scripts/python.exe -m assistant.ingest   # Windows
-# ./venv/bin/python -m assistant.ingest         # Mac/Linux
-```
-
-Isso baixa o modelo de embeddings na primeira vez (uso único, fica em cache)
-e grava o índice em `backend/rag_index/` (não sobe pro git). Rode de novo
-sempre que adicionar, editar ou remover arquivos em `knowledge_base/`.
-
-Pra adicionar documentação nova, basta soltar o arquivo em
-`knowledge_base/<pasta>/` — não precisa mexer em código:
-
-- **`.md`** (recomendado quando dá pra escrever direto): aceita um
-  cabeçalho simples pra definir título e categoria manualmente —
-
-  ```markdown
-  ---
-  titulo: Nome do documento
-  categoria: Setor ou categoria
-  ---
-
-  Conteúdo do documento aqui.
-  ```
-
-- **`.docx`** ou **`.pdf`**: pode subir o arquivo como está (ex.: um manual
-  já pronto do escritório). Não tem cabeçalho, então o título vira o nome
-  do arquivo e a categoria vira o nome da pasta onde ele foi colocado —
-  geralmente já fica bom o suficiente.
-
-Depois é só rodar o `ingest` de novo.
+A remoção do motor de busca semântica (`sentence-transformers`,
+`rank-bm25`, modelo de embeddings de ~1.1GB) também tirou uma dependência
+pesada e um passo lento de build (o Dockerfile não baixa mais modelo
+nenhum) — o único motivo de existirem era a busca livre que não existe
+mais.
 
 ## Jobs de fundo (lembrete por e-mail, onboarding parado, SLA de solicitações)
 
@@ -198,21 +165,19 @@ continuam funcionando normalmente, pois são notificações internas, não
 e-mail) — nenhum envio de e-mail foi testado de ponta a ponta neste projeto
 por falta de um servidor SMTP real para testar contra.
 
-## IA generativa (Gemini) — aba Comunicação e "ajudar a redigir"
+## IA generativa (Gemini) — "ajudar a redigir" da Cooperativa de Ideias
 
-Dois recursos usam um LLM de verdade (`llm.py`, Google Gemini) para gerar
-texto — diferente do Assistente IA "Processos Gerais", que continua sem
-LLM, de propósito, respondendo sempre com o texto literal do documento:
+Único recurso do sistema que usa um LLM de verdade (`llm.py`, Google
+Gemini) para gerar texto — a Central de Ajuda não usa, de propósito,
+respondendo sempre com o texto literal do artigo vinculado:
 
-- **`POST /api/assistant/comunicacao`** — aba "Comunicação" do Assistente
-  IA: ajuda a redigir avisos, e-mails e respostas a clientes.
 - **`POST /api/cooperativa-ideias/redigir`** — botão "Ajudar a escrever" no
   formulário de nova ideia: a partir de título/formato/tema, sugere uma
   descrição para a ideia de conteúdo.
 
-Sem `GEMINI_API_KEY` configurada, os dois devolvem HTTP 503 com uma
-mensagem clara em vez de quebrar a tela — nenhum outro recurso do sistema
-depende disso. Para ativar:
+Sem `GEMINI_API_KEY` configurada, devolve HTTP 503 com uma mensagem clara
+em vez de quebrar a tela — nenhum outro recurso do sistema depende disso.
+Para ativar:
 
 ```
 GEMINI_API_KEY=sua-chave-aqui

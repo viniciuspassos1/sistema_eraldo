@@ -174,10 +174,6 @@ create table feriados (
 );
 
 -- =============================================================================
--- 3. AUDIÊNCIAS
--- =============================================================================
-
--- =============================================================================
 -- 4. AVISOS (comunicados do escritório)
 -- =============================================================================
 
@@ -229,8 +225,6 @@ create index idx_documentos_tags on documentos using gin (tags);
 
 -- =============================================================================
 -- 6. BASE DE CONHECIMENTO e MANUAL INTERNO
---    (conteúdo institucional — diferente da base usada pelo RAG do Assistente
---    IA, que continua no ChromaDB por ser busca vetorial, não relacional)
 -- =============================================================================
 
 create table base_conhecimento (
@@ -255,6 +249,24 @@ create table manual_interno_capitulos (
   conteudo text not null,
   ordem int not null unique
 );
+
+-- Perguntas prontas do chatbot de consulta (Central de Ajuda) — a resposta
+-- de cada uma é sempre o conteúdo do artigo vinculado, nunca texto gerado.
+-- "on delete set null": se o artigo vinculado for apagado, a pergunta
+-- continua existindo (a UI trata isso como "sem documento vinculado" em vez
+-- de quebrar a exclusão do artigo ou desaparecer a pergunta silenciosamente).
+create table chatbot_perguntas (
+  id uuid primary key default gen_random_uuid(),
+  pergunta text not null,
+  categoria text not null,
+  documento_id uuid references base_conhecimento (id) on delete set null,
+  ordem integer not null default 0,
+  ativo boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index idx_chatbot_perguntas_categoria on chatbot_perguntas (categoria, ordem);
 
 -- =============================================================================
 -- 7. TRIBUNAIS (links úteis)
@@ -474,6 +486,7 @@ alter table avisos_leituras enable row level security;
 alter table documentos enable row level security;
 alter table base_conhecimento enable row level security;
 alter table manual_interno_capitulos enable row level security;
+alter table chatbot_perguntas enable row level security;
 alter table tribunais enable row level security;
 alter table solicitacoes enable row level security;
 alter table notificacoes enable row level security;

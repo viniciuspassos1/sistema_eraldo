@@ -45,7 +45,7 @@ interface DashboardDados {
 }
 
 const shortcuts = [
-  { label: 'Perguntar à IA', icon: Bot, path: '/assistente-ia' },
+  { label: 'Central de Ajuda', icon: Bot, path: '/assistente-ia' },
   { label: 'Documentos', icon: FileText, path: '/documentos' },
   { label: 'Tribunais', icon: Link2, path: '/tribunais' },
   { label: 'Férias', icon: Palmtree, path: '/calendario?tab=ferias' },

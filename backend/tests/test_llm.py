@@ -1,15 +1,12 @@
-"""IA generativa (Gemini). Este ambiente tem uma chave real configurada, então
-os testes de "sem chave" simulam a ausência via monkeypatch (em vez de
-depender do .env não ter uma) — e há também dois testes que confirmam uma
-geração real, de ponta a ponta, contra o Gemini de verdade (cada execução da
-suíte consome duas chamadas da cota gratuita)."""
+"""IA generativa (Gemini) — usada só por "ajudar a redigir" da Cooperativa
+de Ideias (o antigo endpoint de Comunicação do Assistente IA foi removido).
+Este ambiente tem uma chave real configurada, então o teste de "sem chave"
+simula a ausência via monkeypatch (em vez de depender do .env não ter uma) —
+e há também um teste que confirma uma geração real, de ponta a ponta, contra
+o Gemini de verdade (cada execução da suíte consome uma chamada da cota
+gratuita)."""
 
 import llm
-
-
-def test_comunicacao_exige_sessao(client, api_key_header):
-    resp = client.post("/api/assistant/comunicacao", headers=api_key_header, json={"pergunta": "teste"})
-    assert resp.status_code == 401
 
 
 def test_redigir_ideia_exige_sessao(client, api_key_header):
@@ -21,13 +18,6 @@ def test_redigir_ideia_exige_sessao(client, api_key_header):
     assert resp.status_code == 401
 
 
-def test_comunicacao_sem_chave_configurada_devolve_erro_claro(client, user_headers, monkeypatch):
-    monkeypatch.setattr(llm, "GEMINI_API_KEY", "")
-    resp = client.post("/api/assistant/comunicacao", headers=user_headers, json={"pergunta": "teste"})
-    assert resp.status_code == 503
-    assert "GEMINI_API_KEY" in resp.json()["detail"]
-
-
 def test_redigir_ideia_sem_chave_configurada_devolve_erro_claro(client, user_headers, monkeypatch):
     monkeypatch.setattr(llm, "GEMINI_API_KEY", "")
     resp = client.post(
@@ -37,16 +27,6 @@ def test_redigir_ideia_sem_chave_configurada_devolve_erro_claro(client, user_hea
     )
     assert resp.status_code == 503
     assert "GEMINI_API_KEY" in resp.json()["detail"]
-
-
-def test_comunicacao_gera_texto_real(client, user_headers):
-    resp = client.post(
-        "/api/assistant/comunicacao",
-        headers=user_headers,
-        json={"pergunta": "Escreva uma frase curta de teste."},
-    )
-    assert resp.status_code == 200
-    assert len(resp.json()["resposta"].strip()) > 0
 
 
 def test_redigir_ideia_gera_descricao_real(client, user_headers):
