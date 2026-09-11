@@ -12,7 +12,11 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 # auditoria de segurança apontou que expor o schema completo da API sem
 # autenticação facilita reconhecimento por um atacante (acha endpoint,
 # formato de payload etc. sem esforço nenhum).
-AMBIENTE = os.getenv("AMBIENTE", "desenvolvimento").strip().lower()
+# Padrão "producao" por segurança (fail-safe): se alguém esquecer de setar
+# essa variável na VPS, o sistema fecha /docs, /redoc e /openapi.json em vez
+# de deixar aberto por omissão. Ambiente local precisa setar AMBIENTE=
+# desenvolvimento explicitamente no .env (ver .env.example) pra ver a doc.
+AMBIENTE = os.getenv("AMBIENTE", "producao").strip().lower()
 
 _DEFAULT_ORIGINS = "http://localhost:8091,http://127.0.0.1:8091,http://localhost:5173,http://127.0.0.1:5173"
 ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", _DEFAULT_ORIGINS).split(",") if origin.strip()]

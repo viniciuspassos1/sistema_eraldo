@@ -3,6 +3,8 @@
 .env.*
 !.env.example
 !.env.test.example
+*.pem
+*.key
 
 # Dependencies / build output
 node_modules/
