@@ -5,6 +5,8 @@ from database import get_connection
 
 
 def test_solicitacao_usa_identidade_do_token(client, user_headers):
+    nome_esperado = client.get("/api/auth/me", headers=user_headers).json()["nome"]
+
     resp = client.post(
         "/api/solicitacoes",
         headers=user_headers,
@@ -12,7 +14,7 @@ def test_solicitacao_usa_identidade_do_token(client, user_headers):
     )
     assert resp.status_code == 201
     corpo = resp.json()
-    assert corpo["solicitante"] == "Conta de Teste (funcionario)"
+    assert corpo["solicitante"] == nome_esperado
 
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -21,6 +23,8 @@ def test_solicitacao_usa_identidade_do_token(client, user_headers):
 
 
 def test_cooperativa_ideia_usa_identidade_do_token(client, user_headers):
+    nome_esperado = client.get("/api/auth/me", headers=user_headers).json()["nome"]
+
     resp = client.post(
         "/api/cooperativa-ideias",
         headers=user_headers,
@@ -33,7 +37,7 @@ def test_cooperativa_ideia_usa_identidade_do_token(client, user_headers):
     )
     assert resp.status_code == 201
     corpo = resp.json()
-    assert corpo["autor"] == "Conta de Teste (funcionario)"
+    assert corpo["autor"] == nome_esperado
 
     with get_connection() as conn:
         with conn.cursor() as cur:
