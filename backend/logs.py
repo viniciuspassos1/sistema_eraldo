@@ -35,3 +35,22 @@ def registrar_log(
             conn.commit()
     except Exception:
         logger.exception("Falha ao registrar log de auditoria (ação=%s, entidade=%s)", acao, entidade)
+
+
+def registrar_edicao(
+    usuario_id: str | None,
+    acao: str,
+    entidade: str,
+    entidade_id: str,
+    anterior: dict,
+    novo: dict,
+    status: str = "SUCESSO",
+) -> None:
+    """Como registrar_log, mas só grava os campos que de fato mudaram entre
+    `anterior` (linha antes do UPDATE) e `novo` (payload aplicado), no
+    formato {"campo": {"de": valor_antigo, "para": valor_novo}} — pronto
+    pro modal de detalhe do frontend renderizar "de → para". Se nada mudou,
+    não grava log nenhum (edição que não alterou nada não é um evento)."""
+    mudancas = {campo: {"de": anterior.get(campo), "para": valor} for campo, valor in novo.items() if anterior.get(campo) != valor}
+    if mudancas:
+        registrar_log(usuario_id, acao, entidade=entidade, entidade_id=entidade_id, detalhes=mudancas, status=status)

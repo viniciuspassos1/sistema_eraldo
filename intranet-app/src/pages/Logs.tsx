@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ScrollText, ShieldAlert, FileText, Download, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ScrollText, ShieldAlert, FileText, Download, X } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
@@ -23,6 +23,7 @@ function temArquivoParaBaixar(l: LogAuditoria): boolean {
 
 const ACAO_CATEGORIAS = [
   { valor: 'login', label: 'Login' },
+  { valor: 'logout', label: 'Logout' },
   { valor: 'documento', label: 'Documentos' },
   { valor: 'colaboradores', label: 'Colaboradores' },
   { valor: 'funcionario', label: 'Funcionários' },
@@ -34,6 +35,10 @@ const ACAO_CATEGORIAS = [
   { valor: 'agenda_evento', label: 'Agenda' },
   { valor: 'permissoes', label: 'Permissões' },
   { valor: 'backup', label: 'Backup' },
+  { valor: 'atestado', label: 'Atestados' },
+  { valor: 'ideia', label: 'Cooperativa de Ideias' },
+  { valor: 'solicitacao', label: 'Solicitações' },
+  { valor: 'onboarding', label: 'Onboarding' },
 ];
 
 const DETALHE_LABEL: Record<string, string> = {
@@ -47,6 +52,13 @@ function formatarValorDetalhe(chave: string, valor: unknown): string {
   if (chave === 'tamanhoBytes' && typeof valor === 'number') return formatBytes(valor);
   if (valor === null || valor === undefined) return '—';
   return String(valor);
+}
+
+/** Formato produzido por registrar_edicao (backend/logs.py): cada campo que
+ * de fato mudou numa edição vem como {"de": valorAntigo, "para": valorNovo}
+ * em vez de um valor escalar solto. */
+function ehAlteracao(valor: unknown): valor is { de: unknown; para: unknown } {
+  return typeof valor === 'object' && valor !== null && 'de' in valor && 'para' in valor;
 }
 
 const FORM_VAZIO = { usuarioId: '', acao: '', status: '', documento: '', dataInicio: '', dataFim: '' };
@@ -351,7 +363,17 @@ export function Logs() {
               Object.entries(detalheAberto.detalhes).map(([chave, valor]) => (
                 <div key={chave} className="flex justify-between gap-4">
                   <dt className="text-text-secondary">{DETALHE_LABEL[chave] ?? chave}</dt>
-                  <dd className="text-navy font-medium text-right break-all">{formatarValorDetalhe(chave, valor)}</dd>
+                  <dd className="text-navy font-medium text-right break-all">
+                    {ehAlteracao(valor) ? (
+                      <span className="inline-flex items-center gap-1.5 flex-wrap justify-end">
+                        <span className="text-text-secondary line-through">{formatarValorDetalhe(chave, valor.de)}</span>
+                        <ArrowRight className="w-3 h-3 text-text-secondary shrink-0" />
+                        <span>{formatarValorDetalhe(chave, valor.para)}</span>
+                      </span>
+                    ) : (
+                      formatarValorDetalhe(chave, valor)
+                    )}
+                  </dd>
                 </div>
               ))}
             {temArquivoParaBaixar(detalheAberto) && (

@@ -10,7 +10,7 @@ from security import (
     PAGINAS_LABELS,
 )
 from database import get_connection, fetch_all
-from logs import registrar_log
+from logs import registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_admin)])
 
@@ -63,6 +63,7 @@ def obter_permissoes(usuario_id: str):
 @router.put("/api/permissoes/{usuario_id}", response_model=list[PermissaoPagina])
 def salvar_permissoes(usuario_id: str, body: list[PermissaoPagina], admin: UsuarioAtual = Depends(require_admin)):
     validas = {p.pagina: p.permitido for p in body if p.pagina in PAGINAS_PERMISSAO}
+    anterior = {pagina: usuario_tem_permissao(usuario_id, pagina) for pagina in validas}
 
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -77,7 +78,7 @@ def salvar_permissoes(usuario_id: str, body: list[PermissaoPagina], admin: Usuar
                 )
         conn.commit()
 
-    registrar_log(admin.id, "permissoes.atualizar", entidade="usuarios", entidade_id=usuario_id, detalhes=validas)
+    registrar_edicao(admin.id, "permissoes.atualizar", "usuarios", usuario_id, anterior=anterior, novo=validas)
 
     return [
         PermissaoPagina(pagina=pagina, permitido=usuario_tem_permissao(usuario_id, pagina))

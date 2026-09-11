@@ -30,6 +30,13 @@ def test_admin_muda_status_e_atribui_responsavel(client, admin_headers, user_hea
     assert resp_atribuir.status_code == 200
     assert resp_atribuir.json()["status"] == "EM_ANDAMENTO"
 
+    resp_logs = client.get("/api/logs?acao=solicitacao&limit=50", headers=admin_headers)
+    logs_da_solicitacao = [log for log in resp_logs.json() if log["entidadeId"] == solicitacao_id]
+    assert any(log["acao"] == "solicitacao.criar" for log in logs_da_solicitacao)
+    log_atualizar = next(log for log in logs_da_solicitacao if log["acao"] == "solicitacao.atualizar")
+    assert log_atualizar["detalhes"]["status"] == {"de": "ABERTO", "para": "EM_ANDAMENTO"}
+    assert log_atualizar["detalhes"]["responsavelId"] == {"de": None, "para": user_id}
+
     # agora o próprio responsável (não-admin) consegue avançar o status,
     # mas não reatribuir a outra pessoa.
     resp_avancar = client.patch(f"/api/solicitacoes/{solicitacao_id}", headers=user_headers, json={"status": "RESOLVIDO"})

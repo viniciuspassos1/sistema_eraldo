@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { login as apiLogin, me as apiMe, AuthApiError } from '../api/auth';
+import { login as apiLogin, me as apiMe, logout as apiLogout, AuthApiError } from '../api/auth';
 import { getStoredToken, setStoredToken, clearStoredToken } from '../utils/authToken';
 import type { User } from '../types';
 
@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    apiLogout().catch(() => {});
     clearStoredToken();
     setUser(null);
   };

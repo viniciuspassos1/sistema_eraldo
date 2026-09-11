@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_user, require_admin, require_pagina, UsuarioAtual
 from database import fetch_all, get_connection
+from logs import registrar_log
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("calendario"))])
 
@@ -63,6 +64,13 @@ def atualizar_progresso(body: AtualizarProgresso, usuario: UsuarioAtual = Depend
             )
         conn.commit()
 
+    registrar_log(
+        usuario.id,
+        "onboarding.progresso_atualizar",
+        entidade="onboarding_progresso",
+        entidade_id=body.itemId,
+        detalhes={"concluido": body.concluido},
+    )
     return _progresso_usuario(usuario.id)
 
 

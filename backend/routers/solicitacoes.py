@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_user, require_pagina, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
-from logs import registrar_log
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("solicitacoes"))])
 
@@ -96,6 +96,7 @@ def criar_solicitacao(body: NovaSolicitacao, usuario: UsuarioAtual = Depends(req
             cur.execute(_SELECT + " WHERE s.id = %s;", (nova_id,))
             row = cur.fetchone()
 
+    registrar_log(usuario.id, "solicitacao.criar", entidade="solicitacoes", entidade_id=str(nova_id))
     return _serialize(row)
 
 
@@ -112,7 +113,7 @@ def atualizar_solicitacao(
         raise HTTPException(status_code=400, detail="Status inválido.")
 
     try:
-        atual = fetch_one("SELECT responsavel_id FROM solicitacoes WHERE id = %s;", (solicitacao_id,))
+        atual = fetch_one("SELECT status, responsavel_id FROM solicitacoes WHERE id = %s;", (solicitacao_id,))
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Solicitação não encontrada.")
     if not atual:
@@ -141,12 +142,16 @@ def atualizar_solicitacao(
                 cur.execute(f"UPDATE solicitacoes SET {', '.join(campos)} WHERE id = %s;", tuple(valores))
             conn.commit()
 
-    registrar_log(
+    registrar_edicao(
         usuario.id,
         "solicitacao.atualizar",
-        entidade="solicitacoes",
-        entidade_id=solicitacao_id,
-        detalhes=body.model_dump(exclude_none=True),
+        "solicitacoes",
+        solicitacao_id,
+        anterior={
+            "status": atual["status"],
+            "responsavelId": str(atual["responsavel_id"]) if atual["responsavel_id"] else None,
+        },
+        novo=body.model_dump(exclude_none=True),
     )
 
     row = fetch_one(_SELECT + " WHERE s.id = %s;", (solicitacao_id,))

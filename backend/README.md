@@ -240,6 +240,36 @@ API mínima que calcula códigos TOTP a partir de segredos guardados só no
 para a arquitetura completa, incluindo o checklist de segurança pra uma
 versão de produção real com contas reais do escritório).
 
+## Logs de auditoria
+
+`backend/logs.py` (`registrar_log` / `registrar_edicao`) grava em
+`logs_auditoria` quem fez o quê e quando — consultável em `/api/logs`
+(admin-only, com filtros por usuário, ação, status, documento e período) e
+na tela "Logs de auditoria" da Administração. Nunca derruba a requisição
+que originou o log (falha ao gravar é só logada no stdout).
+
+Cobertura hoje: login (sucesso, falha e bloqueio por rate limit), logout,
+troca de senha, Documentos, Base de Conhecimento, Atestados (enviar,
+aprovar/recusar, visualizar arquivo), Colaboradores, Funcionários, Férias,
+Feriados, Avisos, Tribunais, Agenda (eventos oficiais), Permissões,
+Cooperativa de Ideias, Solicitações, progresso de Onboarding e Backups.
+
+Toda ação de **edição** usa `registrar_edicao(usuario_id, acao, entidade,
+entidade_id, anterior, novo)`, que compara os dois dicts e só grava os
+campos que de fato mudaram, no formato `{"campo": {"de": ..., "para":
+...}}` — é esse formato que a tela de Logs reconhece pra mostrar "de →
+para" no modal de detalhe, em vez de só o valor novo.
+
+**Lacuna conhecida:** Manual Interno (`manual_interno_capitulos`) não tem
+nenhum endpoint de criação/edição/exclusão ainda (conteúdo só existe por
+ter sido inserido direto no banco) — não há o que auditar até esse CRUD
+existir. `notas_pessoais` e `agenda_anotacoes` ficam fora de propósito: são
+dados pessoais/privados do próprio usuário, não administrativos.
+
+Imutabilidade: não existe (e não deve existir) rota `PUT`/`DELETE` para
+`/api/logs` — o único jeito de escrever na tabela é via `registrar_log`,
+chamado só pelo backend. RLS já habilitado em `logs_auditoria` no schema.
+
 ## Testes automatizados
 
 ```bash

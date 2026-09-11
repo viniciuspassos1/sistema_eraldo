@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_pagina, require_admin, require_user, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
-from logs import registrar_log
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("base-conhecimento"))])
 
@@ -106,6 +106,7 @@ def criar_artigo(body: NovoArtigo, admin: UsuarioAtual = Depends(require_admin))
 @router.put("/api/base-conhecimento/{artigo_id}", response_model=ArtigoConhecimento)
 def editar_artigo(artigo_id: str, body: NovoArtigo, admin: UsuarioAtual = Depends(require_admin)):
     _validar_artigo(body)
+    anterior = _buscar_por_id(artigo_id)
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -123,7 +124,14 @@ def editar_artigo(artigo_id: str, body: NovoArtigo, admin: UsuarioAtual = Depend
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Artigo não encontrado.")
 
-    registrar_log(admin.id, "base_conhecimento.editar", entidade="base_conhecimento", entidade_id=artigo_id)
+    registrar_edicao(
+        admin.id,
+        "base_conhecimento.editar",
+        "base_conhecimento",
+        artigo_id,
+        anterior=anterior,
+        novo={"titulo": body.titulo.strip(), "categoria": body.categoria.strip(), "conteudo": body.conteudo.strip(), "status": body.status, "tags": body.tags},
+    )
     return _serialize(_buscar_por_id(artigo_id))
 
 

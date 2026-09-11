@@ -50,7 +50,22 @@ def test_login_sem_api_key_e_recusado(client):
     assert resp.status_code == 401
 
 
-def test_login_bloqueia_apos_5_tentativas_incorretas(client, api_key_header):
+def test_login_senha_errada_gera_log_de_auditoria(client, api_key_header, admin_headers):
+    email_descartavel = "conta-de-teste-log-falha@proferaldojunior.com.br"
+    resp = client.post(
+        "/api/auth/login",
+        headers=api_key_header,
+        json={"email": email_descartavel, "senha": "errada"},
+    )
+    assert resp.status_code == 401
+
+    resp_logs = client.get("/api/logs?acao=login_falhou&limit=10", headers=admin_headers)
+    assert resp_logs.status_code == 200
+    logs = resp_logs.json()
+    assert any(log["detalhes"]["email"] == email_descartavel and log["status"] == "ERRO" for log in logs)
+
+
+def test_login_bloqueia_apos_5_tentativas_incorretas(client, api_key_header, admin_headers):
     email_descartavel = "conta-de-teste-rate-limit@proferaldojunior.com.br"
 
     for _ in range(5):
@@ -67,6 +82,23 @@ def test_login_bloqueia_apos_5_tentativas_incorretas(client, api_key_header):
         json={"email": email_descartavel, "senha": "errada"},
     )
     assert resp_bloqueado.status_code == 429
+
+    resp_logs = client.get("/api/logs?acao=login_bloqueado&limit=10", headers=admin_headers)
+    assert resp_logs.status_code == 200
+    logs = resp_logs.json()
+    assert any(log["detalhes"]["email"] == email_descartavel for log in logs)
+
+
+def test_logout_gera_log_de_auditoria(client, api_key_header, user_token, admin_headers):
+    resp = client.post(
+        "/api/auth/logout",
+        headers={**api_key_header, "Authorization": f"Bearer {user_token}"},
+    )
+    assert resp.status_code == 204
+
+    resp_logs = client.get("/api/logs?acao=logout&limit=10", headers=admin_headers)
+    assert resp_logs.status_code == 200
+    assert len(resp_logs.json()) >= 1
 
 
 def test_me_sem_token_e_recusado(client, api_key_header):

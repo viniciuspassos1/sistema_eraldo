@@ -72,3 +72,11 @@ export async function trocarSenha(senhaAtual: string, novaSenha: string): Promis
     body: JSON.stringify({ senhaAtual, novaSenha }),
   });
 }
+
+/** Só registra o evento na auditoria — não existe blocklist de token hoje,
+ * o descarte do token guardado (clearStoredToken) é o que efetivamente
+ * "desloga" o usuário. Chamado como fire-and-forget: se falhar, o logout
+ * no navegador continua normalmente. */
+export async function logout(): Promise<void> {
+  await apiRequest<void>('/api/auth/logout', AuthApiError, { method: 'POST' });
+}

@@ -3,8 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from security import require_api_key, require_user, require_admin, require_pagina, UsuarioAtual
-from database import fetch_all, get_connection
+from database import fetch_all, fetch_one, get_connection
 from llm import gerar_texto
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("cooperativa-ideias"))])
 
@@ -89,6 +90,7 @@ def criar_ideia(body: NovaIdeia, usuario: UsuarioAtual = Depends(require_user)):
             cur.execute(_SELECT + " WHERE i.id = %s;", (nova_id,))
             row = cur.fetchone()
 
+    registrar_log(usuario.id, "ideia.criar", entidade="cooperativa_ideias", entidade_id=str(nova_id))
     return _serialize(row)
 
 
@@ -110,11 +112,15 @@ def redigir_ideia(body: RedigirRequest, _usuario: UsuarioAtual = Depends(require
 
 
 @router.patch("/api/cooperativa-ideias/{ideia_id}", response_model=Ideia)
-def atualizar_status(ideia_id: str, body: AtualizarStatus, _admin: UsuarioAtual = Depends(require_admin)):
+def atualizar_status(ideia_id: str, body: AtualizarStatus, admin: UsuarioAtual = Depends(require_admin)):
     if body.status not in _STATUS_VALIDOS:
         raise HTTPException(status_code=400, detail="Status inválido.")
 
     try:
+        anterior = fetch_one("SELECT status FROM cooperativa_ideias WHERE id = %s;", (ideia_id,))
+        if not anterior:
+            raise HTTPException(status_code=404, detail="Ideia não encontrada.")
+
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -131,4 +137,5 @@ def atualizar_status(ideia_id: str, body: AtualizarStatus, _admin: UsuarioAtual 
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Ideia não encontrada.")
 
+    registrar_edicao(admin.id, "ideia.atualizar", "cooperativa_ideias", ideia_id, anterior=anterior, novo={"status": body.status})
     return _serialize(row)

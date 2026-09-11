@@ -81,6 +81,7 @@ def login(body: LoginBody):
     email = body.email.strip().lower()
 
     if login_bloqueado(email):
+        registrar_log(None, "login_bloqueado", detalhes={"email": email}, status="ERRO")
         raise HTTPException(
             status_code=429,
             detail="Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
@@ -95,6 +96,7 @@ def login(body: LoginBody):
     credenciais_invalidas = HTTPException(status_code=401, detail="E-mail ou senha inválidos.")
     if not row or row["status"] == "INATIVO" or not senha_valida:
         registrar_falha_login(email)
+        registrar_log(None, "login_falhou", detalhes={"email": email}, status="ERRO")
         raise credenciais_invalidas
 
     limpar_falhas_login(email)
@@ -135,3 +137,12 @@ def trocar_senha(body: TrocarSenhaBody, usuario: UsuarioAtual = Depends(require_
 
     invalidar_tokens_anteriores(usuario.id)
     registrar_log(usuario.id, "trocar_senha")
+
+
+@router.post("/api/auth/logout", status_code=204)
+def logout(usuario: UsuarioAtual = Depends(require_user)):
+    # Não existe blocklist de token hoje — o token continua tecnicamente
+    # válido até expirar por conta própria. Isso aqui só existe pra deixar
+    # o "saiu do sistema" registrado na auditoria; o frontend descarta o
+    # token guardado independente da resposta desta chamada.
+    registrar_log(usuario.id, "logout")

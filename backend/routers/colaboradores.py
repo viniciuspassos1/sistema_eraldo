@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_user, require_admin, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
-from logs import registrar_log
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -93,6 +93,7 @@ def criar_colaborador(body: ColaboradorInput, admin: UsuarioAtual = Depends(requ
 def editar_colaborador(colaborador_id: str, body: ColaboradorInput, admin: UsuarioAtual = Depends(require_admin)):
     if body.papel not in _PAPEIS_VALIDOS:
         raise HTTPException(status_code=400, detail="Papel inválido.")
+    anterior = _serialize(_buscar_por_id(colaborador_id)).model_dump()
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -109,7 +110,7 @@ def editar_colaborador(colaborador_id: str, body: ColaboradorInput, admin: Usuar
             conn.commit()
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Colaborador não encontrado.")
-    registrar_log(admin.id, "colaboradores.editar", entidade="colaboradores", entidade_id=colaborador_id)
+    registrar_edicao(admin.id, "colaboradores.editar", "colaboradores", colaborador_id, anterior=anterior, novo=body.model_dump())
     return _serialize(_buscar_por_id(colaborador_id))
 
 

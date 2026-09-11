@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_user, require_admin, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
-from logs import registrar_log
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -100,6 +100,12 @@ def criar_evento(body: NovoEvento, admin: UsuarioAtual = Depends(require_admin))
 @router.put("/api/agenda/eventos/{evento_id}", response_model=AgendaEvento)
 def editar_evento(evento_id: str, body: NovoEvento, admin: UsuarioAtual = Depends(require_admin)):
     _validar_evento(body)
+    anterior_row = fetch_one(
+        "SELECT titulo, tipo, data, horario, responsavel_id, local, observacoes FROM agenda_eventos WHERE id = %s;",
+        (evento_id,),
+    )
+    if not anterior_row:
+        raise HTTPException(status_code=404, detail="Evento não encontrado.")
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -116,7 +122,22 @@ def editar_evento(evento_id: str, body: NovoEvento, admin: UsuarioAtual = Depend
             conn.commit()
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Evento não encontrado.")
-    registrar_log(admin.id, "agenda_evento.editar", entidade="agenda_eventos", entidade_id=evento_id)
+    registrar_edicao(
+        admin.id,
+        "agenda_evento.editar",
+        "agenda_eventos",
+        evento_id,
+        anterior={
+            "titulo": anterior_row["titulo"],
+            "tipo": anterior_row["tipo"],
+            "data": anterior_row["data"].isoformat(),
+            "horario": anterior_row["horario"].isoformat(timespec="minutes"),
+            "responsavelId": str(anterior_row["responsavel_id"]) if anterior_row["responsavel_id"] else None,
+            "local": anterior_row["local"],
+            "observacoes": anterior_row["observacoes"],
+        },
+        novo=body.model_dump(),
+    )
     return _serialize(_buscar_por_id(evento_id))
 
 

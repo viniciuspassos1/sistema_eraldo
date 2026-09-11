@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_user, require_admin, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
-from logs import registrar_log
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -108,6 +108,10 @@ def criar_aviso(body: NovoAviso, admin: UsuarioAtual = Depends(require_admin)):
 def editar_aviso(aviso_id: str, body: NovoAviso, admin: UsuarioAtual = Depends(require_admin)):
     _validar_aviso(body)
     try:
+        anterior = fetch_one("SELECT titulo, conteudo, prioridade, publico FROM avisos WHERE id = %s;", (aviso_id,))
+        if not anterior:
+            raise HTTPException(status_code=404, detail="Aviso não encontrado.")
+
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -123,7 +127,14 @@ def editar_aviso(aviso_id: str, body: NovoAviso, admin: UsuarioAtual = Depends(r
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Aviso não encontrado.")
 
-    registrar_log(admin.id, "aviso.editar", entidade="avisos", entidade_id=aviso_id)
+    registrar_edicao(
+        admin.id,
+        "aviso.editar",
+        "avisos",
+        aviso_id,
+        anterior=anterior,
+        novo={"titulo": body.titulo.strip(), "conteudo": body.conteudo.strip(), "prioridade": body.prioridade, "publico": body.publico.strip()},
+    )
 
     row = fetch_one(_QUERY_POR_ID, (admin.id, aviso_id))
     return _serialize(row)

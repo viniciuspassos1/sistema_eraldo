@@ -6,17 +6,13 @@ from database import get_connection
 
 
 def test_usuario_comum_nao_muda_status_de_ideia(client, admin_headers, user_headers):
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO cooperativa_ideias (titulo, descricao, formato, tema)
-                VALUES ('Teste automatizado', 'Descrição de teste.', 'Post', 'Tema de teste')
-                RETURNING id;
-                """
-            )
-            ideia_id = cur.fetchone()["id"]
-        conn.commit()
+    resp_criar = client.post(
+        "/api/cooperativa-ideias",
+        headers=user_headers,
+        json={"titulo": "Teste automatizado", "descricao": "Descrição de teste.", "formato": "Post", "tema": "Tema de teste"},
+    )
+    assert resp_criar.status_code == 201
+    ideia_id = resp_criar.json()["id"]
 
     try:
         resp_user = client.patch(
@@ -33,6 +29,12 @@ def test_usuario_comum_nao_muda_status_de_ideia(client, admin_headers, user_head
         )
         assert resp_admin.status_code == 200
         assert resp_admin.json()["status"] == "APROVADA"
+
+        resp_logs = client.get("/api/logs?acao=ideia&limit=50", headers=admin_headers)
+        logs_da_ideia = [log for log in resp_logs.json() if log["entidadeId"] == ideia_id]
+        assert any(log["acao"] == "ideia.criar" for log in logs_da_ideia)
+        log_atualizar = next(log for log in logs_da_ideia if log["acao"] == "ideia.atualizar")
+        assert log_atualizar["detalhes"]["status"] == {"de": "NOVA", "para": "APROVADA"}
     finally:
         with get_connection() as conn:
             with conn.cursor() as cur:

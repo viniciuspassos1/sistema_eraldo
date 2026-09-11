@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 
 from security import require_api_key, require_user, require_admin, hash_senha, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
-from logs import registrar_log
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -151,6 +151,10 @@ def editar_funcionario(funcionario_id: str, body: AtualizarFuncionario, admin: U
     if body.perfil not in _PERFIS_VALIDOS:
         raise HTTPException(status_code=400, detail="Perfil inválido.")
 
+    anterior = fetch_one("SELECT nome, cargo, setor, perfil, telefone FROM usuarios WHERE id = %s;", (funcionario_id,))
+    if not anterior:
+        raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
+
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -168,7 +172,7 @@ def editar_funcionario(funcionario_id: str, body: AtualizarFuncionario, admin: U
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
 
-    registrar_log(admin.id, "funcionario.editar", entidade="usuarios", entidade_id=funcionario_id, detalhes=body.model_dump())
+    registrar_edicao(admin.id, "funcionario.editar", "usuarios", funcionario_id, anterior=anterior, novo=body.model_dump())
 
     row = fetch_one(f"SELECT {_COLUNAS} FROM usuarios WHERE id = %s;", (funcionario_id,))
     return _serialize(row)
@@ -183,6 +187,10 @@ def atualizar_status_funcionario(
     if funcionario_id == admin.id and body.status == "INATIVO":
         raise HTTPException(status_code=400, detail="Você não pode desativar sua própria conta.")
 
+    anterior = fetch_one("SELECT status FROM usuarios WHERE id = %s;", (funcionario_id,))
+    if not anterior:
+        raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
+
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -196,7 +204,7 @@ def atualizar_status_funcionario(
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
 
-    registrar_log(admin.id, "funcionario.status", entidade="usuarios", entidade_id=funcionario_id, detalhes={"status": body.status})
+    registrar_edicao(admin.id, "funcionario.status", "usuarios", funcionario_id, anterior=anterior, novo={"status": body.status})
 
     row = fetch_one(f"SELECT {_COLUNAS} FROM usuarios WHERE id = %s;", (funcionario_id,))
     return _serialize(row)

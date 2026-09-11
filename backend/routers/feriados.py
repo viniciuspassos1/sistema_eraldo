@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_user, require_admin, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
-from logs import registrar_log
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -77,6 +77,10 @@ def criar_feriado(body: NovoFeriado, admin: UsuarioAtual = Depends(require_admin
 @router.put("/api/feriados/{feriado_id}", response_model=Feriado)
 def editar_feriado(feriado_id: str, body: NovoFeriado, admin: UsuarioAtual = Depends(require_admin)):
     _validar_feriado(body)
+    anterior_row = fetch_one(f"SELECT {_COLUNAS} FROM feriados WHERE id = %s;", (feriado_id,))
+    if not anterior_row:
+        raise HTTPException(status_code=404, detail="Feriado não encontrado.")
+    anterior = _serialize(anterior_row).model_dump()
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -93,7 +97,7 @@ def editar_feriado(feriado_id: str, body: NovoFeriado, admin: UsuarioAtual = Dep
             conn.commit()
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Feriado não encontrado.")
-    registrar_log(admin.id, "feriado.editar", entidade="feriados", entidade_id=feriado_id)
+    registrar_edicao(admin.id, "feriado.editar", "feriados", feriado_id, anterior=anterior, novo=body.model_dump())
     row = fetch_one(f"SELECT {_COLUNAS} FROM feriados WHERE id = %s;", (feriado_id,))
     return _serialize(row)
 

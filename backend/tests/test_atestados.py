@@ -61,3 +61,39 @@ def test_upload_pdf_valido_e_isolamento_de_acesso(client, api_key_header, admin_
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM atestados WHERE id = %s;", (atestado_id,))
             conn.commit()
+
+
+def test_atestado_gera_logs_de_auditoria(client, admin_headers, user_headers):
+    """Enviar, visualizar o arquivo e aprovar/recusar um atestado devem
+    aparecer em /api/logs — ver backend/routers/atestados.py."""
+    resp_criar = client.post(
+        "/api/atestados",
+        headers=user_headers,
+        data={"dataInicio": "2026-09-01", "dataFim": "2026-09-02", "motivo": "Teste automatizado"},
+        files={"arquivo": ("atestado.pdf", io.BytesIO(b"%PDF-1.4 conteudo de teste"), "application/pdf")},
+    )
+    assert resp_criar.status_code == 201
+    atestado_id = resp_criar.json()["id"]
+
+    try:
+        client.get(f"/api/atestados/{atestado_id}/arquivo", headers=user_headers)
+        resp_status = client.patch(
+            f"/api/atestados/{atestado_id}/status",
+            headers=admin_headers,
+            json={"status": "APROVADO"},
+        )
+        assert resp_status.status_code == 200
+
+        resp_logs = client.get("/api/logs?acao=atestado&limit=50", headers=admin_headers)
+        assert resp_logs.status_code == 200
+        acoes = {log["acao"]: log for log in resp_logs.json() if log["entidadeId"] == atestado_id}
+
+        assert "atestado.enviar" in acoes
+        assert "atestado.visualizar_arquivo" in acoes
+        assert "atestado.status" in acoes
+        assert acoes["atestado.status"]["detalhes"]["status"] == {"de": "PENDENTE", "para": "APROVADO"}
+    finally:
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM atestados WHERE id = %s;", (atestado_id,))
+            conn.commit()

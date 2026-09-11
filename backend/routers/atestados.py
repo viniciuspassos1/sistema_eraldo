@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_user, require_admin, require_pagina, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("calendario"))])
 
@@ -126,6 +127,7 @@ async def criar_atestado(
             row = cur.fetchone()
         conn.commit()
 
+    registrar_log(usuario.id, "atestado.enviar", entidade="atestados", entidade_id=str(row["id"]))
     return _serialize(row)
 
 
@@ -144,6 +146,8 @@ def baixar_arquivo(atestado_id: str, usuario: UsuarioAtual = Depends(require_use
     if str(row["funcionario_id"]) != usuario.id and usuario.perfil != "ADMINISTRADOR":
         raise HTTPException(status_code=403, detail="Sem permissão para acessar este arquivo.")
 
+    registrar_log(usuario.id, "atestado.visualizar_arquivo", entidade="atestados", entidade_id=atestado_id)
+
     # "attachment" (não "inline"): mesmo com o Content-Type validado no
     # upload, forçar download em vez de exibir no navegador fecha qualquer
     # brecha de conteúdo renderizado dentro da origem da aplicação.
@@ -155,11 +159,15 @@ def baixar_arquivo(atestado_id: str, usuario: UsuarioAtual = Depends(require_use
 
 
 @router.patch("/api/atestados/{atestado_id}/status", response_model=AtestadoAdmin)
-def atualizar_status(atestado_id: str, body: AtualizarStatus, _admin: UsuarioAtual = Depends(require_admin)):
+def atualizar_status(atestado_id: str, body: AtualizarStatus, admin: UsuarioAtual = Depends(require_admin)):
     if body.status not in _STATUS_VALIDOS:
         raise HTTPException(status_code=400, detail="Status inválido.")
 
     try:
+        anterior = fetch_one("SELECT status, observacoes_rh FROM atestados WHERE id = %s;", (atestado_id,))
+        if not anterior:
+            raise HTTPException(status_code=404, detail="Atestado não encontrado.")
+
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -188,4 +196,12 @@ def atualizar_status(atestado_id: str, body: AtualizarStatus, _admin: UsuarioAtu
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Atestado não encontrado.")
 
+    registrar_edicao(
+        admin.id,
+        "atestado.status",
+        "atestados",
+        atestado_id,
+        anterior={"status": anterior["status"], "observacoesRh": anterior["observacoes_rh"]},
+        novo={"status": body.status, "observacoesRh": body.observacoesRh},
+    )
     return AtestadoAdmin(**_serialize(row).model_dump(), funcionario=row["funcionario"])

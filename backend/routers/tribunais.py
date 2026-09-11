@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_pagina, require_admin, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
-from logs import registrar_log
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_pagina("tribunais"))])
 
@@ -57,6 +57,9 @@ def criar_tribunal(body: NovoTribunal, admin: UsuarioAtual = Depends(require_adm
 
 @router.put("/api/tribunais/{tribunal_id}", response_model=Tribunal)
 def editar_tribunal(tribunal_id: str, body: NovoTribunal, admin: UsuarioAtual = Depends(require_admin)):
+    anterior = fetch_one("SELECT nome, descricao, url, categoria FROM tribunais WHERE id = %s;", (tribunal_id,))
+    if not anterior:
+        raise HTTPException(status_code=404, detail="Tribunal não encontrado.")
     try:
         with get_connection() as conn:
             with conn.cursor() as cur:
@@ -69,7 +72,14 @@ def editar_tribunal(tribunal_id: str, body: NovoTribunal, admin: UsuarioAtual = 
             conn.commit()
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Tribunal não encontrado.")
-    registrar_log(admin.id, "tribunal.editar", entidade="tribunais", entidade_id=tribunal_id)
+    registrar_edicao(
+        admin.id,
+        "tribunal.editar",
+        "tribunais",
+        tribunal_id,
+        anterior=anterior,
+        novo={"nome": body.nome.strip(), "descricao": body.descricao.strip(), "url": body.url.strip(), "categoria": body.categoria.strip()},
+    )
     row = fetch_one("SELECT id, nome, descricao, url, categoria FROM tribunais WHERE id = %s;", (tribunal_id,))
     return _serialize(row)
 

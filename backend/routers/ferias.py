@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from security import require_api_key, require_user, require_admin, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
-from logs import registrar_log
+from logs import registrar_log, registrar_edicao
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -93,6 +93,7 @@ def editar_ferias(ferias_id: str, body: NovasFerias, admin: UsuarioAtual = Depen
     if body.status not in _STATUS_VALIDOS:
         raise HTTPException(status_code=400, detail="Status inválido.")
     try:
+        anterior_row = _buscar_por_id(ferias_id)
         with get_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
@@ -107,7 +108,20 @@ def editar_ferias(ferias_id: str, body: NovasFerias, admin: UsuarioAtual = Depen
             conn.commit()
     except psycopg2.errors.InvalidTextRepresentation:
         raise HTTPException(status_code=404, detail="Período de férias não encontrado.")
-    registrar_log(admin.id, "ferias.editar", entidade="ferias", entidade_id=ferias_id)
+    registrar_edicao(
+        admin.id,
+        "ferias.editar",
+        "ferias",
+        ferias_id,
+        anterior={
+            "funcionarioId": str(anterior_row["funcionario_id"]),
+            "inicio": anterior_row["inicio"].isoformat(),
+            "fim": anterior_row["fim"].isoformat(),
+            "status": anterior_row["status"],
+            "observacoes": anterior_row["observacoes"],
+        },
+        novo=body.model_dump(),
+    )
     return _serialize(_buscar_por_id(ferias_id))
 
 

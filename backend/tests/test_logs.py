@@ -33,18 +33,40 @@ def test_filtro_por_periodo(client, admin_headers):
     assert isinstance(resp.json(), list)
 
 
-def test_permissoes_atualizar_gera_log(client, admin_headers):
+def test_permissoes_atualizar_sem_mudanca_nao_gera_log(client, admin_headers):
+    """registrar_edicao só grava log se algo de fato mudou — reenviar o
+    mesmo valor não é um evento (ver backend/logs.py)."""
     resp_user = client.get("/api/auth/me", headers=admin_headers)
     admin_id = resp_user.json()["id"]
 
-    # PUT em cima do próprio conjunto de permissões do admin não muda nada
-    # de verdade (admin sempre vê tudo), mas já dispara o registro de log.
     resp = client.get(f"/api/permissoes/{admin_id}", headers=admin_headers)
     assert resp.status_code == 200
 
     resp_put = client.put(f"/api/permissoes/{admin_id}", headers=admin_headers, json=resp.json())
     assert resp_put.status_code == 200
 
-    resp_logs = client.get("/api/logs?acao=permissoes.atualizar&limit=5", headers=admin_headers)
-    assert resp_logs.status_code == 200
-    assert len(resp_logs.json()) >= 1
+
+def test_permissoes_atualizar_com_mudanca_gera_log_com_de_para(client, admin_headers, user_headers):
+    resp_user = client.get("/api/auth/me", headers=user_headers)
+    user_id = resp_user.json()["id"]
+
+    try:
+        resp_put = client.put(
+            f"/api/permissoes/{user_id}",
+            headers=admin_headers,
+            json=[{"pagina": "documentos", "permitido": False}],
+        )
+        assert resp_put.status_code == 200
+
+        resp_logs = client.get(f"/api/logs?acao=permissoes.atualizar&usuarioId={user_id}&limit=5", headers=admin_headers)
+        assert resp_logs.status_code == 200
+        logs = resp_logs.json()
+        assert len(logs) >= 1
+        assert logs[0]["detalhes"]["documentos"] == {"de": True, "para": False}
+    finally:
+        resp_restaura = client.put(
+            f"/api/permissoes/{user_id}",
+            headers=admin_headers,
+            json=[{"pagina": "documentos", "permitido": True}],
+        )
+        assert resp_restaura.status_code == 200
