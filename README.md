@@ -248,8 +248,9 @@ mais credencial fixa hardcoded no frontend.
 ## 11. Limitações conhecidas e pontos de atenção
 
 - **Audiências não tem mais página própria** — foi removida da sidebar a
-  pedido do escritório; a tabela `audiencias` existe no schema, mas sem
-  nenhum endpoint ligado a ela.
+  pedido do escritório. Audiências continuam representadas como um `tipo`
+  dentro de Agenda (`agenda_eventos`/`agenda_anotacoes`); a tabela solta
+  `audiencias`, que nunca teve endpoint ligado a ela, foi removida do banco.
 - **Meu Authenticator continua lendo os segredos TOTP do `.env`**, não do
   banco — a tabela `authenticator_contas` existe no schema mas não está
   em uso.

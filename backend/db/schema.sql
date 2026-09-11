@@ -177,25 +177,6 @@ create table feriados (
 -- 3. AUDIÊNCIAS
 -- =============================================================================
 
-create type status_audiencia as enum ('AGENDADA', 'REALIZADA', 'CANCELADA', 'REMARCADA');
-
-create table audiencias (
-  id uuid primary key default gen_random_uuid(),
-  processo text not null,
-  cliente text not null,
-  advogado_id uuid references usuarios (id) on delete set null,
-  data date not null,
-  horario time not null,
-  tipo text not null,
-  local text not null,
-  observacoes text,
-  status status_audiencia not null default 'AGENDADA',
-  created_at timestamptz not null default now()
-);
-
-create index idx_audiencias_advogado on audiencias (advogado_id);
-create index idx_audiencias_data on audiencias (data);
-
 -- =============================================================================
 -- 4. AVISOS (comunicados do escritório)
 -- =============================================================================
@@ -488,7 +469,6 @@ alter table agenda_anotacoes enable row level security;
 alter table ferias enable row level security;
 alter table atestados enable row level security;
 alter table feriados enable row level security;
-alter table audiencias enable row level security;
 alter table avisos enable row level security;
 alter table avisos_leituras enable row level security;
 alter table documentos enable row level security;
