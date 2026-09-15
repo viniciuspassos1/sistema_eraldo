@@ -41,6 +41,13 @@ body {
   border-radius: 999px;
 }
 
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Entrada escalonada em CSS puro (composta na GPU) para grids/listas com
    muitos itens — muito mais leve que animar cada item via JS, o que era a
    causa real do engasgo ao entrar em telas com vários cards/linhas.

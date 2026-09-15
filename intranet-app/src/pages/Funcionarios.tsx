@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, ShieldAlert } from 'lucide-react';
+import { Users, ShieldAlert, Plus } from 'lucide-react';
 import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
 import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
+import { CriarFuncionarioModal } from '../components/CriarFuncionarioModal';
+import { useAuth } from '../context/AuthContext';
 import { fetchFuncionarios, FuncionariosApiError } from '../api/funcionarios';
 import type { User } from '../types';
 
@@ -16,16 +18,23 @@ const statusTone = {
 } as const;
 
 export function Funcionarios() {
+  const { user } = useAuth();
+  const isAdmin = user?.perfil === 'ADMINISTRADOR';
   const [busca, setBusca] = useState('');
   const [setor, setSetor] = useState('todos');
   const [employees, setEmployees] = useState<User[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [modalAberto, setModalAberto] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  function recarregar() {
     fetchFuncionarios()
       .then(setEmployees)
       .catch((err) => setError(err instanceof FuncionariosApiError ? err.message : 'Erro inesperado ao carregar funcionários.'));
+  }
+
+  useEffect(() => {
+    recarregar();
   }, []);
 
   const setores = Array.from(new Set((employees ?? []).map((e) => e.setor)));
@@ -38,11 +47,23 @@ export function Funcionarios() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-navy flex items-center gap-2">
-          <Users className="w-5 h-5 text-gold" /> Funcionários
-        </h1>
-        <p className="text-text-secondary text-sm mt-1">Nossa equipe.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-navy flex items-center gap-2">
+            <Users className="w-5 h-5 text-gold" /> Funcionários
+          </h1>
+          <p className="text-text-secondary text-sm mt-1">Nossa equipe.</p>
+        </div>
+        {isAdmin && (
+          <button
+            onClick={() => setModalAberto(true)}
+            aria-label="Criar acesso de novo funcionário"
+            title="Criar acesso de novo funcionário"
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -104,6 +125,10 @@ export function Funcionarios() {
             </div>
           ))}
         </div>
+      )}
+
+      {isAdmin && (
+        <CriarFuncionarioModal open={modalAberto} onClose={() => setModalAberto(false)} onCriado={recarregar} />
       )}
     </div>
   );

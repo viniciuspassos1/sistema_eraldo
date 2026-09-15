@@ -72,3 +72,12 @@ BACKUP_RETENCAO_DIAS = int(os.getenv("BACKUP_RETENCAO_DIAS", "30"))
 # Caminho do binário pg_dump — só precisa mudar se não estiver no PATH
 # (imagem Docker de produção já instala postgresql-client, ver Dockerfile).
 PG_DUMP_PATH = os.getenv("PG_DUMP_PATH", "pg_dump").strip()
+
+# Segredo do disparo agendado do backup (POST /api/backups/agendado, ver
+# routers/backups.py) — usado por um cron externo (GitHub Actions), não por
+# um usuário logado. Existe separado de API_KEY/JWT de propósito: no plano
+# Free do Render o processo dorme por inatividade, então o loop de fundo
+# (jobs.py) só dispara o backup se algo acordar o serviço antes das 3h;
+# um cron externo bate nesse endpoint todo dia, o que também acorda o
+# serviço. Gerar com: python -c "import secrets; print(secrets.token_hex(32))"
+BACKUP_CRON_SECRET = os.getenv("BACKUP_CRON_SECRET", "").strip()

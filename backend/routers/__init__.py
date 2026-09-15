@@ -47,5 +47,6 @@ all_routers = [
     notas_pessoais.router,
     logs.router,
     backups.router,
+    backups.router_agendado,
     chatbot.router,
 ]

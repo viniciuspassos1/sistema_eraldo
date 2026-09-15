@@ -1,0 +1,28 @@
+name: Backup diário do banco
+
+# Dispara o backup do banco de produção todo dia às 3h (horário de Brasília,
+# UTC-3, sem horário de verão) — 06:00 UTC. Existe porque o serviço no
+# Render (plano Free) dorme por inatividade: o loop de fundo em
+# backend/jobs.py só roda dentro do processo vivo, então sem algo batendo
+# de fora não há garantia de que o backup dispare sozinho de madrugada. Essa
+# requisição também acorda o serviço, se ele estiver dormindo.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  disparar-backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar POST /api/backups/agendado
+        run: |
+          status=$(curl -s -o /tmp/resposta.json -w "%{http_code}" -X POST \
+            "${{ secrets.BACKUP_API_URL }}/api/backups/agendado" \
+            -H "X-Backup-Secret: ${{ secrets.BACKUP_CRON_SECRET }}")
+          echo "HTTP status: $status"
+          cat /tmp/resposta.json
+          if [ "$status" -ge 300 ]; then
+            echo "Disparo do backup falhou (status $status)."
+            exit 1
+          fi

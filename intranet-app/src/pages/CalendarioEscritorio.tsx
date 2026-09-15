@@ -43,7 +43,7 @@ export function CalendarioEscritorio() {
 
   return (
     <div className="max-w-6xl space-y-6">
-      <div className="flex gap-1 border-b border-border overflow-x-auto">
+      <div className="flex gap-1 border-b border-border overflow-x-auto scrollbar-hide">
         {TABS.map((t) => {
           const isActive = t.id === active;
           return (

@@ -3,17 +3,22 @@ para a lógica de execução (pg_dump real) e a decisão de agendamento diário.
 
 import os
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from security import require_api_key, require_admin, UsuarioAtual
 from database import fetch_all, fetch_one
-from config import BACKUP_DIR
+from config import BACKUP_CRON_SECRET, BACKUP_DIR
 from backup import executar_backup
 from logs import registrar_log
 
 router = APIRouter(dependencies=[Depends(require_api_key), Depends(require_admin)])
+
+# Router à parte, sem require_api_key/require_admin: quem chama é um cron
+# externo (GitHub Actions), não o frontend logado — ver BACKUP_CRON_SECRET
+# em config.py.
+router_agendado = APIRouter()
 
 _COLUNAS = "id, tipo, status, iniciado_em, finalizado_em, arquivo_nome, tamanho_bytes, erro"
 
@@ -56,6 +61,21 @@ def disparar_backup_manual(background_tasks: BackgroundTasks, admin: UsuarioAtua
 
     background_tasks.add_task(executar_backup, "MANUAL")
     registrar_log(admin.id, "backup.disparar_manual", entidade="backups")
+    return {"status": "iniciado"}
+
+
+@router_agendado.post("/api/backups/agendado", status_code=202)
+def disparar_backup_agendado(background_tasks: BackgroundTasks, x_backup_secret: str | None = Header(default=None)):
+    if not BACKUP_CRON_SECRET:
+        raise HTTPException(status_code=500, detail="BACKUP_CRON_SECRET não configurado no backend (.env).")
+    if x_backup_secret != BACKUP_CRON_SECRET:
+        raise HTTPException(status_code=401, detail="Segredo inválido.")
+
+    em_andamento = fetch_one("SELECT 1 FROM backups WHERE status = 'EM_ANDAMENTO' LIMIT 1;")
+    if em_andamento:
+        return {"status": "ja_em_andamento"}
+
+    background_tasks.add_task(executar_backup, "AUTOMATICO")
     return {"status": "iniciado"}
 
 
