@@ -1,5 +1,5 @@
 import { useState, useMemo, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimationControls, type Variants } from 'motion/react';
 import { Eye, EyeOff, ArrowRight, Scale } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -216,9 +216,9 @@ export function Login() {
                 />
                 Manter conectado
               </label>
-              <a href="#" className="text-xs text-gold hover:underline">
+              <Link to="/esqueci-senha" className="text-xs text-gold hover:underline">
                 Esqueceu a senha?
-              </a>
+              </Link>
             </motion.div>
 
             <AnimatePresence>

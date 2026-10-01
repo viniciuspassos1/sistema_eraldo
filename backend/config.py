@@ -36,6 +36,11 @@ DB_POOL_MAX = int(os.getenv("DB_POOL_MAX", "10"))
 JWT_SECRET = os.getenv("JWT_SECRET", "")
 JWT_EXPIRES_HOURS_SESSAO = int(os.getenv("JWT_EXPIRES_HOURS_SESSAO", "12"))
 JWT_EXPIRES_HOURS_PERSISTENTE = int(os.getenv("JWT_EXPIRES_HOURS_PERSISTENTE", "720"))
+JWT_EXPIRES_MINUTOS_REDEFINICAO = int(os.getenv("JWT_EXPIRES_MINUTOS_REDEFINICAO", "30"))
+
+# URL pública do frontend — usada só pra montar o link de "redefinir senha"
+# dentro do e-mail (ver routers/auth.py). Sem "/" no final.
+FRONTEND_URL = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
 
 # Jobs de fundo (lembrete de reunião por e-mail, onboarding parado, SLA de
 # solicitações) — desligados por padrão. Em dev/teste isso evita que a suíte

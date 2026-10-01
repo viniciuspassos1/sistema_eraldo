@@ -1,6 +1,5 @@
 import {
   Home,
-  Bot,
   BookOpen,
   CalendarDays,
   BookText,
@@ -26,7 +25,6 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { label: 'Início', path: '/', icon: Home, permissionKey: 'dashboard' },
   { label: 'Meu Authenticator', path: '/meu-authenticator', icon: KeyRound, permissionKey: 'meu-authenticator' },
-  { label: 'Central de Ajuda', path: '/assistente-ia', icon: Bot, permissionKey: 'assistente-ia' },
   { label: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen, permissionKey: 'base-conhecimento' },
   { label: 'Calendário do Escritório', path: '/calendario', icon: CalendarDays, permissionKey: 'calendario' },
   { label: 'Manual Interno', path: '/manual', icon: BookText, permissionKey: 'manual' },

@@ -3,7 +3,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Sidebar } from '../components/Sidebar';
 import { Header } from '../components/Header';
-import { FloatingAIButton } from '../components/FloatingAIButton';
 import { AgendaAlerts } from '../components/AgendaAlerts';
 import { RouteSkeleton } from '../components/Skeleton';
 import { useReducedMotion } from '../hooks/useReducedMotion';
@@ -48,7 +47,6 @@ export function AppLayout() {
         </main>
       </div>
 
-      <FloatingAIButton />
       <AgendaAlerts />
     </div>
   );

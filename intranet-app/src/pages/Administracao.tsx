@@ -119,18 +119,6 @@ export function Administracao() {
           </div>
         </Card>
       </div>
-
-      <div>
-        <Card>
-          <CardHeader title="Perguntas mais realizadas à IA" />
-          <p className="text-xs text-text-secondary -mt-2 mb-4">
-            Ajuda a identificar quais informações precisam ser melhor documentadas.
-          </p>
-          <p className="text-sm text-text-secondary">
-            Sem estatística de uso ainda — a Central de Ajuda não registra as perguntas feitas por enquanto.
-          </p>
-        </Card>
-      </div>
     </div>
   );
 }

@@ -11,8 +11,12 @@ import { AppLayout } from './layouts/AppLayout';
 // visitada — reduz o JS inicial e mantém o app leve mesmo crescendo.
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+// Fora do AppLayout (sem o Suspense que envolve as rotas autenticadas, ver
+// AppLayout.tsx) — carregam de cara em vez de lazy(), senão suspenderiam
+// sem um Suspense ancestral por perto.
+import { EsqueciSenha } from './pages/EsqueciSenha';
+import { RedefinirSenha } from './pages/RedefinirSenha';
 
-const AssistenteIA = lazy(() => import('./pages/AssistenteIA').then((m) => ({ default: m.AssistenteIA })));
 const Administracao = lazy(() => import('./pages/Administracao').then((m) => ({ default: m.Administracao })));
 const AdministracaoUsuarios = lazy(() =>
   import('./pages/AdministracaoUsuarios').then((m) => ({ default: m.AdministracaoUsuarios }))
@@ -50,6 +54,8 @@ function App() {
         <ToastProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenha />} />
 
           <Route
             element={
@@ -59,14 +65,6 @@ function App() {
             }
           >
             <Route path="/" element={<Dashboard />} />
-            <Route
-              path="/assistente-ia"
-              element={
-                <ProtectedRoute pagina="assistente-ia">
-                  <AssistenteIA />
-                </ProtectedRoute>
-              }
-            />
             <Route
               path="/base-conhecimento"
               element={

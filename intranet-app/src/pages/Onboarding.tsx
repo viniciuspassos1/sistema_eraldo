@@ -30,10 +30,17 @@ export function Onboarding() {
     fetchProgresso()
       .then(setChecklist)
       .catch((err) => setError(err instanceof OnboardingApiError ? err.message : 'Erro inesperado ao carregar o checklist.'));
+  }, [user]);
+
+  // Só busca o resumo administrativo pra admin — pra qualquer outro perfil
+  // o backend nega com 403 mesmo (ver require_admin em routers/onboarding.py),
+  // então disparar a chamada só gera erro de rede à toa.
+  useEffect(() => {
+    if (!isAdmin) return;
     fetchResumoOnboarding()
       .then(setResumo)
       .catch(() => setResumo([]));
-  }, [user]);
+  }, [isAdmin]);
 
   const concluido = (checklist ?? []).filter((c) => c.concluido).length;
   const percentual = checklist && checklist.length > 0 ? Math.round((concluido / checklist.length) * 100) : 0;
@@ -108,11 +115,11 @@ export function Onboarding() {
         )}
       </Card>
 
-      <Card>
-        <CardHeader
-          title="Acompanhamento (administrador)"
-          action={
-            isAdmin && (
+      {isAdmin && (
+        <Card>
+          <CardHeader
+            title="Acompanhamento (administrador)"
+            action={
               <button
                 onClick={() => setModalAberto(true)}
                 aria-label="Criar acesso de novo funcionário"
@@ -121,34 +128,34 @@ export function Onboarding() {
               >
                 <Plus className="w-4 h-4" />
               </button>
-            )
-          }
-        />
-        {resumo === null ? (
-          <div className="space-y-3">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        ) : resumo.length === 0 ? (
-          <EmptyState title="Nenhum funcionário em onboarding no momento" />
-        ) : (
-          <ul className="space-y-3">
-            {resumo.map((f) => (
-              <li key={f.funcionarioId} className="flex items-center gap-4">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-navy">{f.nome}</p>
-                  <p className="text-xs text-text-secondary">{f.cargo}</p>
-                  <div className="w-full h-1.5 bg-cream rounded-full overflow-hidden mt-2">
-                    <div className="h-full bg-navy rounded-full" style={{ width: `${f.percentual}%` }} />
+            }
+          />
+          {resumo === null ? (
+            <div className="space-y-3">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : resumo.length === 0 ? (
+            <EmptyState title="Nenhum funcionário em onboarding no momento" />
+          ) : (
+            <ul className="space-y-3">
+              {resumo.map((f) => (
+                <li key={f.funcionarioId} className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-navy">{f.nome}</p>
+                    <p className="text-xs text-text-secondary">{f.cargo}</p>
+                    <div className="w-full h-1.5 bg-cream rounded-full overflow-hidden mt-2">
+                      <div className="h-full bg-navy rounded-full" style={{ width: `${f.percentual}%` }} />
+                    </div>
                   </div>
-                </div>
-                <span className="text-xs text-text-secondary w-12 text-right shrink-0">{f.percentual}%</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+                  <span className="text-xs text-text-secondary w-12 text-right shrink-0">{f.percentual}%</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
 
       {isAdmin && (
         <CriarFuncionarioModal open={modalAberto} onClose={() => setModalAberto(false)} />

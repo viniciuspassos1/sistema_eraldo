@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Palmtree, Megaphone, Cake, Bot, FileText, Link2, ShieldAlert, GraduationCap, Inbox as InboxIcon, Stethoscope, Lightbulb, NotebookPen, ChevronRight, CalendarDays } from 'lucide-react';
+import { Palmtree, Megaphone, Cake, FileText, Link2, ShieldAlert, GraduationCap, Inbox as InboxIcon, Stethoscope, Lightbulb, NotebookPen, ChevronRight, CalendarDays } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader } from '../components/Card';
 import { StatCard } from '../components/StatCard';
@@ -45,7 +45,6 @@ interface DashboardDados {
 }
 
 const shortcuts = [
-  { label: 'Central de Ajuda', icon: Bot, path: '/assistente-ia' },
   { label: 'Documentos', icon: FileText, path: '/documentos' },
   { label: 'Tribunais', icon: Link2, path: '/tribunais' },
   { label: 'Férias', icon: Palmtree, path: '/calendario?tab=ferias' },

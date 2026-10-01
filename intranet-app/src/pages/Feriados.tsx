@@ -68,10 +68,10 @@ export function Feriados() {
     const payload: FeriadoInput = {
       nome: form.nome.trim(),
       dataInicio: form.dataInicio,
-      dataFim: form.dataFim || null,
+      dataFim: form.dataFim || undefined,
       tipo: form.tipo,
       escritorioFechado: form.escritorioFechado,
-      observacao: form.observacao?.trim() || null,
+      observacao: form.observacao?.trim() || undefined,
     };
     try {
       if (editandoId) {

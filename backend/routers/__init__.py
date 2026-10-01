@@ -21,7 +21,6 @@ from . import (
     notas_pessoais,
     logs,
     backups,
-    chatbot,
 )
 
 all_routers = [
@@ -48,5 +47,4 @@ all_routers = [
     logs.router,
     backups.router,
     backups.router_agendado,
-    chatbot.router,
 ]

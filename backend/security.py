@@ -7,7 +7,13 @@ import jwt
 from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel
 
-from config import API_KEY, JWT_SECRET, JWT_EXPIRES_HOURS_SESSAO, JWT_EXPIRES_HOURS_PERSISTENTE
+from config import (
+    API_KEY,
+    JWT_SECRET,
+    JWT_EXPIRES_HOURS_SESSAO,
+    JWT_EXPIRES_HOURS_PERSISTENTE,
+    JWT_EXPIRES_MINUTOS_REDEFINICAO,
+)
 from database import fetch_one
 
 JWT_ALGORITHM = "HS256"
@@ -127,6 +133,54 @@ def criar_token(usuario_id: str, perfil: str, persistente: bool) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
+# Token de "esqueci minha senha" — um JWT separado do de sessão, com
+# `finalidade` marcada (require_user recusa qualquer token que tenha essa
+# claim, ver abaixo) pra um link de redefinição vazado nunca servir como
+# sessão válida. Curto prazo (30 min por padrão) e de uso único de fato:
+# redefinir_senha() chama invalidar_tokens_anteriores() ao trocar a senha,
+# o que também derruba esse mesmo token (iat < corte) se reaproveitado.
+_FINALIDADE_REDEFINICAO = "redefinir_senha"
+
+
+def criar_token_redefinicao(usuario_id: str) -> str:
+    if not JWT_SECRET:
+        raise HTTPException(status_code=500, detail="JWT_SECRET não configurado no backend (.env).")
+    agora = datetime.now(timezone.utc)
+    payload = {
+        "sub": usuario_id,
+        "finalidade": _FINALIDADE_REDEFINICAO,
+        "iat": agora,
+        "exp": agora + timedelta(minutes=JWT_EXPIRES_MINUTOS_REDEFINICAO),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def validar_token_redefinicao(token: str) -> str:
+    """Devolve o usuario_id do token, ou levanta 400 (mensagem genérica de
+    propósito — não dá pra diferenciar "expirado" de "inválido" sem abrir
+    margem pra um atacante testar validade de tokens)."""
+    erro = HTTPException(status_code=400, detail="Link inválido ou expirado.")
+    if not JWT_SECRET:
+        raise HTTPException(status_code=500, detail="JWT_SECRET não configurado no backend (.env).")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.PyJWTError:
+        raise erro
+
+    if payload.get("finalidade") != _FINALIDADE_REDEFINICAO:
+        raise erro
+
+    usuario_id = payload.get("sub")
+    if not usuario_id:
+        raise erro
+
+    alterada_em = _senha_alterada_em.get(str(usuario_id))
+    if alterada_em is not None and (payload.get("iat") is None or payload["iat"] < alterada_em):
+        raise erro
+
+    return str(usuario_id)
+
+
 class UsuarioAtual(BaseModel):
     id: str
     nome: str
@@ -147,6 +201,11 @@ def require_user(authorization: str | None = Header(default=None)) -> UsuarioAtu
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Sessão inválida ou expirada.")
+
+    # Um token de "esqueci minha senha" (ver criar_token_redefinicao) nunca
+    # serve como sessão — só pra POST /api/auth/redefinir-senha.
+    if payload.get("finalidade") is not None:
         raise HTTPException(status_code=401, detail="Sessão inválida ou expirada.")
 
     alterada_em = _senha_alterada_em.get(str(payload.get("sub")))
@@ -179,12 +238,11 @@ def require_admin(usuario: UsuarioAtual = Depends(require_user)) -> UsuarioAtual
     return usuario
 
 
-# As 11 páginas do menu que aceitam permissão granular por usuário
+# As 10 páginas do menu que aceitam permissão granular por usuário
 # (Administração fica de fora — trancada só por perfil, ver require_admin).
 PAGINAS_PERMISSAO = [
     "dashboard",
     "meu-authenticator",
-    "assistente-ia",
     "base-conhecimento",
     "calendario",
     "manual",
@@ -204,7 +262,6 @@ PAGINAS_PERMISSAO = [
 PAGINAS_LABELS: dict[str, str] = {
     "dashboard": "Início",
     "meu-authenticator": "Authenticator",
-    "assistente-ia": "Assistente IA",
     "base-conhecimento": "Base de Conhecimento",
     "calendario": "Calendário",
     "manual": "Manual Interno",

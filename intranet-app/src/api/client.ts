@@ -45,8 +45,13 @@ export async function apiFetch(
       },
     });
   } catch {
+    // Mensagem técnica (cita o comando do backend local) só em dev — em
+    // produção isso vazaria detalhe de infraestrutura pro usuário final
+    // numa instabilidade de rede real (ver achado de QA sobre isso).
     throw new ErroApi(
-      'Não foi possível conectar ao backend local. Ele está rodando? (uvicorn main:app --port 8010)'
+      import.meta.env.DEV
+        ? 'Não foi possível conectar ao backend local. Ele está rodando? (uvicorn main:app --port 8010)'
+        : 'Não foi possível conectar ao servidor. Tente novamente em instantes.'
     );
   }
 }
