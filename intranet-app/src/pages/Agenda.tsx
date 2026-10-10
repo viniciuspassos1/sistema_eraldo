@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { Calendar as CalendarIcon, MapPin, Trash2 } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchAgendaEventos, AgendaApiError } from '../api/agenda';
 import {
   fetchAnotacoes,
@@ -45,10 +45,14 @@ function toISO(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function getWeekDates(): Date[] {
+/** `offsetSemanas` conta semanas inteiras a partir da atual (0 = semana de
+ * hoje, -1 = semana passada, 1 = semana que vem, etc.) — os dados já vêm
+ * todos do backend (sem filtro de data, ver listar_eventos/listar_anotacoes),
+ * só a navegação entre semanas é local. */
+function getWeekDates(offsetSemanas: number): Date[] {
   const today = new Date(todayISO());
   const sunday = new Date(today);
-  sunday.setDate(today.getDate() - today.getDay());
+  sunday.setDate(today.getDate() - today.getDay() + offsetSemanas * 7);
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(sunday);
     d.setDate(sunday.getDate() + i);
@@ -131,7 +135,8 @@ interface ModalState {
 }
 
 export function Agenda() {
-  const weekDates = getWeekDates();
+  const [offsetSemanas, setOffsetSemanas] = useState(0);
+  const weekDates = getWeekDates(offsetSemanas);
   const todayIso = todayISO();
   const gridHeight = HOURS.length * ROW_HEIGHT;
   const [eventos, setEventos] = useState<AgendaEvent[]>([]);
@@ -228,14 +233,46 @@ export function Agenda() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-navy flex items-center gap-2">
-          <CalendarIcon className="w-5 h-5 text-gold" /> Agenda
-        </h1>
-        <p className="text-text-secondary text-sm mt-1">
-          Compromissos da semana. Clique em um horário vazio pra marcar algo — só você vê o que criar aqui.
-        </p>
-        {erro && <p className="text-xs text-rose-600 mt-1">{erro}</p>}
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-navy flex items-center gap-2">
+            <CalendarIcon className="w-5 h-5 text-gold" /> Agenda
+          </h1>
+          <p className="text-text-secondary text-sm mt-1">
+            Compromissos da semana. Clique em um horário vazio pra marcar algo — só você vê o que criar aqui.
+          </p>
+          {erro && <p className="text-xs text-rose-600 mt-1">{erro}</p>}
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => setOffsetSemanas((v) => v - 1)}
+            aria-label="Semana anterior"
+            title="Semana anterior"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-text-secondary hover:bg-cream hover:text-navy transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          {offsetSemanas !== 0 && (
+            <button
+              type="button"
+              onClick={() => setOffsetSemanas(0)}
+              className="px-3 h-8 flex items-center justify-center rounded-lg text-xs font-medium text-navy border border-border hover:bg-cream transition-colors"
+            >
+              Hoje
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setOffsetSemanas((v) => v + 1)}
+            aria-label="Próxima semana"
+            title="Próxima semana"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-text-secondary hover:bg-cream hover:text-navy transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="flex border border-border rounded-xl overflow-hidden bg-white shadow-soft">
