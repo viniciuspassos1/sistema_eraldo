@@ -45,19 +45,39 @@ function toISO(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/** `offsetSemanas` conta semanas inteiras a partir da atual (0 = semana de
- * hoje, -1 = semana passada, 1 = semana que vem, etc.) — os dados já vêm
- * todos do backend (sem filtro de data, ver listar_eventos/listar_anotacoes),
- * só a navegação entre semanas é local. */
-function getWeekDates(offsetSemanas: number): Date[] {
-  const today = new Date(todayISO());
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() - today.getDay() + offsetSemanas * 7);
+/** A semana exibida é sempre a que contém `dataReferencia` (domingo a
+ * sábado) — os dados já vêm todos do backend sem filtro de data (ver
+ * listar_eventos/listar_anotacoes), só a navegação é local. Trocar a
+ * data de referência (setas, "Hoje" ou o seletor de calendário) é o
+ * suficiente pra pular pra qualquer semana, de qualquer mês/ano. */
+function getWeekDates(dataReferenciaISO: string): Date[] {
+  const referencia = new Date(dataReferenciaISO);
+  const sunday = new Date(referencia);
+  sunday.setDate(referencia.getDate() - referencia.getDay());
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(sunday);
     d.setDate(sunday.getDate() + i);
     return d;
   });
+}
+
+const MES_LABEL = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
+/** Mês/ano exibido acima da grade — quando a semana cruza dois meses
+ * (ex.: domingo em outubro, sábado em novembro), mostra os dois. */
+function labelMesAno(weekDates: Date[]): string {
+  const inicio = weekDates[0];
+  const fim = weekDates[6];
+  if (inicio.getMonth() === fim.getMonth() && inicio.getFullYear() === fim.getFullYear()) {
+    return `${MES_LABEL[inicio.getMonth()]} de ${inicio.getFullYear()}`;
+  }
+  if (inicio.getFullYear() === fim.getFullYear()) {
+    return `${MES_LABEL[inicio.getMonth()]} – ${MES_LABEL[fim.getMonth()]} de ${inicio.getFullYear()}`;
+  }
+  return `${MES_LABEL[inicio.getMonth()]} de ${inicio.getFullYear()} – ${MES_LABEL[fim.getMonth()]} de ${fim.getFullYear()}`;
 }
 
 function horaParaOffset(hora: string): number | null {
@@ -135,10 +155,17 @@ interface ModalState {
 }
 
 export function Agenda() {
-  const [offsetSemanas, setOffsetSemanas] = useState(0);
-  const weekDates = getWeekDates(offsetSemanas);
   const todayIso = todayISO();
+  const [dataReferencia, setDataReferencia] = useState(todayIso);
+  const weekDates = getWeekDates(dataReferencia);
   const gridHeight = HOURS.length * ROW_HEIGHT;
+  const inputDataRef = useRef<HTMLInputElement>(null);
+
+  function somarDias(iso: string, dias: number): string {
+    const d = new Date(iso);
+    d.setDate(d.getDate() + dias);
+    return toISO(d);
+  }
   const [eventos, setEventos] = useState<AgendaEvent[]>([]);
   const [notas, setNotas] = useState<AnotacaoAgenda[]>([]);
   const [erro, setErro] = useState<string | null>(null);
@@ -244,34 +271,56 @@ export function Agenda() {
           {erro && <p className="text-xs text-rose-600 mt-1">{erro}</p>}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          <p className="text-sm font-medium text-navy w-40 text-right">{labelMesAno(weekDates)}</p>
           <button
             type="button"
-            onClick={() => setOffsetSemanas((v) => v - 1)}
+            onClick={() => setDataReferencia((v) => somarDias(v, -7))}
             aria-label="Semana anterior"
             title="Semana anterior"
             className="w-8 h-8 flex items-center justify-center rounded-lg text-text-secondary hover:bg-cream hover:text-navy transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          {offsetSemanas !== 0 && (
-            <button
-              type="button"
-              onClick={() => setOffsetSemanas(0)}
-              className="px-3 h-8 flex items-center justify-center rounded-lg text-xs font-medium text-navy border border-border hover:bg-cream transition-colors"
-            >
-              Hoje
-            </button>
-          )}
           <button
             type="button"
-            onClick={() => setOffsetSemanas((v) => v + 1)}
+            onClick={() => setDataReferencia((v) => somarDias(v, 7))}
             aria-label="Próxima semana"
             title="Próxima semana"
             className="w-8 h-8 flex items-center justify-center rounded-lg text-text-secondary hover:bg-cream hover:text-navy transition-colors"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
+
+          {/* Input nativo de data (invisível) sobreposto ao ícone — clicar no
+              ícone abre o seletor nativo do navegador, que deixa escolher
+              qualquer dia de qualquer mês/ano. Ao escolher, a agenda pula
+              pra semana que contém aquele dia. */}
+          <div className="relative w-8 h-8">
+            <button
+              type="button"
+              onClick={() => {
+                const el = inputDataRef.current;
+                if (!el) return;
+                if (typeof el.showPicker === 'function') el.showPicker();
+                else el.focus();
+              }}
+              aria-label="Escolher data"
+              title="Escolher data"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-text-secondary hover:bg-cream hover:text-navy transition-colors"
+            >
+              <CalendarIcon className="w-4 h-4" />
+            </button>
+            <input
+              ref={inputDataRef}
+              type="date"
+              value={dataReferencia}
+              onChange={(e) => e.target.value && setDataReferencia(e.target.value)}
+              className="absolute inset-0 opacity-0 pointer-events-none"
+              tabIndex={-1}
+              aria-hidden="true"
+            />
+          </div>
         </div>
       </div>
 
