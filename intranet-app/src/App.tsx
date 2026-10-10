@@ -16,6 +16,7 @@ import { Dashboard } from './pages/Dashboard';
 // sem um Suspense ancestral por perto.
 import { EsqueciSenha } from './pages/EsqueciSenha';
 import { RedefinirSenha } from './pages/RedefinirSenha';
+import { PrimeiroAcesso } from './pages/PrimeiroAcesso';
 
 const Administracao = lazy(() => import('./pages/Administracao').then((m) => ({ default: m.Administracao })));
 const AdministracaoUsuarios = lazy(() =>
@@ -56,6 +57,14 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/esqueci-senha" element={<EsqueciSenha />} />
           <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+          <Route
+            path="/primeiro-acesso"
+            element={
+              <ProtectedRoute>
+                <PrimeiroAcesso />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             element={

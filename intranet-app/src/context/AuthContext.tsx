@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { login as apiLogin, me as apiMe, logout as apiLogout, AuthApiError } from '../api/auth';
+import { EVENTO_SESSAO_EXPIRADA } from '../api/client';
 import { getStoredToken, setStoredToken, clearStoredToken } from '../utils/authToken';
 import type { User } from '../types';
 
@@ -29,6 +30,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(setUser)
       .catch(clearStoredToken)
       .finally(() => setLoading(false));
+  }, []);
+
+  // Qualquer chamada autenticada que volte 401 (sessão de 10h expirada, ou
+  // revogada por troca de senha) dispara esse evento (ver api/client.ts) —
+  // derrubar o usuário aqui faz o ProtectedRoute redirecionar pro login
+  // sozinho, mesmo em uma tela no meio da navegação, não só no load inicial.
+  useEffect(() => {
+    function aoExpirar() {
+      setUser(null);
+    }
+    window.addEventListener(EVENTO_SESSAO_EXPIRADA, aoExpirar);
+    return () => window.removeEventListener(EVENTO_SESSAO_EXPIRADA, aoExpirar);
   }, []);
 
   const login: AuthContextValue['login'] = async (email, senha, manterConectado = false) => {

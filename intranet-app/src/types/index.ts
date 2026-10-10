@@ -17,6 +17,10 @@ export interface User {
   permissoes?: Record<string, boolean>;
   /** Autodeclarado pelo próprio usuário — restrição alimentar pro bolo de aniversário. */
   alergiaAlimentar?: string;
+  /** true = a senha atual ainda é a que um admin definiu na criação da conta
+   * (nunca trocada) — ProtectedRoute redireciona pra /primeiro-acesso até
+   * o usuário trocar. Só vem preenchido no usuário logado, igual `permissoes`. */
+  trocaSenhaObrigatoria?: boolean;
 }
 
 export interface Colaborador {

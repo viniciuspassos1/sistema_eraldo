@@ -34,8 +34,14 @@ DB_POOL_MIN = int(os.getenv("DB_POOL_MIN", "10"))
 DB_POOL_MAX = int(os.getenv("DB_POOL_MAX", "10"))
 
 JWT_SECRET = os.getenv("JWT_SECRET", "")
-JWT_EXPIRES_HOURS_SESSAO = int(os.getenv("JWT_EXPIRES_HOURS_SESSAO", "12"))
-JWT_EXPIRES_HOURS_PERSISTENTE = int(os.getenv("JWT_EXPIRES_HOURS_PERSISTENTE", "720"))
+# Sessão expira sempre em 10h a partir do login, com ou sem "manter
+# conectado" marcado — esse checkbox só decide se o token sobrevive ao
+# fechar o navegador (localStorage) ou não (sessionStorage), ver
+# utils/authToken.ts no frontend. As duas variáveis existem separadas só
+# por compatibilidade com quem configurou o .env antes; ambas usam o mesmo
+# padrão de 10h.
+JWT_EXPIRES_HOURS_SESSAO = int(os.getenv("JWT_EXPIRES_HOURS_SESSAO", "10"))
+JWT_EXPIRES_HOURS_PERSISTENTE = int(os.getenv("JWT_EXPIRES_HOURS_PERSISTENTE", "10"))
 JWT_EXPIRES_MINUTOS_REDEFINICAO = int(os.getenv("JWT_EXPIRES_MINUTOS_REDEFINICAO", "30"))
 
 # URL pública do frontend — usada só pra montar o link de "redefinir senha"

@@ -15,6 +15,7 @@ interface UsuarioResponse {
   status: User['status'];
   alergiaAlimentar: string | null;
   permissoes: Record<string, boolean>;
+  trocaSenhaObrigatoria: boolean;
 }
 
 interface LoginResponse {
@@ -39,6 +40,7 @@ function toUser(u: UsuarioResponse): User {
     status: u.status,
     alergiaAlimentar: u.alergiaAlimentar ?? undefined,
     permissoes: u.permissoes,
+    trocaSenhaObrigatoria: u.trocaSenhaObrigatoria,
   };
 }
 

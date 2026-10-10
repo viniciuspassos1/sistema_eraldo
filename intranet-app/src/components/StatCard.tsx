@@ -8,19 +8,23 @@ export function StatCard({
   value,
   tone = 'navy',
   countDelay = 0,
+  onClick,
 }: {
   icon: LucideIcon;
   label: string;
   value: string | number;
   tone?: 'navy' | 'gold';
   countDelay?: number;
+  /** Se informado, o card vira um botão clicável (ex.: navegar pra tela
+   * relacionada). Sem isso, continua só exibindo o número, como antes. */
+  onClick?: () => void;
 }) {
   const numericValue = typeof value === 'number' ? value : Number(value);
   const isCountable = Number.isFinite(numericValue) && typeof value !== 'string';
   const displayed = useCountUp(isCountable ? numericValue : 0, 550, countDelay);
 
   return (
-    <Card className="flex items-center gap-4">
+    <Card onClick={onClick} className="flex items-center gap-4">
       <div
         className={
           tone === 'gold'

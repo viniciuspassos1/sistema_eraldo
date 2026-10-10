@@ -187,6 +187,7 @@ export function Dashboard() {
           label="Funcionários de férias"
           value={funcionariosFerias.length}
           countDelay={0}
+          onClick={() => navigate('/calendario?tab=ferias')}
         />
         <StatCard
           icon={Megaphone}
@@ -194,12 +195,14 @@ export function Dashboard() {
           value={avisosNaoLidos.length}
           tone="gold"
           countDelay={60}
+          onClick={() => navigate('/calendario?tab=avisos')}
         />
         <StatCard
           icon={Cake}
           label="Aniversariantes próximos"
           value={aniversariantesProximos.length}
           countDelay={120}
+          onClick={() => navigate('/calendario?tab=aniversarios')}
         />
         <StatCard
           icon={CalendarDays}
@@ -207,6 +210,7 @@ export function Dashboard() {
           value={feriadosProximos.length}
           tone="gold"
           countDelay={180}
+          onClick={() => navigate('/calendario?tab=feriados')}
         />
       </div>
 

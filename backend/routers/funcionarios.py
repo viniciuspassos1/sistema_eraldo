@@ -119,8 +119,8 @@ def criar_funcionario(body: NovoFuncionario, admin: UsuarioAtual = Depends(requi
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO usuarios (nome, email, senha_hash, cargo, setor, perfil, data_entrada, aniversario, telefone)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO usuarios (nome, email, senha_hash, cargo, setor, perfil, data_entrada, aniversario, telefone, senha_temporaria)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, true)
                     RETURNING id;
                     """,
                     (

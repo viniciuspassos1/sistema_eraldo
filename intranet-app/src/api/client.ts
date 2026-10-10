@@ -10,7 +10,16 @@
  * Centralizar aqui elimina essa classe de bug — só existe um lugar que
  * monta os headers da requisição. */
 
-import { getStoredToken } from '../utils/authToken';
+import { getStoredToken, clearStoredToken } from '../utils/authToken';
+
+/** Nome do evento disparado no `window` sempre que o backend responde 401
+ * (token ausente/expirado/inválido) em qualquer chamada — ver apiFetch
+ * abaixo. O AuthContext escuta esse evento pra derrubar o usuário da
+ * sessão em memória, o que faz o ProtectedRoute redirecionar pro login
+ * automaticamente (ver components/ProtectedRoute.tsx), mesmo que o 401
+ * tenha vindo de uma chamada no meio da navegação, não só no carregamento
+ * inicial da página. */
+export const EVENTO_SESSAO_EXPIRADA = 'sessao-expirada';
 
 export const API_URL = import.meta.env.VITE_AUTHENTICATOR_API_URL as string | undefined;
 export const API_KEY = import.meta.env.VITE_AUTHENTICATOR_API_KEY as string | undefined;
@@ -36,7 +45,7 @@ export async function apiFetch(
 
   const token = getStoredToken();
   try {
-    return await fetch(`${API_URL}${path}`, {
+    const response = await fetch(`${API_URL}${path}`, {
       ...init,
       headers: {
         'X-API-Key': API_KEY,
@@ -44,6 +53,18 @@ export async function apiFetch(
         ...(init?.headers ?? {}),
       },
     });
+
+    // Só dispara pra uma chamada que já era autenticada (tinha token) e voltou
+    // 401 — isso cobre sessão expirada (10h) ou revogada (troca de senha)
+    // em qualquer tela, não só no carregamento inicial. Login com senha
+    // errada também devolve 401, mas nunca tem token salvo ainda, então
+    // não aciona isso à toa.
+    if (response.status === 401 && token) {
+      clearStoredToken();
+      window.dispatchEvent(new CustomEvent(EVENTO_SESSAO_EXPIRADA));
+    }
+
+    return response;
   } catch {
     // Mensagem técnica (cita o comando do backend local) só em dev — em
     // produção isso vazaria detalhe de infraestrutura pro usuário final

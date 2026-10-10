@@ -38,6 +38,13 @@ create table usuarios (
   telefone text,
   alergia_alimentar text, -- autodeclarado pelo próprio usuário; usado pra saber restrições no bolo de aniversário
   status status_usuario not null default 'ATIVO',
+  -- true quando a senha atual ainda é a que um admin definiu na criação da
+  -- conta (nunca trocada pelo próprio usuário) — força a tela de troca
+  -- obrigatória de senha no próximo login (ver POST /api/auth/trocar-senha
+  -- e ProtectedRoute.tsx). Zera sozinho ao trocar a senha (trocar-senha ou
+  -- redefinir-senha), nunca precisa ser setado manualmente depois da
+  -- criação da conta.
+  senha_temporaria boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

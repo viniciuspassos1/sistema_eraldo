@@ -25,8 +25,8 @@ from logs import registrar_log
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
-_COLUNAS = "id, nome, email, senha_hash, cargo, setor, foto_url, perfil, data_entrada, aniversario, telefone, status, alergia_alimentar"
-_COLUNAS_PUBLICAS = "id, nome, email, cargo, setor, foto_url, perfil, data_entrada, aniversario, telefone, status, alergia_alimentar"
+_COLUNAS = "id, nome, email, senha_hash, cargo, setor, foto_url, perfil, data_entrada, aniversario, telefone, status, alergia_alimentar, senha_temporaria"
+_COLUNAS_PUBLICAS = "id, nome, email, cargo, setor, foto_url, perfil, data_entrada, aniversario, telefone, status, alergia_alimentar, senha_temporaria"
 
 
 class LoginBody(BaseModel):
@@ -49,6 +49,7 @@ class UsuarioPublico(BaseModel):
     status: str
     alergiaAlimentar: str | None = None
     permissoes: dict[str, bool]
+    trocaSenhaObrigatoria: bool
 
 
 class LoginResposta(BaseModel):
@@ -77,6 +78,7 @@ def _usuario_publico(row: dict) -> UsuarioPublico:
         status=row["status"],
         alergiaAlimentar=row["alergia_alimentar"],
         permissoes=_permissoes_do_usuario(str(row["id"]), row["perfil"]),
+        trocaSenhaObrigatoria=row["senha_temporaria"],
     )
 
 
@@ -134,7 +136,7 @@ def trocar_senha(body: TrocarSenhaBody, usuario: UsuarioAtual = Depends(require_
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE usuarios SET senha_hash = %s, updated_at = now() WHERE id = %s;",
+                "UPDATE usuarios SET senha_hash = %s, senha_temporaria = false, updated_at = now() WHERE id = %s;",
                 (hash_senha(body.novaSenha), usuario.id),
             )
         conn.commit()
@@ -213,7 +215,7 @@ def redefinir_senha(body: RedefinirSenhaBody):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE usuarios SET senha_hash = %s, updated_at = now() WHERE id = %s;",
+                "UPDATE usuarios SET senha_hash = %s, senha_temporaria = false, updated_at = now() WHERE id = %s;",
                 (hash_senha(body.novaSenha), usuario_id),
             )
         conn.commit()
