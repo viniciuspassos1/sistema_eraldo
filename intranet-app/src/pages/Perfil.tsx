@@ -7,7 +7,7 @@ import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { fetchFerias, FeriasApiError } from '../api/ferias';
-import { formatDateLong, formatDate } from '../utils/format';
+import { formatDateNoYear, formatDate } from '../utils/format';
 import type { Vacation } from '../types';
 
 export function Perfil() {
@@ -51,7 +51,7 @@ export function Perfil() {
             )}
             <div className="flex items-center gap-2 text-navy">
               <Calendar className="w-4 h-4 text-text-secondary" />
-              Aniversário: {formatDateLong(user.aniversario).replace(/de \d{4}/, '').trim()}
+              Aniversário: {formatDateNoYear(user.aniversario)}
             </div>
             <div className="flex items-center gap-2 text-navy">
               <Briefcase className="w-4 h-4 text-text-secondary" /> No escritório desde {formatDate(user.dataEntrada)}

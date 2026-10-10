@@ -8,7 +8,7 @@ import { EmptyState } from '../components/EmptyState';
 import { Skeleton } from '../components/Skeleton';
 import { fetchFuncionario, FuncionariosApiError } from '../api/funcionarios';
 import { fetchFerias } from '../api/ferias';
-import { formatDateLong, formatDate } from '../utils/format';
+import { formatDateNoYear, formatDate } from '../utils/format';
 import type { User, Vacation } from '../types';
 
 export function FuncionarioPerfil() {
@@ -84,7 +84,7 @@ export function FuncionarioPerfil() {
               </div>
             )}
             <div className="flex items-center gap-2 text-navy">
-              <Calendar className="w-4 h-4 text-text-secondary" /> Aniversário: {formatDateLong(funcionario.aniversario).replace(/\d{4}/, '').trim()}
+              <Calendar className="w-4 h-4 text-text-secondary" /> Aniversário: {formatDateNoYear(funcionario.aniversario)}
             </div>
             <div className="flex items-center gap-2 text-navy">
               <Briefcase className="w-4 h-4 text-text-secondary" /> No escritório desde {formatDate(funcionario.dataEntrada)}

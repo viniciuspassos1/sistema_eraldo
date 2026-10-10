@@ -8,6 +8,10 @@ export function formatDateLong(iso: string): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
+export function formatDateNoYear(iso: string): string {
+  return formatDateLong(iso).replace(/de \d{4}/, '').trim();
+}
+
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }

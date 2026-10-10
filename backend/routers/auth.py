@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 
 from config import FRONTEND_URL, JWT_EXPIRES_MINUTOS_REDEFINICAO
@@ -148,7 +148,7 @@ class EsqueciSenhaBody(BaseModel):
 
 
 @router.post("/api/auth/esqueci-senha", status_code=204)
-def esqueci_senha(body: EsqueciSenhaBody):
+def esqueci_senha(body: EsqueciSenhaBody, background_tasks: BackgroundTasks):
     email = body.email.strip().lower()
 
     # Mesmo limitador de tentativas do login (login_bloqueado/registrar_falha_login
@@ -186,7 +186,11 @@ def esqueci_senha(body: EsqueciSenhaBody):
         f"{link}\n\n"
         "Se você não pediu isso, pode ignorar este e-mail — sua senha atual continua funcionando normalmente."
     )
-    enviar_email(email, "Redefinir senha - Intranet Eraldo Júnior", corpo)
+    # Envio de e-mail fica numa background task: o SMTP pode demorar vários
+    # segundos (ou travar em caso de instabilidade), e isso não pode atrasar
+    # a resposta 204 — nem abrir uma diferença de tempo entre "e-mail existe"
+    # (este caminho) e "e-mail não existe" (retorno antecipado acima).
+    background_tasks.add_task(enviar_email, email, "Redefinir senha - Intranet Eraldo Júnior", corpo)
     registrar_log(str(row["id"]), "esqueci_senha_solicitado")
 
 

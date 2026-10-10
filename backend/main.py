@@ -48,11 +48,18 @@ app.add_middleware(
 
 
 def _client_ip(request: Request) -> str:
-    # Atrás de um proxy reverso (nginx, etc.), a origem real vem em
-    # X-Forwarded-For; sem proxy, cai no IP direto da conexão.
+    # Atrás de um proxy reverso (Render), o IP real do cliente é o que o
+    # PRÓPRIO proxy anexa à lista — ou seja, o ÚLTIMO valor, não o primeiro.
+    # Um cliente mal-intencionado pode mandar seu próprio X-Forwarded-For
+    # (ex.: "1.2.3.4") já na requisição original; se pegássemos o primeiro
+    # valor, esse IP forjado "venceria" e o rate limit seria por um IP falso
+    # (burlável variando o header a cada rajada). O último hop é sempre
+    # escrito pelo proxy confiável, nunca pelo cliente.
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        partes = [p.strip() for p in forwarded.split(",") if p.strip()]
+        if partes:
+            return partes[-1]
     return request.client.host if request.client else "desconhecido"
 
 
@@ -69,6 +76,21 @@ async def seguranca_middleware(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    # Defesa em profundidade: o token de sessão fica em localStorage (não em
+    # cookie httpOnly), então um XSS futuro teria acesso a ele. O CSP não
+    # evita o XSS em si, mas bloqueia a execução de script que não seja do
+    # próprio frontend, reduzindo bastante essa superfície.
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self';"
+    )
     return response
 
 

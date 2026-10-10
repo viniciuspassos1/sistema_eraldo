@@ -18,7 +18,6 @@ import {
   CalendarClock,
   Check,
 } from 'lucide-react';
-import { SearchBar } from './SearchBar';
 import { Avatar } from './Avatar';
 import { useAuth } from '../context/AuthContext';
 import { useNotificacoes } from '../context/NotificacoesContext';
@@ -71,8 +70,6 @@ export function Header({ onOpenMobileMenu }: { onOpenMobileMenu: () => void }) {
       <button onClick={onOpenMobileMenu} className="lg:hidden text-navy" aria-label="Abrir menu">
         <Menu className="w-5 h-5" />
       </button>
-
-      <SearchBar />
 
       <div className="ml-auto flex items-center gap-2">
         <div className="relative" ref={notifRef}>
