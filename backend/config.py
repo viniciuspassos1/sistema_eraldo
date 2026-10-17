@@ -54,15 +54,15 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
 # de verdade para funcionários reais. Ativar só em produção.
 ENABLE_BACKGROUND_JOBS = os.getenv("ENABLE_BACKGROUND_JOBS", "false").strip().lower() == "true"
 
-# SMTP para o lembrete de reunião por e-mail (complementar ao alerta sonoro,
-# que só funciona com a aba aberta). Sem SMTP_HOST configurado, esse envio
-# fica silenciosamente desativado — os alertas de onboarding/SLA continuam
+# Envio de e-mail (lembrete de reunião, "esqueci minha senha") via API HTTP
+# da Resend — não via SMTP direto: o Render (e a maioria dos PaaS gratuitos)
+# bloqueia conexão SMTP de saída ("Network is unreachable" mesmo com
+# credencial certa), então smtplib nunca funcionaria lá. HTTPS de saída não
+# tem esse bloqueio. Sem RESEND_API_KEY configurada, o envio fica
+# silenciosamente desativado — os alertas de onboarding/SLA continuam
 # funcionando normalmente (são notificações internas, não e-mail).
-SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "").strip()
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
-SMTP_FROM = os.getenv("SMTP_FROM", "").strip()
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
+EMAIL_FROM = os.getenv("EMAIL_FROM", "").strip()
 
 # IA generativa (Gemini) — só usada em dois lugares que precisam de texto
 # gerado de verdade: aba "Comunicação" do Assistente IA e "ajudar a redigir"

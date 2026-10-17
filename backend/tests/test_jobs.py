@@ -8,10 +8,10 @@ import jobs
 from database import get_connection
 
 
-def test_smtp_nao_configurado_desativa_lembrete_por_email():
-    # Sem SMTP_HOST no .env de teste, o job de lembrete de reunião não deve
-    # tentar mandar e-mail nenhum (nem lançar exceção).
-    assert jobs.smtp_configurado() is False
+def test_email_nao_configurado_desativa_lembrete_por_email():
+    # Sem RESEND_API_KEY no .env de teste, o job de lembrete de reunião não
+    # deve tentar mandar e-mail nenhum (nem lançar exceção).
+    assert jobs.email_configurado() is False
     jobs._checar_lembretes_reuniao()  # não deve levantar
 
 

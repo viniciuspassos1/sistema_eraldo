@@ -2,7 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, EmailStr
 
 from config import FRONTEND_URL, JWT_EXPIRES_MINUTOS_REDEFINICAO
-from emailer import enviar_email, smtp_configurado
+from emailer import enviar_email, email_configurado
 from security import (
     require_api_key,
     require_user,
@@ -172,10 +172,10 @@ def esqueci_senha(body: EsqueciSenhaBody, background_tasks: BackgroundTasks):
         registrar_log(None, "esqueci_senha_email_desconhecido", detalhes={"email": email}, status="ERRO")
         return
 
-    if not smtp_configurado() or not FRONTEND_URL:
+    if not email_configurado() or not FRONTEND_URL:
         # Não expõe esse detalhe pro cliente (resposta continua 204 igual),
         # só fica registrado no log/servidor pra quem administra perceber.
-        registrar_log(str(row["id"]), "esqueci_senha_smtp_nao_configurado", status="ERRO")
+        registrar_log(str(row["id"]), "esqueci_senha_email_nao_configurado", status="ERRO")
         return
 
     token = criar_token_redefinicao(str(row["id"]))

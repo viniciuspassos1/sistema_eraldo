@@ -23,7 +23,7 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 
 from database import fetch_all, get_connection
-from emailer import enviar_email, smtp_configurado
+from emailer import enviar_email, email_configurado
 from backup import executar_backup, ja_rodou_hoje
 from config import BACKUP_HORA_ALVO_BRT
 
@@ -57,7 +57,7 @@ def _inserir_notificacao(cur, destinatario_id: str, mensagem: str, tipo: str) ->
 
 
 def _checar_lembretes_reuniao() -> None:
-    if not smtp_configurado():
+    if not email_configurado():
         return
     agora = datetime.now()
     hoje = agora.date()
