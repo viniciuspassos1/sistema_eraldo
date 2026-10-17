@@ -68,6 +68,24 @@ def requisicao_permitida(ip: str) -> bool:
     return len(recentes) <= _MAX_REQUISICOES_POR_MINUTO
 
 
+# Limite dedicado para o endpoint de IA (Gemini) da Cooperativa de Ideias —
+# cada chamada gera custo externo, então um teto por usuário evita abuso e
+# gasto descontrolado (SEC-07). Generoso de propósito (não atrapalha uso
+# normal de redigir uma ideia); em memória, mesmo trade-off dos limitadores
+# acima (reseta no restart, aceitável pro tamanho do time).
+_MAX_IA_POR_JANELA = 20
+_JANELA_IA_SEGUNDOS = 5 * 60
+_chamadas_ia: dict[str, list[float]] = defaultdict(list)
+
+
+def ia_rate_limitada(chave: str) -> bool:
+    agora = time.time()
+    recentes = [t for t in _chamadas_ia.get(chave, []) if agora - t < _JANELA_IA_SEGUNDOS]
+    recentes.append(agora)
+    _chamadas_ia[chave] = recentes
+    return len(recentes) > _MAX_IA_POR_JANELA
+
+
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
     if not API_KEY:
         raise HTTPException(

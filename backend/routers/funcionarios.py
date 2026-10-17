@@ -74,10 +74,21 @@ def _serialize(row: dict) -> Funcionario:
     )
 
 
+# Alergia alimentar é dado de saúde: só o próprio funcionário e o admin veem o
+# da pessoa. Para os demais, o campo volta vazio no diretório (SEC-02). O valor
+# continua inteiro no /api/auth/me do dono (ver auth.py) e na edição de admin.
+def _ocultar_alergia_de_terceiros(row: dict, usuario: UsuarioAtual) -> dict:
+    if usuario.perfil == "ADMINISTRADOR" or str(row["id"]) == usuario.id:
+        return row
+    row = dict(row)
+    row["alergia_alimentar"] = None
+    return row
+
+
 @router.get("/api/funcionarios", response_model=list[Funcionario])
 def listar_funcionarios(usuario: UsuarioAtual = Depends(require_user)):
     rows = fetch_all(f"SELECT {_COLUNAS} FROM usuarios ORDER BY nome;")
-    return [_serialize(r) for r in rows]
+    return [_serialize(_ocultar_alergia_de_terceiros(r, usuario)) for r in rows]
 
 
 @router.get("/api/funcionarios/{funcionario_id}", response_model=Funcionario)
@@ -89,7 +100,7 @@ def obter_funcionario(funcionario_id: str, usuario: UsuarioAtual = Depends(requi
 
     if not row:
         raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
-    return _serialize(row)
+    return _serialize(_ocultar_alergia_de_terceiros(row, usuario))
 
 
 @router.patch("/api/funcionarios/minha-alergia", response_model=Funcionario)
@@ -154,6 +165,16 @@ def editar_funcionario(funcionario_id: str, body: AtualizarFuncionario, admin: U
     anterior = fetch_one("SELECT nome, cargo, setor, perfil, telefone FROM usuarios WHERE id = %s;", (funcionario_id,))
     if not anterior:
         raise HTTPException(status_code=404, detail="Funcionário não encontrado.")
+
+    # Trava de "último administrador": não deixa rebaixar quem é o único admin
+    # ativo, senão o sistema ficaria sem ninguém com acesso à Administração (SEC-06).
+    if anterior["perfil"] == "ADMINISTRADOR" and body.perfil != "ADMINISTRADOR":
+        outros = fetch_one(
+            "SELECT count(*) AS n FROM usuarios WHERE perfil = 'ADMINISTRADOR' AND status <> 'INATIVO' AND id <> %s;",
+            (funcionario_id,),
+        )
+        if not outros or outros["n"] == 0:
+            raise HTTPException(status_code=400, detail="Não é possível remover o último administrador ativo.")
 
     try:
         with get_connection() as conn:

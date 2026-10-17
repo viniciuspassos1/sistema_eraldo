@@ -64,8 +64,17 @@ def _proximo_numero(cur) -> str:
 
 
 @router.get("/api/solicitacoes", response_model=list[Solicitacao])
-def listar_solicitacoes():
-    rows = fetch_all(_SELECT + " ORDER BY s.data DESC, s.numero DESC;")
+def listar_solicitacoes(usuario: UsuarioAtual = Depends(require_user)):
+    # Admin vê todas; funcionário vê só as próprias (solicitante) e as que é
+    # responsável — sem isso, qualquer um com acesso à página enxergava a
+    # descrição das solicitações de todos os colegas (SEC-01).
+    if usuario.perfil == "ADMINISTRADOR":
+        rows = fetch_all(_SELECT + " ORDER BY s.data DESC, s.numero DESC;")
+    else:
+        rows = fetch_all(
+            _SELECT + " WHERE s.solicitante_id = %s OR s.responsavel_id = %s ORDER BY s.data DESC, s.numero DESC;",
+            (usuario.id, usuario.id),
+        )
     return [_serialize(r) for r in rows]
 
 

@@ -2,7 +2,7 @@ import psycopg2
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from security import require_api_key, require_user, require_admin, require_pagina, UsuarioAtual
+from security import require_api_key, require_user, require_admin, require_pagina, ia_rate_limitada, UsuarioAtual
 from database import fetch_all, fetch_one, get_connection
 from llm import gerar_texto
 from logs import registrar_log, registrar_edicao
@@ -106,6 +106,8 @@ class RedigirResponse(BaseModel):
 
 @router.post("/api/cooperativa-ideias/redigir", response_model=RedigirResponse)
 def redigir_ideia(body: RedigirRequest, _usuario: UsuarioAtual = Depends(require_user)) -> RedigirResponse:
+    if ia_rate_limitada(f"redigir:{_usuario.id}"):
+        raise HTTPException(status_code=429, detail="Muitas solicitações à IA em pouco tempo. Aguarde alguns minutos e tente de novo.")
     prompt = f"Título: {body.titulo}\nFormato: {body.formato}\nTema: {body.tema}"
     descricao = gerar_texto(prompt, _INSTRUCAO_REDIGIR)
     return RedigirResponse(descricaoSugerida=descricao)
