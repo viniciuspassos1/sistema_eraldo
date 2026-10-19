@@ -20,7 +20,7 @@ from security import (
     PAGINAS_PERMISSAO,
     UsuarioAtual,
 )
-from database import fetch_one, get_connection
+from database import fetch_all, fetch_one, get_connection
 from logs import registrar_log
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
@@ -60,7 +60,13 @@ class LoginResposta(BaseModel):
 def _permissoes_do_usuario(usuario_id: str, perfil: str) -> dict[str, bool]:
     if perfil == "ADMINISTRADOR":
         return {pagina: True for pagina in PAGINAS_PERMISSAO}
-    return {pagina: usuario_tem_permissao(usuario_id, pagina) for pagina in PAGINAS_PERMISSAO}
+    # Uma consulta só, em vez de uma por página: antes chamava usuario_tem_permissao
+    # dentro de um loop (N+1), ~10 idas ao banco por login de funcionário e em todo
+    # /api/auth/me — ~1s a mais por chamada. Semântica mantida: página sem linha
+    # cadastrada continua liberada por padrão (True).
+    rows = fetch_all("SELECT pagina, permitido FROM permissoes_acesso WHERE usuario_id = %s;", (usuario_id,))
+    excecoes = {r["pagina"]: r["permitido"] for r in rows}
+    return {pagina: excecoes.get(pagina, True) for pagina in PAGINAS_PERMISSAO}
 
 
 def _usuario_publico(row: dict) -> UsuarioPublico:
