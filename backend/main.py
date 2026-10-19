@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import time
@@ -122,11 +123,17 @@ def load_services() -> list[dict]:
     AUTH_SERVICE_<N>_NAME=Nome do serviço
     AUTH_SERVICE_<N>_SECRET=CHAVE_BASE32
     AUTH_SERVICE_<N>_PERFIS=ADMINISTRADOR,FINANCEIRO  (opcional)
+    AUTH_SERVICE_<N>_DIGITS=6        (opcional, padrão 6)
+    AUTH_SERVICE_<N>_ALGORITHM=SHA1  (opcional, padrão SHA1; aceita SHA256/SHA512)
+    AUTH_SERVICE_<N>_PERIOD=30       (opcional, padrão 30s)
     O segredo nunca sai deste processo — só o código atual, calculado aqui.
     PERFIS é opcional: se omitido, o serviço fica visível pra qualquer um com
     acesso à página "Meu Authenticator" (comportamento anterior, mantido por
     compatibilidade). Se definido, só perfis nessa lista veem o serviço —
     ADMINISTRADOR sempre vê todos, independente de PERFIS (ver get_codes).
+    DIGITS/ALGORITHM/PERIOD são opcionais e só precisam ser setados pra um
+    serviço cujo TOTP não use o padrão (6 dígitos / SHA1 / 30s) — foi o caso
+    do PDPJ. Quem não define esses campos continua no padrão, sem mudança.
     """
     services = []
     index = 1
@@ -137,9 +144,22 @@ def load_services() -> list[dict]:
             break
         perfis_raw = os.getenv(f"AUTH_SERVICE_{index}_PERFIS", "").strip()
         perfis = [p.strip() for p in perfis_raw.split(",") if p.strip()] or None
-        services.append({"id": f"service-{index}", "name": name, "secret": secret, "perfis": perfis})
+        services.append({
+            "id": f"service-{index}",
+            "name": name,
+            # Espaços e caixa não mudam o TOTP (base32 é case-insensitive), mas
+            # um espaço colado ao colar o segredo quebra o decode — limpa aqui.
+            "secret": secret.strip().replace(" ", ""),
+            "perfis": perfis,
+            "digits": int(os.getenv(f"AUTH_SERVICE_{index}_DIGITS", "6")),
+            "algorithm": os.getenv(f"AUTH_SERVICE_{index}_ALGORITHM", "SHA1").strip().upper(),
+            "period": int(os.getenv(f"AUTH_SERVICE_{index}_PERIOD", "30")),
+        })
         index += 1
     return services
+
+
+_DIGEST_POR_NOME = {"SHA1": hashlib.sha1, "SHA256": hashlib.sha256, "SHA512": hashlib.sha512}
 
 
 @app.get("/api/authenticator/codes")
@@ -161,7 +181,12 @@ def get_codes(
     now = time.time()
     result = []
     for service in services:
-        totp = pyotp.TOTP(service["secret"])
+        totp = pyotp.TOTP(
+            service["secret"],
+            digits=service.get("digits", 6),
+            digest=_DIGEST_POR_NOME.get(service.get("algorithm", "SHA1"), hashlib.sha1),
+            interval=service.get("period", 30),
+        )
         period = totp.interval
         seconds_remaining = period - int(now) % period
         result.append(
